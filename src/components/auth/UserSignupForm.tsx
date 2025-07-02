@@ -28,6 +28,7 @@ export function UserSignupForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeolocating, setIsGeolocating] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -40,6 +41,39 @@ export function UserSignupForm() {
       confirmPassword: '',
     },
   });
+
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+      setIsGeolocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const latLon = `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
+          form.setValue('address', latLon, { shouldValidate: true });
+          toast({
+            title: 'Location Fetched',
+            description: 'Address field updated with coordinates. Full address lookup is not implemented in this demo.',
+          });
+          setIsGeolocating(false);
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          toast({
+            variant: 'destructive',
+            title: 'Could not get location',
+            description: error.message,
+          });
+          setIsGeolocating(false);
+        }
+      );
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Geolocation Not Supported',
+        description: 'Your browser does not support geolocation.',
+      });
+    }
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -81,10 +115,18 @@ export function UserSignupForm() {
               <FormLabel>Full Address & Location</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <Textarea placeholder="123 Jalan Ampang, 50450 Kuala Lumpur" {...field} />
-                  <div className="absolute top-2 right-2 text-muted-foreground p-1 bg-background rounded-full">
-                    <MapPin className="h-4 w-4" />
-                  </div>
+                  <Textarea placeholder="123 Jalan Ampang, 50450 Kuala Lumpur, or click the pin to get your location." {...field} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1 right-1 h-8 w-8 text-muted-foreground hover:text-primary"
+                    onClick={handleGetLocation}
+                    disabled={isGeolocating}
+                    aria-label="Get current location"
+                  >
+                    {isGeolocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                  </Button>
                 </div>
               </FormControl>
               <FormMessage />
