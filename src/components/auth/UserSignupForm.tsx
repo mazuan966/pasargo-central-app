@@ -15,6 +15,8 @@ import { Loader2, MapPin } from 'lucide-react';
 const formSchema = z.object({
   restaurantName: z.string().min(1, { message: 'Restaurant name is required.' }),
   address: z.string().min(1, { message: 'Address is required.' }),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
   phoneNumber: z.string().min(1, { message: 'Phone number is required.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
@@ -35,6 +37,8 @@ export function UserSignupForm() {
     defaultValues: {
       restaurantName: '',
       address: '',
+      latitude: '',
+      longitude: '',
       phoneNumber: '',
       email: '',
       password: '',
@@ -48,11 +52,11 @@ export function UserSignupForm() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const latLon = `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
-          form.setValue('address', latLon, { shouldValidate: true });
+          form.setValue('latitude', latitude.toFixed(6));
+          form.setValue('longitude', longitude.toFixed(6));
           toast({
             title: 'Location Fetched',
-            description: 'Address field updated with coordinates. Full address lookup is not implemented in this demo.',
+            description: 'Latitude and Longitude fields have been updated.',
           });
           setIsGeolocating(false);
         },
@@ -112,27 +116,66 @@ export function UserSignupForm() {
           name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Address & Location</FormLabel>
+              <FormLabel>Full Address</FormLabel>
               <FormControl>
-                <div className="relative">
-                  <Textarea placeholder="123 Jalan Ampang, 50450 Kuala Lumpur, or click the pin to get your location." {...field} />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-1 right-1 h-8 w-8 text-muted-foreground hover:text-primary"
-                    onClick={handleGetLocation}
-                    disabled={isGeolocating}
-                    aria-label="Get current location"
-                  >
-                    {isGeolocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                  </Button>
-                </div>
+                <Textarea
+                  placeholder="e.g., 123 Jalan Ampang, 50450 Kuala Lumpur"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        <div className="space-y-2">
+            <div className="flex justify-between items-center">
+                <FormLabel>Location</FormLabel>
+                <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGetLocation}
+                disabled={isGeolocating}
+                >
+                {isGeolocating ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <MapPin className="mr-2 h-4 w-4" />
+                )}
+                Get Current Location
+                </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-xs font-normal text-muted-foreground">Latitude</FormLabel>
+                        <FormControl>
+                        <Input placeholder="Auto-filled" {...field} readOnly />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-xs font-normal text-muted-foreground">Longitude</FormLabel>
+                        <FormControl>
+                        <Input placeholder="Auto-filled" {...field} readOnly />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+
         <FormField
           control={form.control}
           name="phoneNumber"
