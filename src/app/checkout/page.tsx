@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -20,8 +20,15 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  if (cartItems.length === 0 && typeof window !== 'undefined') {
-    router.replace('/dashboard');
+  useEffect(() => {
+    // Redirect if cart is empty. This effect runs on the client after mount.
+    if (cartItems.length === 0) {
+      router.replace('/dashboard');
+    }
+  }, [cartItems, router]);
+
+  // Prevent rendering the page content if the cart is empty (while redirecting)
+  if (cartItems.length === 0) {
     return null;
   }
   
