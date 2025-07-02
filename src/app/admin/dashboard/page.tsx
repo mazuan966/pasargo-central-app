@@ -25,16 +25,16 @@ const statusBadgeVariants = cva(
   {
     variants: {
       status: {
-        Pending: "bg-yellow-200 text-yellow-800",
+        'Order Created': "bg-yellow-200 text-yellow-800",
         Processing: "bg-blue-200 text-blue-800",
-        'Out for Delivery': "bg-indigo-200 text-indigo-800",
+        'Pick Up': "bg-indigo-200 text-indigo-800",
         Delivered: "bg-green-200 text-green-800",
         Completed: "bg-emerald-200 text-emerald-800",
         Cancelled: "bg-red-200 text-red-800",
       },
     },
     defaultVariants: {
-      status: "Pending",
+      status: "Order Created",
     },
   }
 )
@@ -44,19 +44,19 @@ const paymentBadgeVariants = cva(
   {
     variants: {
       status: {
-        Unpaid: "bg-red-200 text-red-800",
+        'Pending Payment': "bg-red-200 text-red-800",
         'Pending Confirmation': "bg-yellow-200 text-yellow-800",
         Paid: "bg-green-200 text-green-800",
       },
     },
     defaultVariants: {
-      status: "Unpaid",
+      status: "Pending Payment",
     },
   }
 )
 
 function StatusUpdateMenu({ orderId, currentStatus }: { orderId: string, currentStatus: OrderStatus }) {
-    const statuses: OrderStatus[] = ['Pending', 'Processing', 'Out for Delivery', 'Delivered', 'Cancelled'];
+    const statuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Cancelled'];
     // In a real app, this would call a server action
     const handleUpdate = (status: OrderStatus) => {
         console.log(`Updating order ${orderId} to ${status}`);

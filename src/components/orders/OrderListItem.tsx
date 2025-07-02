@@ -10,16 +10,16 @@ const statusBadgeVariants = cva(
   {
     variants: {
       status: {
-        Pending: "bg-yellow-200 text-yellow-800 hover:bg-yellow-300",
+        'Order Created': "bg-yellow-200 text-yellow-800 hover:bg-yellow-300",
         Processing: "bg-blue-200 text-blue-800 hover:bg-blue-300",
-        'Out for Delivery': "bg-indigo-200 text-indigo-800 hover:bg-indigo-300",
+        'Pick Up': "bg-indigo-200 text-indigo-800 hover:bg-indigo-300",
         Delivered: "bg-green-200 text-green-800 hover:bg-green-300",
         Completed: "bg-emerald-200 text-emerald-800 hover:bg-emerald-300",
         Cancelled: "bg-red-200 text-red-800 hover:bg-red-300",
       },
     },
     defaultVariants: {
-      status: "Pending",
+      status: "Order Created",
     },
   }
 )

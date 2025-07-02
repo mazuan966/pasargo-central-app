@@ -31,9 +31,9 @@ export const mockOrders: Order[] = [
     paymentMethod: 'Cash on Delivery',
     paymentStatus: 'Paid',
     statusHistory: [
-        { status: 'Pending', timestamp: '2024-07-28T09:30:00Z' },
+        { status: 'Order Created', timestamp: '2024-07-28T09:30:00Z' },
         { status: 'Processing', timestamp: '2024-07-28T10:00:00Z' },
-        { status: 'Out for Delivery', timestamp: '2024-07-28T12:00:00Z' },
+        { status: 'Pick Up', timestamp: '2024-07-28T12:00:00Z' },
         { status: 'Delivered', timestamp: '2024-07-28T14:00:00Z' },
     ],
     deliveryVerification: {
@@ -56,15 +56,15 @@ export const mockOrders: Order[] = [
       { productId: 'prod-005', name: 'Basmati Rice', quantity: 2, price: 35.00 },
     ],
     total: 320.00,
-    status: 'Out for Delivery',
+    status: 'Pick Up',
     orderDate: '2024-07-29T04:55:00Z',
     paymentMethod: 'Bank Transfer',
     paymentStatus: 'Paid',
     paymentProofUrl: 'https://placehold.co/600x400.png',
     statusHistory: [
-        { status: 'Pending', timestamp: '2024-07-29T04:55:00Z' },
+        { status: 'Order Created', timestamp: '2024-07-29T04:55:00Z' },
         { status: 'Processing', timestamp: '2024-07-29T06:00:00Z' },
-        { status: 'Out for Delivery', timestamp: '2024-07-29T08:30:00Z' },
+        { status: 'Pick Up', timestamp: '2024-07-29T08:30:00Z' },
     ]
   },
   {
@@ -82,9 +82,9 @@ export const mockOrders: Order[] = [
     status: 'Processing',
     orderDate: '2024-07-30T03:00:00Z',
     paymentMethod: 'Cash on Delivery',
-    paymentStatus: 'Unpaid',
+    paymentStatus: 'Pending Payment',
     statusHistory: [
-        { status: 'Pending', timestamp: '2024-07-30T03:00:00Z' },
+        { status: 'Order Created', timestamp: '2024-07-30T03:00:00Z' },
         { status: 'Processing', timestamp: '2024-07-30T04:00:00Z' },
     ]
   }

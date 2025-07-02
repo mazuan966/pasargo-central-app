@@ -12,7 +12,7 @@ export default function DashboardPage() {
     .filter(o => o.user.id === 'user-01')
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   
-  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.paymentStatus === 'Unpaid');
+  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.paymentStatus === 'Pending Payment');
 
   return (
     <div className="space-y-8">

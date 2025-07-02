@@ -6,9 +6,11 @@ import { Package, Calendar, Truck, CheckCircle, Clock } from 'lucide-react';
 export function OrderDetails({ order }: { order: Order }) {
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'Order Created':
+        return <Package className="h-5 w-5 text-gray-500" />;
       case 'Processing':
         return <Clock className="h-5 w-5 text-blue-500" />;
-      case 'Out for Delivery':
+      case 'Pick Up':
         return <Truck className="h-5 w-5 text-indigo-500" />;
       case 'Delivered':
         return <CheckCircle className="h-5 w-5 text-green-500" />;

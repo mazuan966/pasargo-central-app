@@ -13,9 +13,9 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
-export type OrderStatus = 'Pending' | 'Processing' | 'Out for Delivery' | 'Delivered' | 'Completed' | 'Cancelled';
+export type OrderStatus = 'Order Created' | 'Processing' | 'Pick Up' | 'Delivered' | 'Completed' | 'Cancelled';
 export type PaymentMethod = 'Cash on Delivery' | 'Bank Transfer';
-export type PaymentStatus = 'Unpaid' | 'Paid' | 'Pending Confirmation';
+export type PaymentStatus = 'Pending Payment' | 'Paid' | 'Pending Confirmation';
 
 export interface Order {
   id: string;
