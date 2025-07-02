@@ -13,7 +13,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal } from 'lucide-react';
@@ -61,6 +73,9 @@ function StatusUpdateMenu({ orderId, currentStatus }: { orderId: string, current
     const handleUpdate = (status: OrderStatus) => {
         console.log(`Updating order ${orderId} to ${status}`);
     }
+    const handleDelete = () => {
+        console.log(`Deleting order ${orderId}`);
+    }
 
     return (
         <DropdownMenu>
@@ -76,6 +91,34 @@ function StatusUpdateMenu({ orderId, currentStatus }: { orderId: string, current
                         Set to {status}
                     </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <DropdownMenuItem
+                            onSelect={(e) => e.preventDefault()}
+                            className="text-destructive focus:text-destructive"
+                        >
+                            Delete Order
+                        </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the order.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </DropdownMenuContent>
         </DropdownMenu>
     )

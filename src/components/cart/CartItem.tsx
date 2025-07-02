@@ -17,7 +17,7 @@ export default function CartItem({ item }: { item: CartItemType }) {
       </div>
       <div className="flex-grow">
         <p className="font-semibold">{item.name}</p>
-        <p className="text-sm text-muted-foreground">RM {item.price.toFixed(2)}</p>
+        <p className="text-sm text-muted-foreground">RM {item.price.toFixed(2)} / {item.unit}</p>
       </div>
       <div className="flex items-center gap-2">
         <Input

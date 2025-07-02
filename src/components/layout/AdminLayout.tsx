@@ -6,6 +6,7 @@ import {
   Package,
   LogOut,
   Map,
+  ShoppingBag
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -24,6 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navLinks = [
     { href: '/admin/dashboard', icon: Package, label: 'Orders' },
+    { href: '/admin/dashboard/products', icon: ShoppingBag, label: 'Products' },
     { href: '/admin/dashboard/map', icon: Map, label: 'Map View' },
   ];
 
@@ -44,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={href}
                   href={href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary ${
-                    pathname.startsWith(href) && (href !== '/admin/dashboard' || pathname === '/admin/dashboard') ? 'bg-muted text-primary' : ''
+                    (href === '/admin/dashboard' && pathname === href) || (href !== '/admin/dashboard' && pathname.startsWith(href)) ? 'bg-muted text-primary' : ''
                   }`}
                 >
                   <Icon className="h-4 w-4" />

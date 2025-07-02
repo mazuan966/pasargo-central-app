@@ -1,14 +1,14 @@
 import type { Product, Order } from './types';
 
 export const mockProducts: Product[] = [
-  { id: 'prod-001', name: 'Fresh Tomatoes', description: 'Locally sourced ripe tomatoes.', price: 5.50, imageUrl: 'https://placehold.co/600x400.png', category: 'Vegetables', stock: 100, 'data-ai-hint': 'fresh tomatoes' },
-  { id: 'prod-002', name: 'Organic Spinach', description: 'Fresh organic spinach leaves.', price: 7.20, imageUrl: 'https://placehold.co/600x400.png', category: 'Vegetables', stock: 80, 'data-ai-hint': 'organic spinach' },
-  { id: 'prod-003', name: 'Red Apples', description: 'Crisp and sweet red apples.', price: 4.80, imageUrl: 'https://placehold.co/600x400.png', category: 'Fruits', stock: 120, 'data-ai-hint': 'red apples' },
-  { id: 'prod-004', name: 'Whole Chicken', description: 'Farm-raised whole chicken.', price: 25.00, imageUrl: 'https://placehold.co/600x400.png', category: 'Meat', stock: 30, 'data-ai-hint': 'raw chicken' },
-  { id: 'prod-005', name: 'Basmati Rice', description: 'Premium long-grain basmati rice (5kg).', price: 35.00, imageUrl: 'https://placehold.co/600x400.png', category: 'Groceries', stock: 50, 'data-ai-hint': 'basmati rice' },
-  { id: 'prod-006', name: 'Olive Oil', description: 'Extra virgin olive oil (1L).', price: 42.00, imageUrl: 'https://placehold.co/600x400.png', category: 'Groceries', stock: 60, 'data-ai-hint': 'olive oil' },
-  { id: 'prod-007', name: 'Cheddar Cheese', description: 'Aged cheddar cheese block (250g).', price: 15.00, imageUrl: 'https://placehold.co/600x400.png', category: 'Dairy', stock: 75, 'data-ai-hint': 'cheddar cheese' },
-  { id: 'prod-008', name: 'Fresh Milk', description: 'Full cream milk (1L).', price: 6.50, imageUrl: 'https://placehold.co/600x400.png', category: 'Dairy', stock: 90, 'data-ai-hint': 'milk carton' },
+  { id: 'prod-001', name: 'Fresh Tomatoes', description: 'Locally sourced ripe tomatoes.', price: 5.50, unit: 'kg', imageUrl: 'https://placehold.co/600x400.png', category: 'Vegetables', stock: 100, 'data-ai-hint': 'fresh tomatoes' },
+  { id: 'prod-002', name: 'Organic Spinach', description: 'Fresh organic spinach leaves.', price: 7.20, unit: 'kg', imageUrl: 'https://placehold.co/600x400.png', category: 'Vegetables', stock: 80, 'data-ai-hint': 'organic spinach' },
+  { id: 'prod-003', name: 'Red Apples', description: 'Crisp and sweet red apples.', price: 4.80, unit: 'kg', imageUrl: 'https://placehold.co/600x400.png', category: 'Fruits', stock: 120, 'data-ai-hint': 'red apples' },
+  { id: 'prod-004', name: 'Whole Chicken', description: 'Farm-raised whole chicken.', price: 25.00, unit: 'item', imageUrl: 'https://placehold.co/600x400.png', category: 'Meat', stock: 30, 'data-ai-hint': 'raw chicken' },
+  { id: 'prod-005', name: 'Basmati Rice', description: 'Premium long-grain basmati rice (5kg).', price: 35.00, unit: 'item', imageUrl: 'https://placehold.co/600x400.png', category: 'Groceries', stock: 50, 'data-ai-hint': 'basmati rice' },
+  { id: 'prod-006', name: 'Olive Oil', description: 'Extra virgin olive oil (1L).', price: 42.00, unit: 'item', imageUrl: 'https://placehold.co/600x400.png', category: 'Groceries', stock: 60, 'data-ai-hint': 'olive oil' },
+  { id: 'prod-007', name: 'Cheddar Cheese', description: 'Aged cheddar cheese block (250g).', price: 15.00, unit: 'item', imageUrl: 'https://placehold.co/600x400.png', category: 'Dairy', stock: 75, 'data-ai-hint': 'cheddar cheese' },
+  { id: 'prod-008', name: 'Fresh Milk', description: 'Full cream milk (1L).', price: 6.50, unit: 'item', imageUrl: 'https://placehold.co/600x400.png', category: 'Dairy', stock: 90, 'data-ai-hint': 'milk carton' },
 ];
 
 export const mockOrders: Order[] = [
