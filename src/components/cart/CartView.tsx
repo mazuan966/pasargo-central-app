@@ -61,9 +61,11 @@ export default function CartView() {
             </div>
           </CardContent>
           <CardFooter className="flex-col gap-2">
-            <Button className="w-full">
-              <Package className="mr-2 h-4 w-4" />
-              Proceed to Checkout
+            <Button asChild className="w-full">
+              <Link href="/checkout">
+                <Package className="mr-2 h-4 w-4" />
+                Proceed to Checkout
+              </Link>
             </Button>
             <Button variant="outline" className="w-full" onClick={clearCart}>
               Clear Cart
