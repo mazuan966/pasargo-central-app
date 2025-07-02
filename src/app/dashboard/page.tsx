@@ -1,5 +1,8 @@
+'use client';
+
 import ProductList from '@/components/shop/ProductList';
-import { mockProducts, mockOrders } from '@/lib/mock-data';
+import { mockProducts } from '@/lib/mock-data';
+import { useOrders } from '@/hooks/use-orders';
 import { OrderListItem } from '@/components/orders/OrderListItem';
 import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,11 +11,12 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
 export default function DashboardPage() {
-  const userOrders = mockOrders
+  const { orders } = useOrders();
+  const userOrders = orders
     .filter(o => o.user.id === 'user-01')
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   
-  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.paymentStatus === 'Pending Payment');
+  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.status === 'Order Created' || order.paymentStatus === 'Pending Payment' || order.paymentStatus === 'Pending Confirmation');
 
   return (
     <div className="space-y-8">

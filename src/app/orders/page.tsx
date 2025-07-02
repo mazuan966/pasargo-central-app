@@ -1,10 +1,13 @@
+'use client';
+
 import { OrderListItem } from '@/components/orders/OrderListItem';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { mockOrders } from '@/lib/mock-data';
+import { useOrders } from '@/hooks/use-orders';
 import type { Order } from '@/lib/types';
 
 export default function OrdersPage() {
-  const userOrders = mockOrders.filter(o => o.user.id === 'user-01');
+  const { orders } = useOrders();
+  const userOrders = orders.filter(o => o.user.id === 'user-01');
 
   return (
     <Card>

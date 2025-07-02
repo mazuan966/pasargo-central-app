@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
+import { useOrders } from '@/hooks/use-orders';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ type PaymentMethod = 'billplz' | 'cod';
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
+  const { addOrder } = useOrders();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('billplz');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -35,16 +37,11 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     setIsLoading(true);
 
-    // In a real application, you would create an order in your database
-    // and, if using Billplz, redirect to their payment gateway.
-    console.log('Placing order with:', {
-      items: cartItems,
-      total: cartTotal,
-      paymentMethod,
-    });
-    
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Add order to state
+    addOrder(cartItems, cartTotal, paymentMethod);
 
     toast({
       title: 'Order Placed Successfully!',
@@ -53,9 +50,6 @@ export default function CheckoutPage() {
     
     clearCart();
     router.push('/orders');
-
-    // NOTE: In a real app, you would add the new order to the user's order list.
-    // Since we are using static mock data, the new order will not appear in the list.
   };
 
   return (
