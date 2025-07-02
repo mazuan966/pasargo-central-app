@@ -21,7 +21,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { Badge } from '@/components/ui/badge';
-import { CartProvider } from '@/context/CartProvider';
 import { useCart } from '@/hooks/use-cart';
 
 const NavLink = ({ href, children, icon: Icon }: { href: string, children: React.ReactNode, icon: React.ElementType }) => {
@@ -58,7 +57,7 @@ function CartNavLink() {
   );
 }
 
-function InnerLayout({ children }: { children: React.ReactNode }) {
+export default function UserLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block">
@@ -111,13 +110,5 @@ function InnerLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
-  );
-}
-
-export default function UserLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <CartProvider>
-      <InnerLayout>{children}</InnerLayout>
-    </CartProvider>
   );
 }
