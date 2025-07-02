@@ -12,7 +12,7 @@ export default function DashboardPage() {
     .filter(o => o.user.id === 'user-01')
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   
-  const recentOrders = userOrders.slice(0, 3);
+  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.paymentStatus === 'Unpaid');
 
   return (
     <div className="space-y-8">
@@ -23,8 +23,8 @@ export default function DashboardPage() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-x-4">
                 <div>
-                    <CardTitle className="font-headline text-2xl">Recent Orders</CardTitle>
-                    <CardDescription>Here's the status of your most recent orders.</CardDescription>
+                    <CardTitle className="font-headline text-2xl">Action Required</CardTitle>
+                    <CardDescription>Orders that are processing or pending payment.</CardDescription>
                 </div>
                 <Button asChild variant="outline" size="sm">
                     <Link href="/orders">
@@ -41,7 +41,7 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-muted-foreground text-center py-8">You have no recent orders.</p>
+                    <p className="text-muted-foreground text-center py-8">You have no orders requiring attention.</p>
                 )}
             </CardContent>
         </Card>
