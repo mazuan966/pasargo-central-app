@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Package,
   LogOut,
+  Map,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -18,6 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  const navLinks = [
+    { href: '/admin/dashboard', icon: Package, label: 'Orders' },
+    { href: '/admin/dashboard/map', icon: Map, label: 'Map View' },
+  ];
+
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block">
@@ -30,13 +39,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex-1">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-              <Link
-                href="/admin/dashboard"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary bg-muted transition-all hover:text-primary"
-              >
-                <Package className="h-4 w-4" />
-                Orders
-              </Link>
+              {navLinks.map(({ href, icon: Icon, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary ${
+                    pathname.startsWith(href) && (href !== '/admin/dashboard' || pathname === '/admin/dashboard') ? 'bg-muted text-primary' : ''
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              ))}
             </nav>
           </div>
         </div>

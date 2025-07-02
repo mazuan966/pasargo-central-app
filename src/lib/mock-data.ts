@@ -14,7 +14,12 @@ export const mockProducts: Product[] = [
 export const mockOrders: Order[] = [
   {
     id: 'ORD-1001',
-    user: { id: 'user-01', restaurantName: 'The Daily Grind Cafe' },
+    user: { 
+      id: 'user-01', 
+      restaurantName: 'The Daily Grind Cafe',
+      latitude: 3.1390,
+      longitude: 101.6869,
+    },
     items: [
       { productId: 'prod-001', name: 'Fresh Tomatoes', quantity: 5, price: 5.50 },
       { productId: 'prod-002', name: 'Organic Spinach', quantity: 3, price: 7.20 },
@@ -40,7 +45,12 @@ export const mockOrders: Order[] = [
   },
   {
     id: 'ORD-1002',
-    user: { id: 'user-02', restaurantName: 'Spice Route Restaurant' },
+    user: { 
+      id: 'user-02', 
+      restaurantName: 'Spice Route Restaurant',
+      latitude: 5.4172,
+      longitude: 100.3327,
+    },
     items: [
       { productId: 'prod-004', name: 'Whole Chicken', quantity: 10, price: 25.00 },
       { productId: 'prod-005', name: 'Basmati Rice', quantity: 2, price: 35.00 },
@@ -59,7 +69,12 @@ export const mockOrders: Order[] = [
   },
   {
     id: 'ORD-1003',
-    user: { id: 'user-01', restaurantName: 'The Daily Grind Cafe' },
+    user: { 
+      id: 'user-01', 
+      restaurantName: 'The Daily Grind Cafe',
+      latitude: 3.1390,
+      longitude: 101.6869,
+    },
     items: [
       { productId: 'prod-008', name: 'Fresh Milk', quantity: 12, price: 6.50 },
     ],

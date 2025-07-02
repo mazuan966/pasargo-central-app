@@ -6,6 +6,7 @@ export interface Product {
   imageUrl: string;
   category: string;
   stock: number;
+  "data-ai-hint"?: string;
 }
 
 export interface CartItem extends Product {
@@ -21,6 +22,8 @@ export interface Order {
   user: {
     id: string;
     restaurantName: string;
+    latitude?: number;
+    longitude?: number;
   };
   items: {
     productId: string;
