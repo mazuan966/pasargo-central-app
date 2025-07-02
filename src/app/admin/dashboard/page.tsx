@@ -56,7 +56,7 @@ const paymentBadgeVariants = cva(
 )
 
 function StatusUpdateMenu({ orderId, currentStatus }: { orderId: string, currentStatus: OrderStatus }) {
-    const statuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Cancelled'];
+    const statuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Completed', 'Cancelled'];
     // In a real app, this would call a server action
     const handleUpdate = (status: OrderStatus) => {
         console.log(`Updating order ${orderId} to ${status}`);

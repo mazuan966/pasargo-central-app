@@ -25,7 +25,7 @@ export const mockOrders: Order[] = [
       { productId: 'prod-002', name: 'Organic Spinach', quantity: 3, price: 7.20 },
     ],
     total: 49.10,
-    status: 'Delivered',
+    status: 'Completed',
     orderDate: '2024-07-28T09:30:00Z',
     deliveryDate: '2024-07-28T14:00:00Z',
     paymentMethod: 'Cash on Delivery',
@@ -35,6 +35,7 @@ export const mockOrders: Order[] = [
         { status: 'Processing', timestamp: '2024-07-28T10:00:00Z' },
         { status: 'Pick Up', timestamp: '2024-07-28T12:00:00Z' },
         { status: 'Delivered', timestamp: '2024-07-28T14:00:00Z' },
+        { status: 'Completed', timestamp: '2024-07-28T14:05:00Z' },
     ],
     deliveryVerification: {
         isOrderCompleted: true,

@@ -1,7 +1,7 @@
 import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Package, Calendar, Truck, CheckCircle, Clock } from 'lucide-react';
+import { Package, Calendar, Truck, CheckCircle, Clock, CheckCheck } from 'lucide-react';
 
 export function OrderDetails({ order }: { order: Order }) {
   const getStatusIcon = (status: string) => {
@@ -14,6 +14,8 @@ export function OrderDetails({ order }: { order: Order }) {
         return <Truck className="h-5 w-5 text-indigo-500" />;
       case 'Delivered':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'Completed':
+        return <CheckCheck className="h-5 w-5 text-emerald-500" />;
       default:
         return <Package className="h-5 w-5 text-gray-500" />;
     }

@@ -25,7 +25,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
        
       <OrderDetails order={order} />
 
-      {order.status === 'Delivered' && (
+      {(order.status === 'Delivered' || order.status === 'Completed') && (
         <Card>
             <CardHeader>
                 <CardTitle>Delivery Verification</CardTitle>
