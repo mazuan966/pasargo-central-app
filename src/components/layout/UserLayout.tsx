@@ -21,7 +21,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { Badge } from '@/components/ui/badge';
-import { CartProvider, useCart } from '@/context/CartProvider';
+import { CartProvider } from '@/context/CartProvider';
+import { useCart } from '@/hooks/use-cart';
 
 const NavLink = ({ href, children, icon: Icon }: { href: string, children: React.ReactNode, icon: React.ElementType }) => {
   const pathname = usePathname();
