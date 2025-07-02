@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef, useTransition } from 'react';
-import { useFormState } from 'react-dom';
+import { useState, useRef, useTransition, useActionState } from 'react';
 import type { Order } from '@/lib/types';
 import { verifyDeliveryAction } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ const initialState = {
 };
 
 export function DeliveryVerification({ order }: { order: Order }) {
-  const [formState, formAction] = useFormState(verifyDeliveryAction, order.deliveryVerification ? { ...initialState, success: true, data: { ...order.deliveryVerification, verifiedAt: new Date().toISOString() } } : initialState);
+  const [formState, formAction] = useActionState(verifyDeliveryAction, order.deliveryVerification ? { ...initialState, success: true, data: { ...order.deliveryVerification, verifiedAt: new Date().toISOString() } } : initialState);
   const [isPending, startTransition] = useTransition();
   const [preview, setPreview] = useState<string | null>(order.deliveryPhotoUrl || null);
   const photoDataUriRef = useRef<HTMLInputElement>(null);
