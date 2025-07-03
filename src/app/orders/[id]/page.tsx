@@ -92,10 +92,27 @@ function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
 export default function OrderDetailsPage() {
   const params = useParams<{ id: string }>();
   const { orders, updateOrder } = useOrders();
-  const order = orders.find(o => o.id === params.id);
+  const [order, setOrder] = useState<Order | undefined>();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const foundOrder = orders.find(o => o.id === params.id);
+    setOrder(foundOrder);
+  }, [params.id, orders]);
+
+
+  if (!isMounted) {
+    return (
+      <div className="flex w-full justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!order) {
     notFound();
+    return null; // For TypeScript
   }
   
   const handleInvoiceGenerated = (eInvoice: EInvoice) => {
