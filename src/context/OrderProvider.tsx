@@ -1,9 +1,10 @@
+
 'use client';
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import type { Order, CartItem, User } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError } from 'firebase/firestore';
 
 interface OrderContextType {
   orders: Order[];
@@ -42,7 +43,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         ...doc.data()
       })) as Order[];
       setOrders(ordersList);
+    },
+    (error: FirestoreError) => {
+      // Added error handling for the snapshot listener
+      console.error("Order snapshot error:", error);
+      if (error.code === 'permission-denied') {
+          console.error("Firestore permission denied. Please check your security rules for the 'orders' collection.");
+      }
+      // Set orders to an empty array on error to prevent displaying stale data.
+      setOrders([]);
     });
+
     return () => unsubscribe();
   }, []);
 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,9 +9,9 @@ import type { Order, Product } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, WifiOff } from 'lucide-react';
+import { ArrowRight, WifiOff, AlertTriangle } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
@@ -18,24 +19,29 @@ export default function DashboardPage() {
   const { orders } = useOrders();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [isDbConfigured, setIsDbConfigured] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) {
-      setIsDbConfigured(false);
+      setDbError("Firebase is not configured. Please check your credentials.");
       setIsLoadingProducts(false);
       setProducts([]);
       return;
     }
     
-    setIsDbConfigured(true);
+    setDbError(null);
     const productsCollection = collection(db, 'products');
     const unsubscribe = onSnapshot(productsCollection, (snapshot) => {
       const productsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
       setProducts(productsList);
       setIsLoadingProducts(false);
     }, (error) => {
-        console.error("Error fetching products: ", error);
+        if (error instanceof FirestoreError && error.code === 'permission-denied') {
+          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console.");
+        } else {
+          setDbError("An error occurred while fetching products.");
+          console.error("Error fetching products: ", error);
+        }
         setIsLoadingProducts(false);
     });
 
@@ -54,12 +60,12 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-headline font-bold">Welcome to your Dashboard</h1>
         </div>
 
-        {!isDbConfigured && (
+        {dbError && (
           <Alert variant="destructive">
-            <WifiOff className="h-4 w-4" />
-            <AlertTitle>Database Not Configured</AlertTitle>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Database Error</AlertTitle>
             <AlertDescription>
-              The application is not connected to Firebase. Please configure your credentials in the .env file to see live data.
+              {dbError}
             </AlertDescription>
           </Alert>
         )}
@@ -85,7 +91,7 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-muted-foreground text-center py-8">{ isDbConfigured ? "You have no orders requiring attention." : "Order data is unavailable."}</p>
+                    <p className="text-muted-foreground text-center py-8">{!dbError ? "You have no orders requiring attention." : "Order data is unavailable."}</p>
                 )}
             </CardContent>
         </Card>
