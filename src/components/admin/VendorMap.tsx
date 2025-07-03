@@ -9,6 +9,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
+// Create a reusable icon object that will be passed to each marker
 const defaultIcon = L.icon({
     iconUrl: markerIcon.src,
     iconRetinaUrl: markerIcon2x.src,
@@ -18,7 +19,6 @@ const defaultIcon = L.icon({
     popupAnchor: [1, -34],
     shadowSize: [41, 41]
 });
-L.Marker.prototype.options.icon = defaultIcon;
 
 
 const MAP_CENTER: LatLngExpression = [4.2105, 101.9758];
@@ -75,7 +75,8 @@ export default function VendorMap({ vendors }: VendorMapProps) {
         // Add new markers to the map
         vendors.forEach(vendor => {
             if (vendor.latitude && vendor.longitude) {
-                const marker = L.marker([vendor.latitude, vendor.longitude])
+                // Pass the icon directly to each marker instance for reliability
+                const marker = L.marker([vendor.latitude, vendor.longitude], { icon: defaultIcon })
                     .addTo(mapRef.current!)
                     .bindPopup(`<p class="font-semibold">${vendor.restaurantName}</p>`);
                 markersRef.current.push(marker);
