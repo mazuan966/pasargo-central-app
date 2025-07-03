@@ -43,7 +43,7 @@ export type EInvoiceInput = z.infer<typeof EInvoiceInputSchema>;
 
 export const EInvoiceOutputSchema = z.object({
   invoiceId: z.string().describe("A unique identifier for the e-invoice, provided by LHDN."),
-  validationUrl: z.string().url().describe("A URL to the validated e-invoice on the MyInvois portal."),
+  validationUrl: z.string().describe("A URL to the validated e-invoice on the MyInvois portal."),
   qrCodeData: z.string().describe("A string of data to be encoded into a QR code for verification."),
   status: z.string().describe("The validation status, e.g., 'Validated'."),
   validatedAt: z.string().datetime().describe("The ISO 8601 timestamp of when the invoice was validated.")
