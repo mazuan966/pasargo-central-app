@@ -31,10 +31,6 @@ export default function VendorMap({ vendors }: VendorMapProps) {
     const zoom = 7;
 
     const validVendors = vendors.filter(v => v.latitude && v.longitude);
-
-    if (typeof window === 'undefined') {
-        return <div style={{ height: '600px', width: '100%' }} className="bg-muted rounded-md animate-pulse"></div>;
-    }
     
     const redPinIcon = createRedPinIcon();
 
