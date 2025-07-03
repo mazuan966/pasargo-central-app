@@ -5,14 +5,12 @@ import 'leaflet/dist/leaflet.css';
 import L, { type LatLngExpression } from 'leaflet';
 import { useEffect, useRef } from 'react';
 
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
+// Use CDN URLs for the marker icons to bypass Next.js bundling issues.
+// This is a definitive fix for the "iconUrl not set" error.
 const defaultIcon = new L.Icon({
-    iconUrl: markerIcon.src,
-    iconRetinaUrl: markerIcon2x.src,
-    shadowUrl: markerShadow.src,
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
@@ -62,9 +60,11 @@ export default function VendorMap({ vendors }: VendorMapProps) {
 
     useEffect(() => {
         if (mapRef.current) {
+            // Clear existing markers
             markersRef.current.forEach(marker => marker.remove());
             markersRef.current = [];
 
+            // Add new markers
             vendors.forEach(vendor => {
                 if (vendor.latitude && vendor.longitude) {
                     const marker = L.marker(
