@@ -37,15 +37,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return;
     }
 
-    // For admin, we fetch all orders. For users, only their own.
-    // For now, let's assume if userData is not available, maybe it's an admin context later.
-    // A more robust solution would be custom claims in Firebase Auth.
-    // Let's stick to the user case for now.
     const isUser = !!currentUser;
 
     const ordersCollection = collection(db, 'orders');
+    // For users, we remove the orderBy clause to avoid needing a composite index.
+    // We will sort on the client side instead.
     const q = isUser 
-        ? query(ordersCollection, where("user.id", "==", currentUser.uid), orderBy('orderDate', 'desc'))
+        ? query(ordersCollection, where("user.id", "==", currentUser.uid))
         : query(ordersCollection, orderBy('orderDate', 'desc'));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -53,6 +51,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         id: doc.id,
         ...doc.data()
       })) as Order[];
+      
+      // Sort on the client if we didn't do it in the query.
+      if (isUser) {
+        ordersList.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+      }
+      
       setOrders(ordersList);
     },
     (error: FirestoreError) => {
