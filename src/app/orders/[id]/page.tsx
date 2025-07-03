@@ -6,12 +6,13 @@ import { useOrders } from '@/hooks/use-orders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useActionState, useEffect, useState } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { PrintableInvoice } from '@/components/orders/PrintableInvoice';
 
 const EInvoiceInitialState = {
   success: false,
@@ -101,38 +102,54 @@ export default function OrderDetailsPage() {
     const updatedOrder = { ...order, eInvoice };
     updateOrder(updatedOrder);
   };
+  
+  const handlePrint = () => {
+    window.print();
+  }
 
   const canGenerateEInvoice = (order.status === 'Completed' || order.status === 'Delivered');
 
   return (
-    <div className="space-y-6">
-       <Button asChild variant="outline" size="sm" className="mb-4">
-         <Link href="/orders" className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Orders
-         </Link>
-       </Button>
-       
-      <OrderDetails order={order} />
+    <>
+      <div className="hidden print:block">
+        <PrintableInvoice order={order} />
+      </div>
 
-      {canGenerateEInvoice && !order.eInvoice && <EInvoiceGenerator order={order} onInvoiceGenerated={handleInvoiceGenerated} />}
-      {order.eInvoice && <EInvoiceDisplay eInvoice={order.eInvoice} />}
+      <div className="space-y-6 print:hidden">
+        <div className="flex items-center justify-between">
+          <Button asChild variant="outline" size="sm" className="mb-4">
+            <Link href="/orders" className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Orders
+            </Link>
+          </Button>
+          <Button onClick={handlePrint} variant="outline">
+            <Printer className="mr-2 h-4 w-4" />
+            Print Invoice
+          </Button>
+        </div>
+        
+        <OrderDetails order={order} />
 
-      {(order.status === 'Delivered' || order.status === 'Completed') && (
-        <Card>
-            <CardHeader>
-                <CardTitle>Delivery Verification</CardTitle>
-                <CardDescription>
-                    {order.deliveryVerification 
-                        ? 'Verification has been completed for this order.'
-                        : 'Please upload a photo of the signed receipt to complete the order.'}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <DeliveryVerification order={order} />
-            </CardContent>
-        </Card>
-      )}
-    </div>
+        {canGenerateEInvoice && !order.eInvoice && <EInvoiceGenerator order={order} onInvoiceGenerated={handleInvoiceGenerated} />}
+        {order.eInvoice && <EInvoiceDisplay eInvoice={order.eInvoice} />}
+
+        {(order.status === 'Delivered' || order.status === 'Completed') && (
+          <Card>
+              <CardHeader>
+                  <CardTitle>Delivery Verification</CardTitle>
+                  <CardDescription>
+                      {order.deliveryVerification 
+                          ? 'Verification has been completed for this order.'
+                          : 'Please upload a photo of the signed receipt to complete the order.'}
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <DeliveryVerification order={order} />
+              </CardContent>
+          </Card>
+        )}
+      </div>
+    </>
   );
 }

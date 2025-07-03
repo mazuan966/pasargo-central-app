@@ -1,5 +1,5 @@
 import { mockOrders } from '@/lib/mock-data';
-import type { Order, OrderStatus, PaymentStatus } from '@/lib/types';
+import type { Order } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -8,29 +8,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { MoreHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cva } from 'class-variance-authority';
+import { StatusUpdateMenu } from '@/components/admin/StatusUpdateMenu';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -66,63 +47,6 @@ const paymentBadgeVariants = cva(
     },
   }
 )
-
-function StatusUpdateMenu({ orderId, currentStatus }: { orderId: string, currentStatus: OrderStatus }) {
-    const statuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Completed', 'Cancelled'];
-    // In a real app, this would call a server action
-    const handleUpdate = (status: OrderStatus) => {
-        console.log(`Updating order ${orderId} to ${status}`);
-    }
-    const handleDelete = () => {
-        console.log(`Deleting order ${orderId}`);
-    }
-
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                {statuses.map(status => (
-                    <DropdownMenuItem key={status} onClick={() => handleUpdate(status)} disabled={status === currentStatus}>
-                        Set to {status}
-                    </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <DropdownMenuItem
-                            onSelect={(e) => e.preventDefault()}
-                            className="text-destructive focus:text-destructive"
-                        >
-                            Delete Order
-                        </DropdownMenuItem>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the order.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Delete
-                        </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    )
-}
 
 export default function AdminDashboardPage() {
   return (
