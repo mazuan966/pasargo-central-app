@@ -8,15 +8,20 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L, { type LatLngExpression } from 'leaflet';
 import React from 'react';
 
+// Import marker images directly.
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+
 // This is a workaround for a known issue with react-leaflet and webpack
 // It ensures the default marker icons are loaded correctly.
-// This code now runs only on the client.
 // @ts-ignore
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png').default,
-  iconUrl: require('leaflet/dist/images/marker-icon.png').default,
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png').default,
+  iconRetinaUrl: markerIcon2x.src,
+  iconUrl: markerIcon.src,
+  shadowUrl: markerShadow.src,
 });
 
 const MAP_CENTER: LatLngExpression = [4.2105, 101.9758]; // Center of Malaysia
@@ -70,7 +75,7 @@ export default function AdminMapPage() {
         <CardHeader>
             <CardTitle className="font-headline text-2xl">Vendor Map</CardTitle>
             <CardDescription>Visualizing vendor locations across the region.</CardDescription>
-        </CardHeader>
+        </Header>
         <CardContent>
             <MemoizedMap vendors={vendors} />
         </CardContent>
