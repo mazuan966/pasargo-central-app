@@ -4,7 +4,7 @@ import { mockOrders } from '@/lib/mock-data';
 import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import dynamic from 'next/dynamic';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 // Dynamically import the map component to prevent SSR issues with Leaflet
 const VendorMap = dynamic(() => import('@/components/admin/VendorMap'), { 
@@ -13,16 +13,18 @@ const VendorMap = dynamic(() => import('@/components/admin/VendorMap'), {
 });
 
 export default function AdminMapPage() {
-  // Extract unique vendors with location data from mock orders
-  const vendors = mockOrders
-    .map(order => order.user)
-    .filter(user => user.latitude && user.longitude)
-    .reduce((acc, current) => {
-        if (!acc.find(item => item.id === current.id)) {
-            acc.push(current);
-        }
-        return acc;
-    }, [] as Order['user'][]);
+  // Memoize the vendors array to prevent unnecessary re-renders of the map component
+  const vendors = useMemo(() => {
+    return mockOrders
+      .map(order => order.user)
+      .filter(user => user.latitude && user.longitude)
+      .reduce((acc, current) => {
+          if (!acc.find(item => item.id === current.id)) {
+              acc.push(current);
+          }
+          return acc;
+      }, [] as Order['user'][]);
+  }, []); // mockOrders is static, so we can use an empty dependency array
 
   return (
     <Card>
