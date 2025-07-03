@@ -52,17 +52,19 @@ export type EInvoiceOutput = z.infer<typeof EInvoiceOutputSchema>;
 
 export type EInvoice = EInvoiceOutput;
 
+export interface User {
+  id: string;
+  restaurantName: string;
+  phoneNumber?: string;
+  latitude?: number;
+  longitude?: number;
+  tin?: string;
+  address?: string;
+}
+
 export interface Order {
   id: string;
-  user: {
-    id: string;
-    restaurantName: string;
-    phoneNumber?: string;
-    latitude?: number;
-    longitude?: number;
-    tin?: string;
-    address?: string;
-  };
+  user: User;
   items: {
     productId: string;
     name: string;
