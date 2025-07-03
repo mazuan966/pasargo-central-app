@@ -46,9 +46,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     },
     (error: FirestoreError) => {
       // Added error handling for the snapshot listener
-      console.error("Order snapshot error:", error);
       if (error.code === 'permission-denied') {
           console.error("Firestore permission denied. Please check your security rules for the 'orders' collection.");
+      } else {
+        console.error("Order snapshot error:", error);
       }
       // Set orders to an empty array on error to prevent displaying stale data.
       setOrders([]);
@@ -64,6 +65,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const currentUser: User = {
       id: 'user-01',
       restaurantName: 'The Daily Grind Cafe',
+      personInCharge: 'John Doe',
       phoneNumber: '60123456789',
       latitude: 3.1390,
       longitude: 101.6869,

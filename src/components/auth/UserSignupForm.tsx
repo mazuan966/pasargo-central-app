@@ -14,6 +14,7 @@ import { Loader2, MapPin } from 'lucide-react';
 
 const formSchema = z.object({
   restaurantName: z.string().min(1, { message: 'Restaurant name is required.' }),
+  personInCharge: z.string().min(1, { message: 'Person in charge name is required.' }),
   address: z.string().min(1, { message: 'Street address is required.' }),
   buildingName: z.string().optional(),
   postcode: z.string().length(5, { message: 'Postcode must be 5 digits.' }).regex(/^\d+$/, 'Postcode must be numeric.'),
@@ -40,6 +41,7 @@ export function UserSignupForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       restaurantName: '',
+      personInCharge: '',
       address: '',
       buildingName: '',
       postcode: '',
@@ -104,6 +106,7 @@ export function UserSignupForm() {
 
     const userDataToSave = {
         restaurantName: rest.restaurantName,
+        personInCharge: rest.personInCharge,
         email: rest.email,
         password: rest.password,
         latitude: rest.latitude,
@@ -129,19 +132,34 @@ export function UserSignupForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="restaurantName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Restaurant Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., The Daily Grind Cafe" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+            control={form.control}
+            name="restaurantName"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Restaurant Name</FormLabel>
+                <FormControl>
+                    <Input placeholder="e.g., The Daily Grind Cafe" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+            <FormField
+            control={form.control}
+            name="personInCharge"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Person in Charge</FormLabel>
+                <FormControl>
+                    <Input placeholder="e.g., John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
         <FormField
           control={form.control}
           name="address"

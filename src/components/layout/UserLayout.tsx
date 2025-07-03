@@ -93,11 +93,16 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/profile" className="flex items-center w-full cursor-pointer">
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Link href="/" className="flex items-center w-full">
+              <DropdownMenuItem asChild>
+                <Link href="/" className="flex items-center w-full cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </Link>

@@ -55,6 +55,7 @@ export type EInvoice = EInvoiceOutput;
 export interface User {
   id: string;
   restaurantName: string;
+  personInCharge?: string;
   phoneNumber?: string;
   latitude?: number;
   longitude?: number;
