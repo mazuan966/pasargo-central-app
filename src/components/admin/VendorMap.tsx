@@ -1,3 +1,4 @@
+
 'use client';
 
 import 'leaflet/dist/leaflet.css';
@@ -8,16 +9,18 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// This is the recommended fix for a known issue with Leaflet and Webpack.
-// It ensures that the default marker icons are loaded correctly by patching
-// the default icon prototype.
-// @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x.src,
-  iconUrl: markerIcon.src,
-  shadowUrl: markerShadow.src,
+// Create a new, explicit icon instance to bypass any issues with default settings.
+// This is the most reliable way to ensure icons are loaded correctly.
+const defaultIcon = new L.Icon({
+    iconUrl: markerIcon.src,
+    iconRetinaUrl: markerIcon2x.src,
+    shadowUrl: markerShadow.src,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
 });
+
 
 const MAP_CENTER: LatLngExpression = [4.2105, 101.9758];
 const MAP_ZOOM = 7;
@@ -71,7 +74,10 @@ export default function VendorMap({ vendors }: VendorMapProps) {
             // Add new markers
             vendors.forEach(vendor => {
                 if (vendor.latitude && vendor.longitude) {
-                    const marker = L.marker([vendor.latitude, vendor.longitude])
+                    const marker = L.marker(
+                        [vendor.latitude, vendor.longitude], 
+                        { icon: defaultIcon } // Pass the explicit icon instance here
+                    )
                         .addTo(mapRef.current!)
                         .bindPopup(`<p class="font-semibold">${vendor.restaurantName}</p>`);
                     markersRef.current.push(marker);
