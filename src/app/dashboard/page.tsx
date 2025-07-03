@@ -6,7 +6,7 @@ import { useOrders } from '@/hooks/use-orders';
 import { useAuth } from '@/hooks/use-auth';
 import { OrderListItem } from '@/components/orders/OrderListItem';
 import type { Order, Product } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight, AlertTriangle } from 'lucide-react';
