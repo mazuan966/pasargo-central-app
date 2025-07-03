@@ -14,10 +14,14 @@ import { Loader2, MapPin } from 'lucide-react';
 
 const formSchema = z.object({
   restaurantName: z.string().min(1, { message: 'Restaurant name is required.' }),
-  address: z.string().min(1, { message: 'Address is required.' }),
+  address: z.string().min(1, { message: 'Street address is required.' }),
+  buildingName: z.string().optional(),
+  postcode: z.string().length(5, { message: 'Postcode must be 5 digits.' }).regex(/^\d+$/, 'Postcode must be numeric.'),
+  city: z.string().min(1, { message: 'City is required.' }),
+  state: z.string().min(1, { message: 'State is required.' }),
   latitude: z.string().optional(),
   longitude: z.string().optional(),
-  phoneNumber: z.string().min(1, { message: 'Phone number is required.' }),
+  phoneNumber: z.string().regex(/^[1-9]\d{7,9}$/, { message: 'Phone number must be 8-10 digits and not start with 0.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
   confirmPassword: z.string(),
@@ -37,6 +41,10 @@ export function UserSignupForm() {
     defaultValues: {
       restaurantName: '',
       address: '',
+      buildingName: '',
+      postcode: '',
+      city: '',
+      state: '',
       latitude: '',
       longitude: '',
       phoneNumber: '',
@@ -82,7 +90,30 @@ export function UserSignupForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     // TODO: Implement Firebase user creation and data saving logic here.
-    console.log(values);
+    
+    const { confirmPassword, ...rest } = values;
+
+    const addressParts = [
+        rest.address,
+        rest.buildingName,
+        `${rest.postcode} ${rest.city}`,
+        rest.state
+    ];
+    const fullAddress = addressParts.filter(Boolean).join(', ');
+    const fullPhoneNumber = `+60${rest.phoneNumber}`;
+
+    const userDataToSave = {
+        restaurantName: rest.restaurantName,
+        email: rest.email,
+        password: rest.password,
+        latitude: rest.latitude,
+        longitude: rest.longitude,
+        address: fullAddress,
+        phoneNumber: fullPhoneNumber,
+    };
+    
+    console.log("Data to be saved:", userDataToSave);
+
 
     // Mock successful signup
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -116,10 +147,10 @@ export function UserSignupForm() {
           name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Address</FormLabel>
+              <FormLabel>Street Address</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="e.g., 123 Jalan Ampang, 50450 Kuala Lumpur"
+                  placeholder="e.g., 123 Jalan Ampang"
                   {...field}
                 />
               </FormControl>
@@ -127,6 +158,42 @@ export function UserSignupForm() {
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="buildingName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Building Name <span className="text-muted-foreground">(Optional)</span></FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Menara M1" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField control={form.control} name="postcode" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Postcode</FormLabel>
+                    <FormControl><Input placeholder="e.g., 50450" {...field} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+            )} />
+            <FormField control={form.control} name="city" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl><Input placeholder="e.g., Kuala Lumpur" {...field} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+            )} />
+            <FormField control={form.control} name="state" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>State</FormLabel>
+                    <FormControl><Input placeholder="e.g., W.P. Kuala Lumpur" {...field} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+            )} />
+        </div>
 
         <div className="space-y-2">
             <div className="flex justify-between items-center">
@@ -177,17 +244,26 @@ export function UserSignupForm() {
         </div>
 
         <FormField
-          control={form.control}
-          name="phoneNumber"
-          render={({ field }) => (
+            control={form.control}
+            name="phoneNumber"
+            render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., 012-3456789" {...field} />
-              </FormControl>
-              <FormMessage />
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                <div className="flex items-center">
+                    <span className="inline-flex items-center px-3 h-10 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                    +60
+                    </span>
+                    <Input 
+                        className="rounded-l-none" 
+                        placeholder="123456789" 
+                        {...field} 
+                    />
+                </div>
+                </FormControl>
+                <FormMessage />
             </FormItem>
-          )}
+            )}
         />
         <FormField
           control={form.control}
