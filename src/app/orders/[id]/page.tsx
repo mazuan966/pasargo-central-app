@@ -4,12 +4,13 @@ import { OrderDetails } from '@/components/orders/OrderDetails';
 import { DeliveryVerification } from '@/components/orders/DeliveryVerification';
 import { useOrders } from '@/hooks/use-orders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function OrderDetailsPage({ params }: { params: { id: string } }) {
+export default function OrderDetailsPage() {
+  const params = useParams<{ id: string }>();
   const { orders } = useOrders();
   const order = orders.find(o => o.id === params.id);
 
