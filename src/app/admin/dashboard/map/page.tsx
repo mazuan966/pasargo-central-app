@@ -1,22 +1,47 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useOrders } from '@/hooks/use-orders';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { MapPinOff } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const VendorMap = dynamic(() => import('@/components/admin/VendorMap'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[600px] w-full rounded-md" />,
+});
+
+interface Vendor {
+    id: string;
+    restaurantName: string;
+    latitude?: number;
+    longitude?: number;
+}
 
 export default function AdminMapPage() {
-  return (
-    <Card>
-        <CardHeader>
-            <CardTitle className="font-headline text-2xl">Vendor Map</CardTitle>
-            <CardDescription>Visualizing vendor locations across the region.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="flex flex-col items-center justify-center h-[600px] bg-muted/50 rounded-md">
-                <MapPinOff className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold">Map Feature Unavailable</h3>
-                <p className="text-muted-foreground">This feature is currently under maintenance. Please check back later.</p>
-            </div>
-        </CardContent>
-    </Card>
-  );
+    const { orders } = useOrders();
+
+    const vendors = useMemo(() => {
+        const vendorsWithLocation = orders
+            .map(order => order.user)
+            .filter(user => user.latitude !== undefined && user.longitude !== undefined);
+
+        const uniqueVendors = Array.from(
+          new Map(vendorsWithLocation.map(vendor => [vendor.id, vendor])).values()
+        );
+
+        return uniqueVendors as Vendor[];
+    }, [orders]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl">Vendor Map</CardTitle>
+                <CardDescription>Visualizing vendor locations across the region.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <VendorMap vendors={vendors} />
+            </CardContent>
+        </Card>
+    );
 }
