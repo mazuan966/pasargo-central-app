@@ -35,7 +35,7 @@ interface Vendor {
 }
 
 // Define the map component outside the main page component to prevent re-creation on render.
-const Map = ({ vendors }: { vendors: Vendor[] }) => {
+const MapComponent = ({ vendors }: { vendors: Vendor[] }) => {
     return (
         <MapContainer center={MAP_CENTER} zoom={MAP_ZOOM} scrollWheelZoom={true} style={{ height: '600px', width: '100%', borderRadius: '0.5rem' }}>
             <TileLayer
@@ -54,7 +54,7 @@ const Map = ({ vendors }: { vendors: Vendor[] }) => {
 };
 
 // Memoize the map component to prevent unnecessary re-renders.
-const MemoizedMap = React.memo(Map);
+const MemoizedMap = React.memo(MapComponent);
 
 export default function AdminMapPage() {
   const vendors = useMemo(() => {
