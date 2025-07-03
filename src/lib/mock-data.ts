@@ -33,6 +33,7 @@ export const mockOrders: Order[] = [
     deliveryDate: '2024-07-28T14:00:00Z',
     paymentMethod: 'Cash on Delivery',
     paymentStatus: 'Paid',
+    deliveryPhotoUrl: 'https://placehold.co/600x400.png',
     statusHistory: [
         { status: 'Order Created', timestamp: '2024-07-28T09:30:00Z' },
         { status: 'Processing', timestamp: '2024-07-28T10:00:00Z' },

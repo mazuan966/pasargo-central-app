@@ -19,8 +19,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Printer, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Printer, Trash2, FileText } from 'lucide-react';
 import type { OrderStatus } from '@/lib/types';
+import Link from 'next/link';
 
 interface StatusUpdateMenuProps {
   orderId: string;
@@ -51,6 +52,12 @@ export function StatusUpdateMenu({ orderId, currentStatus, onUpdateStatus, onDel
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+                 <DropdownMenuItem asChild>
+                    <Link href={`/admin/dashboard/orders/${orderId}`}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        <span>View Details</span>
+                    </Link>
+                 </DropdownMenuItem>
                  <DropdownMenuItem onClick={handlePrintPO}>
                     <Printer className="mr-2 h-4 w-4" />
                     <span>Print PO</span>
