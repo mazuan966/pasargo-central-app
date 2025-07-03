@@ -5,25 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import dynamic from 'next/dynamic';
 import React from 'react';
 import 'leaflet/dist/leaflet.css';
-// We need to manually import the marker icon images when using the default icon with webpack.
-import L from 'leaflet';
-
-// This is a workaround for a known issue with react-leaflet and webpack
-// It ensures the default marker icons are loaded correctly.
-// @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png').default,
-  iconUrl: require('leaflet/dist/images/marker-icon.png').default,
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png').default,
-});
-
 
 // Dynamically import the MapContainer and related components.
 // We define a simple map component here to ensure it's loaded only on the client.
 const Map = dynamic(
   async () => {
+    // Import leaflet and its components only on the client-side
+    const L = await import('leaflet');
     const { MapContainer, TileLayer, Marker, Popup } = await import('react-leaflet');
+
+    // This is a workaround for a known issue with react-leaflet and webpack
+    // It ensures the default marker icons are loaded correctly.
+    // This code now runs only on the client.
+    // @ts-ignore
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png').default,
+      iconUrl: require('leaflet/dist/images/marker-icon.png').default,
+      shadowUrl: require('leaflet/dist/images/marker-shadow.png').default,
+    });
 
     // The component that will be dynamically loaded
     return function MapComponent({ vendors }: { vendors: any[] }) {
@@ -45,7 +45,7 @@ const Map = dynamic(
     };
   },
   {
-    ssr: false,
+    ssr: false, // Ensure it's not rendered on the server
     loading: () => <div style={{ height: '600px', width: '100%' }} className="bg-muted rounded-md animate-pulse"></div>,
   }
 );
