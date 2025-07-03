@@ -58,16 +58,16 @@ const MemoizedMap = React.memo(Map);
 
 export default function AdminMapPage() {
   const vendors = useMemo(() => {
-    return mockOrders
+    const vendorsWithLocation = mockOrders
       .map(order => order.user)
-      .filter(user => user.latitude && user.longitude)
-      // Deduplicate vendors based on their ID
-      .reduce((acc, current) => {
-          if (!acc.find(item => item.id === current.id)) {
-              acc.push(current as Vendor);
-          }
-          return acc;
-      }, [] as Vendor[]);
+      .filter(user => user.latitude && user.longitude);
+      
+    // Deduplicate vendors using a Map to ensure each vendor appears only once
+    const uniqueVendors = Array.from(
+      new Map(vendorsWithLocation.map(vendor => [vendor.id, vendor])).values()
+    );
+
+    return uniqueVendors as Vendor[];
   }, []);
   
   return (
@@ -75,7 +75,7 @@ export default function AdminMapPage() {
         <CardHeader>
             <CardTitle className="font-headline text-2xl">Vendor Map</CardTitle>
             <CardDescription>Visualizing vendor locations across the region.</CardDescription>
-        </Header>
+        </CardHeader>
         <CardContent>
             <MemoizedMap vendors={vendors} />
         </CardContent>
