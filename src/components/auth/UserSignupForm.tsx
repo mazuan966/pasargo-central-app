@@ -11,6 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2, MapPin } from 'lucide-react';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import type { User } from '@/lib/types';
 
 const formSchema = z.object({
   restaurantName: z.string().min(1, { message: 'Restaurant name is required.' }),
@@ -91,42 +95,60 @@ export function UserSignupForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // TODO: Implement Firebase user creation and data saving logic here.
     
-    const { confirmPassword, ...rest } = values;
+    if (!auth || !db) {
+        toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Please check the setup.'});
+        setIsLoading(false);
+        return;
+    }
 
-    const addressParts = [
-        rest.address,
-        rest.buildingName,
-        `${rest.postcode} ${rest.city}`,
-        rest.state
-    ];
-    const fullAddress = addressParts.filter(Boolean).join(', ');
-    const fullPhoneNumber = `+60${rest.phoneNumber}`;
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+        const user = userCredential.user;
 
-    const userDataToSave = {
-        restaurantName: rest.restaurantName,
-        personInCharge: rest.personInCharge,
-        email: rest.email,
-        password: rest.password,
-        latitude: rest.latitude,
-        longitude: rest.longitude,
-        address: fullAddress,
-        phoneNumber: fullPhoneNumber,
-    };
-    
-    console.log("Data to be saved:", userDataToSave);
+        const addressParts = [
+            values.address,
+            values.buildingName,
+            `${values.postcode} ${values.city}`,
+            values.state
+        ];
+        const fullAddress = addressParts.filter(Boolean).join(', ');
+        
+        const newUser: User = {
+            id: user.uid,
+            email: values.email,
+            restaurantName: values.restaurantName,
+            personInCharge: values.personInCharge,
+            address: fullAddress,
+            phoneNumber: `+60${values.phoneNumber}`,
+            latitude: values.latitude ? Number(values.latitude) : undefined,
+            longitude: values.longitude ? Number(values.longitude) : undefined,
+        };
+        
+        await setDoc(doc(db, "users", user.uid), newUser);
 
+        toast({
+            title: 'Account Created!',
+            description: "You've successfully signed up. Please log in.",
+        });
+        router.push('/login');
 
-    // Mock successful signup
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    toast({
-      title: 'Account Created!',
-      description: "You've successfully signed up. Please log in.",
-    });
-    router.push('/login');
-    setIsLoading(false);
+    } catch (error: any) {
+        console.error("Signup error:", error);
+        let errorMessage = "An unknown error occurred.";
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = "This email address is already in use by another account.";
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        toast({
+            variant: 'destructive',
+            title: 'Sign Up Failed',
+            description: errorMessage,
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (

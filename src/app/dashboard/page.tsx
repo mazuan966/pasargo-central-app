@@ -1,15 +1,15 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import ProductList from '@/components/shop/ProductList';
 import { useOrders } from '@/hooks/use-orders';
+import { useAuth } from '@/hooks/use-auth';
 import { OrderListItem } from '@/components/orders/OrderListItem';
 import type { Order, Product } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, WifiOff, AlertTriangle } from 'lucide-react';
+import { ArrowRight, AlertTriangle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +17,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 export default function DashboardPage() {
   const { orders } = useOrders();
+  const { currentUser } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -35,9 +36,9 @@ export default function DashboardPage() {
       const productsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
       setProducts(productsList);
       setIsLoadingProducts(false);
-    }, (error) => {
+    }, (error: FirestoreError) => {
         if (error instanceof FirestoreError && error.code === 'permission-denied') {
-          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console.");
+          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console to allow reads on the 'products' collection.");
         } else {
           setDbError("An error occurred while fetching products.");
           console.error("Error fetching products: ", error);
@@ -49,7 +50,7 @@ export default function DashboardPage() {
   }, []);
 
   const userOrders = orders
-    .filter(o => o.user.id === 'user-01')
+    .filter(o => o.user.id === currentUser?.uid)
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   
   const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.status === 'Order Created' || order.paymentStatus === 'Pending Payment' || order.paymentStatus === 'Pending Confirmation');

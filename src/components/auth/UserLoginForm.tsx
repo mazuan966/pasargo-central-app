@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -31,18 +33,36 @@ export function UserLoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // TODO: Implement Firebase login logic here
-    console.log(values);
 
-    // Mock successful login
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!auth) {
+        toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Please check the setup.'});
+        setIsLoading(false);
+        return;
+    }
 
-    toast({
-      title: 'Login Successful',
-      description: 'Welcome back!',
-    });
-    router.push('/dashboard');
-    setIsLoading(false);
+    try {
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        toast({
+            title: 'Login Successful',
+            description: 'Welcome back!',
+        });
+        router.push('/dashboard');
+    } catch (error: any) {
+        console.error("Login error:", error);
+        let errorMessage = "An unknown error occurred.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: errorMessage,
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (

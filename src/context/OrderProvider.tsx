@@ -1,10 +1,10 @@
-
 'use client';
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import type { Order, CartItem, User } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where } from 'firebase/firestore';
+import { useAuth } from '@/hooks/use-auth';
 
 interface OrderContextType {
   orders: Order[];
@@ -28,15 +28,26 @@ const simulateDirectWhatsApp = (phoneNumber: string, message: string) => {
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
+  const { currentUser, userData } = useAuth();
 
   useEffect(() => {
-    // If db is not initialized, do not attempt to fetch data.
     if (!db) {
         console.warn("Firestore not initialized. Skipping order listener.");
         setOrders([]);
         return;
     }
-    const q = query(collection(db, 'orders'), orderBy('orderDate', 'desc'));
+
+    // For admin, we fetch all orders. For users, only their own.
+    // For now, let's assume if userData is not available, maybe it's an admin context later.
+    // A more robust solution would be custom claims in Firebase Auth.
+    // Let's stick to the user case for now.
+    const isUser = !!currentUser;
+
+    const ordersCollection = collection(db, 'orders');
+    const q = isUser 
+        ? query(ordersCollection, where("user.id", "==", currentUser.uid), orderBy('orderDate', 'desc'))
+        : query(ordersCollection, orderBy('orderDate', 'desc'));
+
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const ordersList = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -45,35 +56,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       setOrders(ordersList);
     },
     (error: FirestoreError) => {
-      // Added error handling for the snapshot listener
       if (error.code === 'permission-denied') {
-          console.error("Firestore permission denied. Please check your security rules for the 'orders' collection.");
+          console.error("Firestore permission denied. Check security rules for the 'orders' collection.");
       } else {
         console.error("Order snapshot error:", error);
       }
-      // Set orders to an empty array on error to prevent displaying stale data.
       setOrders([]);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
   const addOrder = async (items: CartItem[], total: number, paymentMethod: 'billplz' | 'cod') => {
-    if (!db) {
-      throw new Error("Firestore is not configured. Cannot add order.");
+    if (!db || !userData) {
+      throw new Error("Firestore is not configured or user is not logged in. Cannot add order.");
     }
-    const currentUser: User = {
-      id: 'user-01',
-      restaurantName: 'The Daily Grind Cafe',
-      personInCharge: 'John Doe',
-      phoneNumber: '60123456789',
-      latitude: 3.1390,
-      longitude: 101.6869,
-      tin: 'C21876543210',
-      address: '123 Jalan Ampang, 50450 Kuala Lumpur'
-    };
-
-    // Generate custom order number
+    
     const snapshot = await getCountFromServer(collection(db, 'orders'));
     const newOrderIndex = snapshot.data().count + 1;
     const now = new Date();
@@ -86,7 +84,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     const newOrderData: Omit<Order, 'id'> = {
       orderNumber: newOrderNumber,
-      user: currentUser,
+      user: userData,
       items: items.map(item => ({
         productId: item.id,
         name: item.name,
@@ -106,21 +104,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const docRef = await addDoc(collection(db, 'orders'), newOrderData);
     const newOrder = { ...newOrderData, id: docRef.id } as Order;
     
-    // --- WhatsApp Integration Simulation ---
-    const userInvoiceMessage = `Hi ${currentUser.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrder.orderNumber}*\n\n` +
+    const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrder.orderNumber}*\n\n` +
       newOrder.items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
       `\n\n*Total: RM ${newOrder.total.toFixed(2)}*\n\n` +
       `We will process your order shortly.`;
     
-    if (currentUser.phoneNumber) {
-        simulateDirectWhatsApp(currentUser.phoneNumber, userInvoiceMessage);
+    if (userData.phoneNumber) {
+        simulateDirectWhatsApp(userData.phoneNumber, userInvoiceMessage);
     }
 
     const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
     if (adminPhoneNumber) {
         const adminPOMessage = `*New Purchase Order Received*\n\n` +
             `*Order ID:* ${newOrder.orderNumber}\n` +
-            `*From:* ${currentUser.restaurantName}\n` +
+            `*From:* ${userData.restaurantName}\n` +
             `*Total:* RM ${newOrder.total.toFixed(2)}*\n\n` +
             `*Items:*\n` +
             newOrder.items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +

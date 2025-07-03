@@ -53,7 +53,8 @@ export type EInvoiceOutput = z.infer<typeof EInvoiceOutputSchema>;
 export type EInvoice = EInvoiceOutput;
 
 export interface User {
-  id: string;
+  id: string; // Firebase Auth UID
+  email: string;
   restaurantName: string;
   personInCharge?: string;
   phoneNumber?: string;

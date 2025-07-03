@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { useAuth } from '@/hooks/use-auth';
+import { auth } from '@/lib/firebase';
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Please enter your current password.' }),
@@ -24,6 +27,7 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 export function PasswordChangeForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { currentUser } = useAuth();
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordFormSchema),
@@ -36,18 +40,38 @@ export function PasswordChangeForm() {
 
   async function onSubmit(data: PasswordFormValues) {
     setIsLoading(true);
-    // TODO: Implement actual password change logic
-    console.log('Password change data:', data);
+    if (!currentUser || !auth || !currentUser.email) {
+        toast({ title: 'Error', description: 'You must be logged in to change your password.', variant: 'destructive' });
+        setIsLoading(false);
+        return;
+    }
 
-    // Mock password change
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast({
-      title: 'Password Updated',
-      description: 'Your password has been changed successfully.',
-    });
-    form.reset();
-    setIsLoading(false);
+    try {
+        const credential = EmailAuthProvider.credential(currentUser.email, data.currentPassword);
+        await reauthenticateWithCredential(currentUser, credential);
+        await updatePassword(currentUser, data.newPassword);
+        
+        toast({
+            title: 'Password Updated',
+            description: 'Your password has been changed successfully.',
+        });
+        form.reset();
+
+    } catch (error: any) {
+        let errorMessage = "An unknown error occurred.";
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            errorMessage = "The current password you entered is incorrect.";
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        toast({
+            title: 'Password Update Failed',
+            description: errorMessage,
+            variant: 'destructive'
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (

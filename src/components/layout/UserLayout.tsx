@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -22,6 +22,9 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/hooks/use-cart';
+import { useAuth } from '@/hooks/use-auth';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 
 const NavLink = ({ href, children, icon: Icon }: { href: string, children: React.ReactNode, icon: React.ElementType }) => {
   const pathname = usePathname();
@@ -58,6 +61,21 @@ function CartNavLink() {
 }
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
+  const { userData } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push('/');
+    }
+  };
+  
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  }
+  
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr] print:hidden">
       <div className="hidden border-r bg-muted/40 md:block print:hidden">
@@ -85,13 +103,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
               <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar>
                   <AvatarImage src="https://placehold.co/40x40.png" alt="User avatar" />
-                  <AvatarFallback>U</AvatarFallback>
+                  <AvatarFallback>{getInitials(userData?.restaurantName)}</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{userData?.restaurantName || 'My Account'}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/profile" className="flex items-center w-full cursor-pointer">
@@ -100,11 +118,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/" className="flex items-center w-full cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </Link>
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
