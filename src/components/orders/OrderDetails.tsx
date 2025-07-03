@@ -2,8 +2,14 @@ import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Package, Calendar, Truck, CheckCircle, Clock, CheckCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export function OrderDetails({ order }: { order: Order }) {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Order Created':
@@ -28,7 +34,7 @@ export function OrderDetails({ order }: { order: Order }) {
           <CardHeader>
             <CardTitle>Order #{order.id}</CardTitle>
             <CardDescription>
-              Placed on {new Date(order.orderDate).toLocaleString()}
+              Placed on {isMounted ? new Date(order.orderDate).toLocaleString() : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -80,7 +86,7 @@ export function OrderDetails({ order }: { order: Order }) {
                   <div>
                     <p className="font-semibold">{history.status}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(history.timestamp).toLocaleString()}
+                      {isMounted ? new Date(history.timestamp).toLocaleString() : ''}
                     </p>
                   </div>
                 </li>

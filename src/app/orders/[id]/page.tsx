@@ -59,6 +59,11 @@ function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvo
 }
 
 function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     return (
         <Card>
             <CardHeader>
@@ -68,7 +73,7 @@ function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
             <CardContent className="space-y-2 text-sm">
             <p><strong>Invoice ID:</strong> {eInvoice.invoiceId}</p>
             <p><strong>Status:</strong> <span className="font-semibold text-green-700">{eInvoice.status}</span></p>
-            <p><strong>Validated At:</strong> {new Date(eInvoice.validatedAt).toLocaleString()}</p>
+            <p><strong>Validated At:</strong> {isMounted ? new Date(eInvoice.validatedAt).toLocaleString() : ''}</p>
             <div className="pt-2">
                 <p className="font-semibold">QR Code Data:</p>
                 <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">
