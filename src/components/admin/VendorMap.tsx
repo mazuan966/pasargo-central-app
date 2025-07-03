@@ -3,21 +3,19 @@
 import 'leaflet/dist/leaflet.css';
 import L, { type LatLngExpression } from 'leaflet';
 import { useEffect, useRef } from 'react';
-
-// Icon setup to fix a common issue with webpack
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Create a reusable icon object that will be passed to each marker
-const defaultIcon = L.icon({
-    iconUrl: markerIcon.src,
-    iconRetinaUrl: markerIcon2x.src,
-    shadowUrl: markerShadow.src,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+// This is the recommended fix for a known issue with Leaflet and Webpack.
+// It ensures that the default marker icons are loaded correctly by patching
+// the default icon prototype.
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x.src,
+  iconUrl: markerIcon.src,
+  shadowUrl: markerShadow.src,
 });
 
 
@@ -42,7 +40,6 @@ export default function VendorMap({ vendors }: VendorMapProps) {
 
     // Initialize map
     useEffect(() => {
-        // Only initialize the map once
         if (mapContainerRef.current && !mapRef.current) { 
             mapRef.current = L.map(mapContainerRef.current, {
                 center: MAP_CENTER,
@@ -55,36 +52,32 @@ export default function VendorMap({ vendors }: VendorMapProps) {
             }).addTo(mapRef.current);
         }
 
-        // Cleanup function to destroy the map instance
         return () => {
             if (mapRef.current) {
                 mapRef.current.remove();
                 mapRef.current = null;
             }
         };
-    }, []); // Empty dependency array ensures this runs only once on mount and unmount
+    }, []);
 
     // Update markers when vendors prop changes
     useEffect(() => {
         if (!mapRef.current) return;
 
-        // Clear existing markers from the map
         markersRef.current.forEach(marker => marker.removeFrom(mapRef.current!));
-        markersRef.current = []; // Clear the reference array
+        markersRef.current = [];
 
-        // Add new markers to the map
         vendors.forEach(vendor => {
             if (vendor.latitude && vendor.longitude) {
-                // Pass the icon directly to each marker instance for reliability
-                const marker = L.marker([vendor.latitude, vendor.longitude], { icon: defaultIcon })
+                // Now that the default icon is patched, we don't need to pass an icon option.
+                const marker = L.marker([vendor.latitude, vendor.longitude])
                     .addTo(mapRef.current!)
                     .bindPopup(`<p class="font-semibold">${vendor.restaurantName}</p>`);
                 markersRef.current.push(marker);
             }
         });
-    }, [vendors]); // Re-run this effect only when the vendors prop changes
+    }, [vendors]);
 
-    // This div is the container for the map
     return (
         <div 
             ref={mapContainerRef} 
