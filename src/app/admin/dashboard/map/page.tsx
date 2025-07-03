@@ -1,3 +1,5 @@
+'use client';
+
 import { mockOrders } from '@/lib/mock-data';
 import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
