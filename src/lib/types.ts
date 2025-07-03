@@ -57,6 +57,7 @@ export interface Order {
   user: {
     id: string;
     restaurantName: string;
+    phoneNumber?: string;
     latitude?: number;
     longitude?: number;
     tin?: string;

@@ -21,6 +21,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       user: {
         id: 'user-01',
         restaurantName: 'The Daily Grind Cafe', // Assuming a static user for now
+        phoneNumber: '60123456789',
         latitude: 3.1390,
         longitude: 101.6869,
         tin: 'C21876543210',

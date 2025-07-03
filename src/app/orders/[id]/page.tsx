@@ -6,7 +6,7 @@ import { useOrders } from '@/hooks/use-orders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, Printer, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useActionState, useEffect, useState } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
@@ -93,6 +93,7 @@ export default function OrderDetailsPage() {
   const { orders, updateOrder } = useOrders();
   const [order, setOrder] = useState<Order | undefined>();
   const [isMounted, setIsMounted] = useState(false);
+  const [whatsAppUrl, setWhatsAppUrl] = useState('#');
 
   useEffect(() => {
     setIsMounted(true);
@@ -100,6 +101,14 @@ export default function OrderDetailsPage() {
     setOrder(foundOrder);
   }, [params.id, orders]);
 
+  useEffect(() => {
+    if (isMounted && order?.user.phoneNumber) {
+        const invoiceUrl = `${window.location.origin}/print/invoice/${order.id}`;
+        const message = `Hello! Here is a copy of your invoice for order #${order.id}.\nTotal: RM ${order.total.toFixed(2)}\n\nYou can view and print the full invoice here:\n${invoiceUrl}`;
+        const phoneNumber = order.user.phoneNumber.replace(/[^0-9]/g, ''); // Clean the phone number
+        setWhatsAppUrl(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`);
+    }
+  }, [isMounted, order]);
 
   if (!isMounted) {
     return (
@@ -130,12 +139,20 @@ export default function OrderDetailsPage() {
               Back to Orders
           </Link>
         </Button>
-        <Button asChild variant="outline">
-          <Link href={`/print/invoice/${order.id}`} target="_blank">
-            <Printer className="mr-2 h-4 w-4" />
-            Print Invoice
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/print/invoice/${order.id}`} target="_blank">
+                <Printer className="mr-2 h-4 w-4" />
+                Print Invoice
+              </Link>
+            </Button>
+            <Button asChild variant="outline" disabled={!order.user.phoneNumber}>
+              <a href={whatsAppUrl} target="_blank" rel="noopener noreferrer">
+                <Send className="mr-2 h-4 w-4" />
+                Send via WhatsApp
+              </a>
+            </Button>
+        </div>
       </div>
       
       <OrderDetails order={order} />

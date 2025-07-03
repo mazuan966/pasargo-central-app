@@ -17,6 +17,7 @@ export const mockOrders: Order[] = [
     user: { 
       id: 'user-01', 
       restaurantName: 'The Daily Grind Cafe',
+      phoneNumber: '60123456789',
       latitude: 3.1390,
       longitude: 101.6869,
       tin: 'C21876543210',
@@ -51,6 +52,7 @@ export const mockOrders: Order[] = [
     user: { 
       id: 'user-02', 
       restaurantName: 'Spice Route Restaurant',
+      phoneNumber: '60198765432',
       latitude: 5.4172,
       longitude: 100.3327,
       tin: 'C10987654321',
@@ -77,6 +79,7 @@ export const mockOrders: Order[] = [
     user: { 
       id: 'user-01', 
       restaurantName: 'The Daily Grind Cafe',
+      phoneNumber: '60123456789',
       latitude: 3.1390,
       longitude: 101.6869,
       tin: 'C21876543210',
