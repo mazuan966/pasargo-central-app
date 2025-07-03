@@ -58,11 +58,10 @@ export function PasswordChangeForm() {
         form.reset();
 
     } catch (error: any) {
-        let errorMessage = "An unknown error occurred.";
-        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            errorMessage = "The current password you entered is incorrect.";
-        } else if (error.message) {
-            errorMessage = error.message;
+        let errorMessage = "An unknown error occurred. Please try again later.";
+        // The 'auth/invalid-credential' error code covers wrong password.
+        if (error.code === 'auth/invalid-credential') {
+            errorMessage = "The current password you entered is incorrect. Please try again.";
         }
         toast({
             title: 'Password Update Failed',
