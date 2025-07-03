@@ -12,6 +12,9 @@ const VendorMap = dynamic(() => import('@/components/admin/VendorMap'), {
 });
 
 export default function AdminMapPage() {
+  // Memoize the vendor data to prevent re-renders of the map component.
+  const vendors = React.useMemo(() => mockOrders.map(order => order.user), []);
+  
   return (
     <Card>
         <CardHeader>
@@ -20,7 +23,7 @@ export default function AdminMapPage() {
         </CardHeader>
         <CardContent>
             {/* We pass the user data directly; the map component will handle processing. */}
-            <VendorMap vendors={mockOrders.map(order => order.user)} />
+            <VendorMap vendors={vendors} />
         </CardContent>
     </Card>
   );
