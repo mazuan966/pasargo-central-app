@@ -14,7 +14,7 @@ export const PrintablePO = ({ order }: { order: Order }) => {
         </div>
         <div className="text-right">
           <h2 className="text-4xl font-bold uppercase text-gray-700">Purchase Order</h2>
-          <p className="text-sm mt-2">PO #: {order.id}</p>
+          <p className="text-sm mt-2">PO #: {order.orderNumber}</p>
           <p className="text-sm">Date: {new Date(order.orderDate).toLocaleDateString()}</p>
         </div>
       </div>

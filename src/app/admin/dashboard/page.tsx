@@ -113,7 +113,7 @@ export default function AdminDashboardPage() {
                     )}
                     {orders.map((order: Order) => (
                     <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.id}</TableCell>
+                        <TableCell className="font-medium">{order.orderNumber}</TableCell>
                         <TableCell>{order.user.restaurantName}</TableCell>
                         <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
                         <TableCell>

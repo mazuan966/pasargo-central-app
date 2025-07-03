@@ -35,7 +35,7 @@ function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvo
       </CardHeader>
       <CardContent>
         <form action={formAction}>
-            <input type="hidden" name="orderId" value={order.id} />
+            <input type="hidden" name="orderId" value={order.orderNumber} />
             <input type="hidden" name="orderDate" value={order.orderDate} />
             <input type="hidden" name="total" value={order.total} />
             <input type="hidden" name="items" value={JSON.stringify(order.items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })))} />

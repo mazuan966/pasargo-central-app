@@ -32,7 +32,7 @@ export function OrderDetails({ order }: { order: Order }) {
       <div className="md:col-span-2">
         <Card>
           <CardHeader>
-            <CardTitle>Order #{order.id}</CardTitle>
+            <CardTitle>Order #{order.orderNumber}</CardTitle>
             <CardDescription>
               Placed on {isMounted ? new Date(order.orderDate).toLocaleString() : ''}
             </CardDescription>

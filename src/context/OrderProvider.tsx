@@ -4,7 +4,7 @@
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import type { Order, CartItem, User } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer } from 'firebase/firestore';
 
 interface OrderContextType {
   orders: Order[];
@@ -71,7 +71,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       address: '123 Jalan Ampang, 50450 Kuala Lumpur'
     };
 
+    // Generate custom order number
+    const snapshot = await getCountFromServer(collection(db, 'orders'));
+    const newOrderIndex = snapshot.data().count + 1;
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = String(now.getFullYear()).slice(-2);
+    const datePart = `${day}${month}${year}`;
+    const numberPart = String(newOrderIndex).padStart(4, '0');
+    const newOrderNumber = `PA${numberPart}${datePart}`;
+
     const newOrderData: Omit<Order, 'id'> = {
+      orderNumber: newOrderNumber,
       user: currentUser,
       items: items.map(item => ({
         productId: item.id,
@@ -93,7 +105,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const newOrder = { ...newOrderData, id: docRef.id } as Order;
     
     // --- WhatsApp Integration Simulation ---
-    const userInvoiceMessage = `Hi ${currentUser.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrder.id}*\n\n` +
+    const userInvoiceMessage = `Hi ${currentUser.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrder.orderNumber}*\n\n` +
       newOrder.items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
       `\n\n*Total: RM ${newOrder.total.toFixed(2)}*\n\n` +
       `We will process your order shortly.`;
@@ -105,7 +117,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
     if (adminPhoneNumber) {
         const adminPOMessage = `*New Purchase Order Received*\n\n` +
-            `*Order ID:* ${newOrder.id}\n` +
+            `*Order ID:* ${newOrder.orderNumber}\n` +
             `*From:* ${currentUser.restaurantName}\n` +
             `*Total:* RM ${newOrder.total.toFixed(2)}*\n\n` +
             `*Items:*\n` +

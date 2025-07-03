@@ -32,7 +32,7 @@ export function OrderListItem({ order }: { order: Order }) {
         <div className="flex flex-col gap-1">
           <p className="font-semibold text-lg text-primary flex items-center gap-2">
             <Hash className="h-4 w-4" />
-            Order {order.id}
+            Order {order.orderNumber}
           </p>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4" />

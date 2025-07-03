@@ -66,7 +66,7 @@ export function DeliveryVerification({ order }: { order: Order }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <input type="hidden" name="orderId" value={order.id} />
+      <input type="hidden" name="orderId" value={order.orderNumber} />
       <input type="hidden" name="photoDataUri" ref={photoDataUriRef} />
 
       <div className="grid gap-2">

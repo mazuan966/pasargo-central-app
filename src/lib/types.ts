@@ -64,6 +64,7 @@ export interface User {
 
 export interface Order {
   id: string;
+  orderNumber: string;
   user: User;
   items: {
     productId: string;
