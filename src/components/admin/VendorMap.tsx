@@ -3,7 +3,7 @@
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L, { type LatLngExpression } from 'leaflet';
-import React, { useMemo } from 'react';
+import React from 'react';
 
 interface Vendor {
     id: string;
@@ -27,8 +27,8 @@ const RED_PIN_ICON = L.divIcon({
     popupAnchor: [0, -32],
 });
 
-// The actual map rendering component
-const Map = ({ vendors }: { vendors: Vendor[] }) => {
+// This is now a simple, "dumb" component that just renders the map based on its props.
+export default function VendorMap({ vendors }: VendorMapProps) {
     return (
         <MapContainer center={MAP_CENTER} zoom={MAP_ZOOM} scrollWheelZoom={true} style={{ height: '600px', width: '100%', borderRadius: '0.5rem' }}>
             <TileLayer
@@ -45,23 +45,3 @@ const Map = ({ vendors }: { vendors: Vendor[] }) => {
         </MapContainer>
     );
 };
-
-// Memoize the Map component to prevent it from re-rendering if its props haven't changed.
-const MemoizedMap = React.memo(Map);
-
-export default function VendorMap({ vendors }: VendorMapProps) {
-    // Memoize the filtering and unique-ifying of vendors to avoid recalculating on every render.
-    // This ensures a stable `validVendors` prop is passed to MemoizedMap.
-    const validVendors = useMemo(() => {
-        return vendors
-            .filter(user => user.latitude && user.longitude)
-            .reduce((acc, current) => {
-                if (!acc.find(item => item.id === current.id)) {
-                    acc.push(current);
-                }
-                return acc;
-            }, [] as Vendor[]);
-    }, [vendors]);
-
-    return <MemoizedMap vendors={validVendors} />;
-}

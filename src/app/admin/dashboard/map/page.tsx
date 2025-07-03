@@ -13,7 +13,18 @@ const VendorMap = dynamic(() => import('@/components/admin/VendorMap'), {
 
 export default function AdminMapPage() {
   // Memoize the vendor data to prevent re-renders of the map component.
-  const vendors = React.useMemo(() => mockOrders.map(order => order.user), []);
+  // This logic is now centralized here to ensure a stable prop is passed down.
+  const vendors = React.useMemo(() => {
+    return mockOrders
+      .map(order => order.user)
+      .filter(user => user.latitude && user.longitude)
+      .reduce((acc, current) => {
+          if (!acc.find(item => item.id === current.id)) {
+              acc.push(current);
+          }
+          return acc;
+      }, [] as { id: string; restaurantName: string; latitude?: number; longitude?: number }[]);
+  }, []);
   
   return (
     <Card>
@@ -22,7 +33,6 @@ export default function AdminMapPage() {
             <CardDescription>Visualizing vendor locations across the region.</CardDescription>
         </CardHeader>
         <CardContent>
-            {/* We pass the user data directly; the map component will handle processing. */}
             <VendorMap vendors={vendors} />
         </CardContent>
     </Card>
