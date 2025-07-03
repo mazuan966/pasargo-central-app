@@ -110,13 +110,21 @@ export default function OrderDetailsPage() {
   }
 
   if (!order) {
-    notFound();
-    return null; // For TypeScript
+    // Let the loading spinner show while waiting for realtime data
+    if(orders.length > 0) {
+      notFound();
+      return null;
+    }
+     return (
+      <div className="flex w-full justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
   
-  const handleInvoiceGenerated = (eInvoice: EInvoice) => {
+  const handleInvoiceGenerated = async (eInvoice: EInvoice) => {
     const updatedOrder = { ...order, eInvoice };
-    updateOrder(updatedOrder);
+    await updateOrder(updatedOrder);
   };
 
   const canGenerateEInvoice = (order.status === 'Completed' || order.status === 'Delivered');

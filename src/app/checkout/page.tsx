@@ -36,20 +36,25 @@ export default function CheckoutPage() {
   
   const handlePlaceOrder = async () => {
     setIsLoading(true);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Add order to state
-    addOrder(cartItems, cartTotal, paymentMethod);
-
-    toast({
-      title: 'Order Placed Successfully!',
-      description: 'Thank you for your purchase. A confirmation has been sent via WhatsApp.',
-    });
-    
-    clearCart();
-    router.push('/orders');
+    try {
+      await addOrder(cartItems, cartTotal, paymentMethod);
+      toast({
+        title: 'Order Placed Successfully!',
+        description: 'Thank you for your purchase. A confirmation has been sent via WhatsApp.',
+      });
+      clearCart();
+      router.push('/orders');
+    } catch (error) {
+      console.error("Failed to place order:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Order Failed',
+        description: 'There was a problem placing your order. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { mockOrders } from '@/lib/mock-data';
+import { useOrders } from '@/hooks/use-orders';
 import type { Order, OrderStatus } from '@/lib/types';
 import {
   Table,
@@ -16,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { cva } from 'class-variance-authority';
 import { StatusUpdateMenu } from '@/components/admin/StatusUpdateMenu';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -53,33 +53,30 @@ const paymentBadgeVariants = cva(
 )
 
 export default function AdminDashboardPage() {
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const { orders, updateOrder, deleteOrder } = useOrders();
   const { toast } = useToast();
 
-  const handleUpdateStatus = (orderId: string, status: OrderStatus) => {
-    setOrders(prevOrders =>
-      prevOrders.map(order => {
-        if (order.id === orderId) {
-          const newHistory = [...order.statusHistory, { status, timestamp: new Date().toISOString() }];
-          const updatedOrder = { ...order, status, statusHistory: newHistory };
+  const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
+    const orderToUpdate = orders.find(order => order.id === orderId);
+    if (!orderToUpdate) return;
+    
+    const newHistory = [...orderToUpdate.statusHistory, { status, timestamp: new Date().toISOString() }];
+    const updatedOrder: Order = { ...orderToUpdate, status, statusHistory: newHistory };
           
-          if (status === 'Completed' && order.paymentMethod === 'Cash on Delivery') {
-              updatedOrder.paymentStatus = 'Paid';
-          }
+    if (status === 'Completed' && orderToUpdate.paymentMethod === 'Cash on Delivery') {
+        updatedOrder.paymentStatus = 'Paid';
+    }
 
-          toast({
-            title: 'Order Updated',
-            description: `Order ${orderId} status set to ${status}.`
-          });
-          return updatedOrder;
-        }
-        return order;
-      })
-    );
+    await updateOrder(updatedOrder);
+
+    toast({
+      title: 'Order Updated',
+      description: `Order ${orderId} status set to ${status}.`
+    });
   };
 
-  const handleDeleteOrder = (orderId: string) => {
-    setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+  const handleDeleteOrder = async (orderId: string) => {
+    await deleteOrder(orderId);
     toast({
       title: 'Order Deleted',
       description: `Order ${orderId} has been removed.`,
@@ -107,6 +104,13 @@ export default function AdminDashboardPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
+                    {orders.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          <p className="text-muted-foreground">No orders found.</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {orders.map((order: Order) => (
                     <TableRow key={order.id}>
                         <TableCell className="font-medium">{order.id}</TableCell>

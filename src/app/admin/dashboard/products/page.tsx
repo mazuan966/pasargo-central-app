@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { mockProducts } from '@/lib/mock-data';
+import { useState, useEffect } from 'react';
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,18 +28,40 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, PlusCircle, Trash, Edit } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash, Edit, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm } from '@/components/admin/ProductForm';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      if (!db) {
+        console.warn("Firestore not configured. Cannot fetch products.");
+        setProducts([]);
+        setIsLoading(false);
+        return;
+      }
+      const productsCollection = collection(db, 'products');
+      const productSnapshot = await getDocs(productsCollection);
+      const productsList = productSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Product[];
+      setProducts(productsList);
+      setIsLoading(false);
+    };
+
+    fetchProducts();
+  }, []);
 
   const handleAddProduct = () => {
     setSelectedProduct(undefined);
@@ -57,23 +78,33 @@ export default function AdminProductsPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (!productToDelete) return;
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete || !db) return;
+    await deleteDoc(doc(db, 'products', productToDelete.id));
     setProducts(products.filter((p) => p.id !== productToDelete.id));
     toast({ title: 'Product Deleted', description: `${productToDelete.name} has been removed.` });
     setIsDeleteDialogOpen(false);
     setProductToDelete(null);
   };
 
-  const handleFormSubmit = (data: Product) => {
+  const handleFormSubmit = async (data: Product) => {
+    if (!db) {
+      toast({ title: 'Error', description: 'Database not configured. Please check your .env file.', variant: 'destructive' });
+      setIsFormOpen(false);
+      return;
+    }
+
     if (selectedProduct) {
       // Edit
+      const productRef = doc(db, 'products', data.id);
+      await updateDoc(productRef, { ...data });
       setProducts(products.map((p) => (p.id === data.id ? data : p)));
       toast({ title: 'Product Updated', description: `${data.name} has been updated.` });
     } else {
       // Add
-      const newProduct = { ...data, id: `prod-${Date.now()}` };
-      setProducts([newProduct, ...products]);
+      const { id, ...newProductData } = data;
+      const docRef = await addDoc(collection(db, 'products'), newProductData);
+      setProducts([{ ...newProductData, id: docRef.id } as Product, ...products]);
       toast({ title: 'Product Added', description: `${data.name} has been created.` });
     }
     setIsFormOpen(false);
@@ -116,54 +147,67 @@ export default function AdminProductsPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{product.category}</Badge>
-                  </TableCell>
-                  <TableCell>RM {product.price.toFixed(2)}</TableCell>
-                  <TableCell>{product.unit}</TableCell>
-                  <TableCell>{product.stock}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditProduct(product)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          <span>Edit</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteClick(product)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          <span>Delete</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {products.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      {!db ? "Firebase is not configured. Please add your credentials to the .env file." : "No products found. Add one to get started."}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{product.category}</Badge>
+                    </TableCell>
+                    <TableCell>RM {product.price.toFixed(2)}</TableCell>
+                    <TableCell>{product.unit}</TableCell>
+                    <TableCell>{product.stock}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteClick(product)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </>
