@@ -19,17 +19,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Printer } from 'lucide-react';
+import { MoreHorizontal, Printer, Trash2 } from 'lucide-react';
 import type { OrderStatus } from '@/lib/types';
 
-export function StatusUpdateMenu({ orderId, currentStatus }: { orderId: string, currentStatus: OrderStatus }) {
+interface StatusUpdateMenuProps {
+  orderId: string;
+  currentStatus: OrderStatus;
+  onUpdateStatus: (orderId: string, status: OrderStatus) => void;
+  onDeleteOrder: (orderId: string) => void;
+}
+
+export function StatusUpdateMenu({ orderId, currentStatus, onUpdateStatus, onDeleteOrder }: StatusUpdateMenuProps) {
     const statuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Completed', 'Cancelled'];
-    // In a real app, this would call a server action
+    
     const handleUpdate = (status: OrderStatus) => {
-        console.log(`Updating order ${orderId} to ${status}`);
+        onUpdateStatus(orderId, status);
     }
     const handleDelete = () => {
-        console.log(`Deleting order ${orderId}`);
+        onDeleteOrder(orderId);
     }
     const handlePrintPO = () => {
         window.open(`/admin/print/po/${orderId}`, '_blank');
@@ -61,7 +68,8 @@ export function StatusUpdateMenu({ orderId, currentStatus }: { orderId: string, 
                             onSelect={(e) => e.preventDefault()}
                             className="text-destructive focus:text-destructive"
                         >
-                            Delete Order
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete Order</span>
                         </DropdownMenuItem>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
