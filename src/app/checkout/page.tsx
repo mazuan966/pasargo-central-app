@@ -45,7 +45,7 @@ export default function CheckoutPage() {
 
     toast({
       title: 'Order Placed Successfully!',
-      description: 'Thank you for your purchase. Your order is being processed.',
+      description: 'Thank you for your purchase. A confirmation has been sent via WhatsApp.',
     });
     
     clearCart();
