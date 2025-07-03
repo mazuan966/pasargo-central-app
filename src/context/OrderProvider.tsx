@@ -12,17 +12,20 @@ interface OrderContextType {
 
 export const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
+const simulateDirectWhatsApp = (phoneNumber: string, message: string) => {
+  if (!phoneNumber) {
+    console.error('WhatsApp Simulation Error: Phone number is missing.');
+    return;
+  }
+  console.log('--- SIMULATING WHATSAPP MESSAGE ---');
+  console.log(`To: ${phoneNumber}`);
+  console.log(`Message: ${message}`);
+  console.log('------------------------------------');
+};
+
+
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(mockOrders);
-
-  const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
-    if (!phoneNumber) {
-      console.error('WhatsApp Error: Phone number is missing.');
-      return;
-    }
-    const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank')?.focus();
-  };
 
   const addOrder = (items: CartItem[], total: number, paymentMethod: 'billplz' | 'cod') => {
     // In a real app, this user would be the currently logged-in user.
@@ -57,7 +60,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     setOrders(prevOrders => [newOrder, ...prevOrders]);
 
-    // --- WhatsApp Integration ---
+    // --- WhatsApp Integration Simulation ---
+    // In a real application, this logic would run on a server.
+    // We are logging to the console to simulate the direct message being sent.
 
     // 1. Send Invoice to User
     const userInvoiceMessage = `Hi ${currentUser.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrder.id}*\n\n` +
@@ -66,7 +71,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       `We will process your order shortly.`;
     
     if (currentUser.phoneNumber) {
-        sendWhatsAppMessage(currentUser.phoneNumber, userInvoiceMessage);
+        simulateDirectWhatsApp(currentUser.phoneNumber, userInvoiceMessage);
     }
 
     // 2. Send PO to Admin
@@ -75,12 +80,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         const adminPOMessage = `*New Purchase Order Received*\n\n` +
             `*Order ID:* ${newOrder.id}\n` +
             `*From:* ${currentUser.restaurantName}\n` +
-            `*Total:* RM ${newOrder.total.toFixed(2)}\n\n` +
+            `*Total:* RM ${newOrder.total.toFixed(2)}*\n\n` +
             `*Items:*\n` +
             newOrder.items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
             `\n\nPlease process the order in the admin dashboard.`;
         
-        sendWhatsAppMessage(adminPhoneNumber, adminPOMessage);
+        simulateDirectWhatsApp(adminPhoneNumber, adminPOMessage);
     } else {
         console.warn('Admin WhatsApp number (NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER) not configured. Skipping admin notification.');
     }
