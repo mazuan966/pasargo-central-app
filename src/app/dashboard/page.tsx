@@ -5,7 +5,7 @@ import ProductList from '@/components/shop/ProductList';
 import { useOrders } from '@/hooks/use-orders';
 import { OrderListItem } from '@/components/orders/OrderListItem';
 import type { Order, Product } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight, WifiOff } from 'lucide-react';
