@@ -1,7 +1,8 @@
 'use server';
 
 import { verifyDeliveryPhoto, type VerifyDeliveryPhotoOutput } from '@/ai/flows/verify-delivery-photo';
-import { generateEInvoice, EInvoiceInputSchema, type EInvoiceOutput } from '@/ai/flows/generate-e-invoice';
+import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
+import { EInvoiceInputSchema, type EInvoiceOutput } from '@/lib/types';
 import { z } from 'zod';
 
 const verifyDeliverySchema = z.object({

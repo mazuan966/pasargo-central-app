@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface Product {
   id: string;
   name: string;
@@ -18,13 +20,37 @@ export type OrderStatus = 'Order Created' | 'Processing' | 'Pick Up' | 'Delivere
 export type PaymentMethod = 'Cash on Delivery' | 'Bank Transfer';
 export type PaymentStatus = 'Pending Payment' | 'Paid' | 'Pending Confirmation';
 
-export interface EInvoice {
-  invoiceId: string;
-  validationUrl: string;
-  qrCodeData: string;
-  status: string;
-  validatedAt: string;
-}
+export const EInvoiceInputSchema = z.object({
+  orderId: z.string(),
+  orderDate: z.string(),
+  total: z.number(),
+  items: z.array(z.object({
+      name: z.string(),
+      quantity: z.number(),
+      price: z.number(),
+  })),
+  seller: z.object({
+      name: z.string(),
+      tin: z.string(),
+  }),
+  buyer: z.object({
+      name: z.string(),
+      tin: z.string().optional(),
+      address: z.string().optional(),
+  })
+});
+export type EInvoiceInput = z.infer<typeof EInvoiceInputSchema>;
+
+export const EInvoiceOutputSchema = z.object({
+  invoiceId: z.string().describe("A unique identifier for the e-invoice, provided by LHDN."),
+  validationUrl: z.string().url().describe("A URL to the validated e-invoice on the MyInvois portal."),
+  qrCodeData: z.string().describe("A string of data to be encoded into a QR code for verification."),
+  status: z.string().describe("The validation status, e.g., 'Validated'."),
+  validatedAt: z.string().datetime().describe("The ISO 8601 timestamp of when the invoice was validated.")
+});
+export type EInvoiceOutput = z.infer<typeof EInvoiceOutputSchema>;
+
+export type EInvoice = EInvoiceOutput;
 
 export interface Order {
   id: string;
