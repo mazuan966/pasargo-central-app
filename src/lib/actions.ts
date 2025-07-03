@@ -1,6 +1,7 @@
 'use server';
 
 import { verifyDeliveryPhoto, type VerifyDeliveryPhotoOutput } from '@/ai/flows/verify-delivery-photo';
+import { generateEInvoice, EInvoiceInputSchema, type EInvoiceOutput } from '@/ai/flows/generate-e-invoice';
 import { z } from 'zod';
 
 const verifyDeliverySchema = z.object({
@@ -10,16 +11,16 @@ const verifyDeliverySchema = z.object({
     }),
 });
 
-type FormState = {
+type VerifyFormState = {
     success: boolean;
     message: string;
     data?: VerifyDeliveryPhotoOutput;
 }
 
 export async function verifyDeliveryAction(
-    prevState: FormState | undefined,
+    prevState: VerifyFormState | undefined,
     formData: FormData,
-): Promise<FormState> {
+): Promise<VerifyFormState> {
 
     const validatedFields = verifyDeliverySchema.safeParse({
         orderId: formData.get('orderId'),
@@ -51,6 +52,60 @@ export async function verifyDeliveryAction(
         return {
             success: false,
             message: `AI verification failed: ${errorMessage}`,
+        };
+    }
+}
+
+
+type EInvoiceFormState = {
+    success: boolean;
+    message: string;
+    data?: EInvoiceOutput;
+}
+
+export async function generateEInvoiceAction(
+    prevState: EInvoiceFormState | undefined,
+    formData: FormData,
+): Promise<EInvoiceFormState> {
+    
+    let rawData;
+    try {
+        rawData = {
+            orderId: formData.get('orderId'),
+            orderDate: formData.get('orderDate'),
+            total: parseFloat(formData.get('total') as string),
+            items: JSON.parse(formData.get('items') as string),
+            seller: JSON.parse(formData.get('seller') as string),
+            buyer: JSON.parse(formData.get('buyer') as string),
+        };
+    } catch (e) {
+        return { success: false, message: "Failed to parse form data." }
+    }
+
+
+    const validatedFields = EInvoiceInputSchema.safeParse(rawData);
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: 'Invalid input for e-invoice. ' + validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        const result = await generateEInvoice(validatedFields.data);
+        return {
+            success: true,
+            message: 'E-Invoice generated successfully.',
+            data: result,
+        };
+
+    } catch (error) {
+        console.error(error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        return {
+            success: false,
+            message: `E-Invoice generation failed: ${errorMessage}`,
         };
     }
 }

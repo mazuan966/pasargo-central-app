@@ -7,6 +7,7 @@ import { mockOrders } from '@/lib/mock-data';
 interface OrderContextType {
   orders: Order[];
   addOrder: (items: CartItem[], total: number, paymentMethod: 'billplz' | 'cod') => void;
+  updateOrder: (updatedOrder: Order) => void;
 }
 
 export const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -22,6 +23,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         restaurantName: 'The Daily Grind Cafe', // Assuming a static user for now
         latitude: 3.1390,
         longitude: 101.6869,
+        tin: 'C21876543210',
+        address: '123 Jalan Ampang, 50450 Kuala Lumpur'
       },
       items: items.map(item => ({
         productId: item.id,
@@ -42,8 +45,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     setOrders(prevOrders => [newOrder, ...prevOrders]);
   };
 
+  const updateOrder = (updatedOrder: Order) => {
+    setOrders(prevOrders =>
+      prevOrders.map(order => (order.id === updatedOrder.id ? updatedOrder : order))
+    );
+  };
+
   return (
-    <OrderContext.Provider value={{ orders, addOrder }}>
+    <OrderContext.Provider value={{ orders, addOrder, updateOrder }}>
       {children}
     </OrderContext.Provider>
   );

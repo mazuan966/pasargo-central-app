@@ -19,6 +19,8 @@ export const mockOrders: Order[] = [
       restaurantName: 'The Daily Grind Cafe',
       latitude: 3.1390,
       longitude: 101.6869,
+      tin: 'C21876543210',
+      address: '123 Jalan Ampang, 50450 Kuala Lumpur',
     },
     items: [
       { productId: 'prod-001', name: 'Fresh Tomatoes', quantity: 5, price: 5.50 },
@@ -51,6 +53,8 @@ export const mockOrders: Order[] = [
       restaurantName: 'Spice Route Restaurant',
       latitude: 5.4172,
       longitude: 100.3327,
+      tin: 'C10987654321',
+      address: '456 Lebuh Campbell, 10100 George Town, Pulau Pinang',
     },
     items: [
       { productId: 'prod-004', name: 'Whole Chicken', quantity: 10, price: 25.00 },
@@ -75,6 +79,8 @@ export const mockOrders: Order[] = [
       restaurantName: 'The Daily Grind Cafe',
       latitude: 3.1390,
       longitude: 101.6869,
+      tin: 'C21876543210',
+      address: '123 Jalan Ampang, 50450 Kuala Lumpur',
     },
     items: [
       { productId: 'prod-008', name: 'Fresh Milk', quantity: 12, price: 6.50 },

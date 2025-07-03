@@ -18,6 +18,14 @@ export type OrderStatus = 'Order Created' | 'Processing' | 'Pick Up' | 'Delivere
 export type PaymentMethod = 'Cash on Delivery' | 'Bank Transfer';
 export type PaymentStatus = 'Pending Payment' | 'Paid' | 'Pending Confirmation';
 
+export interface EInvoice {
+  invoiceId: string;
+  validationUrl: string;
+  qrCodeData: string;
+  status: string;
+  validatedAt: string;
+}
+
 export interface Order {
   id: string;
   user: {
@@ -25,6 +33,8 @@ export interface Order {
     restaurantName: string;
     latitude?: number;
     longitude?: number;
+    tin?: string;
+    address?: string;
   };
   items: {
     productId: string;
@@ -50,4 +60,5 @@ export interface Order {
     status: OrderStatus;
     timestamp: string;
   }[];
+  eInvoice?: EInvoice;
 }
