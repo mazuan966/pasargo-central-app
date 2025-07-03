@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { mockOrders } from '@/lib/mock-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import 'leaflet/dist/leaflet.css';
@@ -28,7 +29,7 @@ interface Vendor {
     longitude?: number;
 }
 
-// Define the map component outside the main page component
+// Define the map component outside the main page component to prevent re-creation on render.
 const Map = ({ vendors }: { vendors: Vendor[] }) => {
     return (
         <MapContainer center={MAP_CENTER} zoom={MAP_ZOOM} scrollWheelZoom={true} style={{ height: '600px', width: '100%', borderRadius: '0.5rem' }}>
@@ -47,14 +48,15 @@ const Map = ({ vendors }: { vendors: Vendor[] }) => {
     );
 };
 
-// Memoize the map component to prevent unnecessary re-renders
+// Memoize the map component to prevent unnecessary re-renders.
 const MemoizedMap = React.memo(Map);
 
 export default function AdminMapPage() {
-  const vendors = React.useMemo(() => {
+  const vendors = useMemo(() => {
     return mockOrders
       .map(order => order.user)
       .filter(user => user.latitude && user.longitude)
+      // Deduplicate vendors based on their ID
       .reduce((acc, current) => {
           if (!acc.find(item => item.id === current.id)) {
               acc.push(current as Vendor);
