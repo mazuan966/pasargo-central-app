@@ -1,24 +1,27 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L, { type LatLngExpression } from 'leaflet';
+import { useEffect, useRef } from 'react';
 
+// Icon setup to fix a common issue with webpack
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// This is a workaround for a known issue with react-leaflet and webpack
-// It ensures the default marker icons are loaded correctly.
-// @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x.src,
-  iconUrl: markerIcon.src,
-  shadowUrl: markerShadow.src,
+const defaultIcon = L.icon({
+    iconUrl: markerIcon.src,
+    iconRetinaUrl: markerIcon2x.src,
+    shadowUrl: markerShadow.src,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
 });
+L.Marker.prototype.options.icon = defaultIcon;
 
-const MAP_CENTER: LatLngExpression = [4.2105, 101.9758]; // Center of Malaysia
+
+const MAP_CENTER: LatLngExpression = [4.2105, 101.9758];
 const MAP_ZOOM = 7;
 
 interface Vendor {
@@ -33,24 +36,58 @@ interface VendorMapProps {
 }
 
 export default function VendorMap({ vendors }: VendorMapProps) {
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<L.Map | null>(null);
+    const markersRef = useRef<L.Marker[]>([]);
+
+    // Initialize map
+    useEffect(() => {
+        // Only initialize the map once
+        if (mapContainerRef.current && !mapRef.current) { 
+            mapRef.current = L.map(mapContainerRef.current, {
+                center: MAP_CENTER,
+                zoom: MAP_ZOOM,
+                scrollWheelZoom: true,
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            }).addTo(mapRef.current);
+        }
+
+        // Cleanup function to destroy the map instance
+        return () => {
+            if (mapRef.current) {
+                mapRef.current.remove();
+                mapRef.current = null;
+            }
+        };
+    }, []); // Empty dependency array ensures this runs only once on mount and unmount
+
+    // Update markers when vendors prop changes
+    useEffect(() => {
+        if (!mapRef.current) return;
+
+        // Clear existing markers from the map
+        markersRef.current.forEach(marker => marker.removeFrom(mapRef.current!));
+        markersRef.current = []; // Clear the reference array
+
+        // Add new markers to the map
+        vendors.forEach(vendor => {
+            if (vendor.latitude && vendor.longitude) {
+                const marker = L.marker([vendor.latitude, vendor.longitude])
+                    .addTo(mapRef.current!)
+                    .bindPopup(`<p class="font-semibold">${vendor.restaurantName}</p>`);
+                markersRef.current.push(marker);
+            }
+        });
+    }, [vendors]); // Re-run this effect only when the vendors prop changes
+
+    // This div is the container for the map
     return (
-        <MapContainer center={MAP_CENTER} zoom={MAP_ZOOM} scrollWheelZoom={true} style={{ height: '600px', width: '100%', borderRadius: '0.5rem' }}>
-            <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {vendors.map(vendor => {
-                if(vendor.latitude && vendor.longitude) {
-                   return (
-                    <Marker key={vendor.id} position={[vendor.latitude, vendor.longitude]}>
-                        <Popup>
-                            <p className="font-semibold">{vendor.restaurantName}</p>
-                        </Popup>
-                    </Marker>
-                   )
-                }
-                return null;
-            })}
-        </MapContainer>
+        <div 
+            ref={mapContainerRef} 
+            style={{ height: '600px', width: '100%', borderRadius: '0.5rem' }} 
+        />
     );
 }
