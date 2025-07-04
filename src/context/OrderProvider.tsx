@@ -102,7 +102,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 }
 
                 for (const update of productUpdates) {
-                    transaction.update(update.ref, { stock: update.newStock });
+                    transaction.update(update.ref, { stock: newStock });
                 }
                 
                 const originalOrderData = originalOrderDoc.data() as Order;
