@@ -67,7 +67,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const handleLogout = async () => {
     if (auth) {
       await signOut(auth);
-      router.push('/');
+      router.push('/login');
     }
   };
   
