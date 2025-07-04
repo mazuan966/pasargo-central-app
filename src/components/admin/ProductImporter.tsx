@@ -56,7 +56,7 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
           const productsCollection = collection(db, 'products');
           const productsSnapshot = await getDocs(productsCollection);
           const existingProductsById = new Map(productsSnapshot.docs.map(doc => [doc.id, { ...doc.data(), id: doc.id } as Product]));
-          const existingProductsByName = new Map(productsSnapshot.docs.map(doc => [doc.data().name, { ...doc.data(), id: doc.id } as Product]));
+          const existingProductsByName = new Map(productsSnapshot.docs.map(doc => [doc.data().name.toLowerCase(), { ...doc.data(), id: doc.id } as Product]));
 
           for (const row of results.data as any[]) {
             const productData = {
@@ -82,8 +82,8 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
                 docRef = doc(db, 'products', docId);
                 batch.update(docRef, productData);
                 updatedCount++;
-            } else if (existingProductsByName.has(productData.name)) {
-                const existingProduct = existingProductsByName.get(productData.name)!;
+            } else if (existingProductsByName.has(productData.name.toLowerCase())) {
+                const existingProduct = existingProductsByName.get(productData.name.toLowerCase())!;
                 docRef = doc(db, 'products', existingProduct.id);
                 batch.update(docRef, productData);
                 updatedCount++;
@@ -130,7 +130,7 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
         <DialogHeader>
           <DialogTitle>Import Products via CSV</DialogTitle>
           <DialogDescription>
-            Upload a CSV file to bulk create or update products. Headers must include: id, name, description, price, unit, category, stock, imageUrl, hasSst. The 'id' is optional for new items.
+            Upload a CSV file to bulk add or edit products. To update an existing product, make sure the 'name' in your CSV matches the product name in the system. The 'id' field is optional.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
