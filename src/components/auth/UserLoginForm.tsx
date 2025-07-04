@@ -52,7 +52,7 @@ export function UserLoginForm() {
         let errorMessage = "An unknown error occurred. Please try again later.";
         // The 'auth/invalid-credential' error code covers wrong password, user not found, etc.
         if (error.code === 'auth/invalid-credential') {
-            errorMessage = "Invalid email or password. Please double-check and try again.";
+            errorMessage = "The email or password you entered is incorrect. Please try again.";
         }
         toast({
             variant: 'destructive',
