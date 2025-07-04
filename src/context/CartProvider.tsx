@@ -31,6 +31,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addToCart = (product: Product, quantity: number) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
+      const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
+
+      if (newQuantityInCart > product.stock) {
+        toast({
+            variant: 'destructive',
+            title: 'Not enough stock!',
+            description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
+        });
+        return prevItems; // Return original state without changes
+      }
+
+      toast({
+        title: 'Added to Cart',
+        description: `${quantity} x ${product.name}`,
+      });
+
       if (existingItem) {
         return prevItems.map(item =>
           item.id === product.id
@@ -39,10 +55,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         );
       }
       return [...prevItems, { ...product, quantity }];
-    });
-    toast({
-      title: 'Added to Cart',
-      description: `${quantity} x ${product.name}`,
     });
   };
 
@@ -58,11 +70,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeFromCart(productId);
       return;
     }
-    setCartItems(prevItems =>
-      prevItems.map(item =>
+    setCartItems(prevItems => {
+      const itemToUpdate = prevItems.find(item => item.id === productId);
+      
+      if (itemToUpdate && quantity > itemToUpdate.stock) {
+          toast({
+              variant: 'destructive',
+              title: 'Not enough stock!',
+              description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
+          });
+          // Revert quantity to max available stock instead of just failing
+          return prevItems.map(item =>
+              item.id === productId ? { ...item, quantity: itemToUpdate.stock } : item
+          );
+      }
+
+      return prevItems.map(item =>
         item.id === productId ? { ...item, quantity } : item
-      )
-    );
+      );
+    });
   };
 
   const clearCart = () => {

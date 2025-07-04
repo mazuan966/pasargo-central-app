@@ -10,6 +10,17 @@ import { Trash2 } from 'lucide-react';
 export default function CartItem({ item }: { item: CartItemType }) {
   const { updateQuantity, removeFromCart } = useCart();
 
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newQuantity = parseInt(e.target.value, 10);
+    // Let useCart handle the logic, including validation
+    if (!isNaN(newQuantity)) {
+        updateQuantity(item.id, newQuantity);
+    } else if (e.target.value === '') {
+        // Allow clearing the input, treat as 1 to avoid NaN issues.
+        updateQuantity(item.id, 1);
+    }
+  }
+
   return (
     <div className="flex items-center gap-4 p-4">
       <div className="relative h-20 w-20 rounded-md overflow-hidden">
@@ -23,8 +34,9 @@ export default function CartItem({ item }: { item: CartItemType }) {
         <Input
           type="number"
           min="1"
+          max={item.stock}
           value={item.quantity}
-          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value, 10))}
+          onChange={handleQuantityChange}
           className="w-16 h-9 text-center"
         />
       </div>

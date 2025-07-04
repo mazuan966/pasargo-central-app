@@ -3,7 +3,7 @@
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import type { Order, CartItem, User } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where, runTransaction } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 
 interface OrderContextType {
@@ -76,63 +76,98 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       throw new Error("Firestore is not configured or user is not logged in. Cannot add order.");
     }
     
-    const snapshot = await getCountFromServer(collection(db, 'orders'));
-    const newOrderIndex = snapshot.data().count + 1;
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = String(now.getFullYear()).slice(-2);
-    const datePart = `${day}${month}${year}`;
-    const numberPart = String(newOrderIndex).padStart(4, '0');
-    const newOrderNumber = `PA${numberPart}${datePart}`;
+    try {
+        await runTransaction(db, async (transaction) => {
+            const productUpdates: { ref: any, newStock: number }[] = [];
 
-    const newOrderData: Omit<Order, 'id'> = {
-      orderNumber: newOrderNumber,
-      user: userData,
-      items: items.map(item => ({
-        productId: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        hasSst: !!item.hasSst,
-      })),
-      subtotal,
-      sst,
-      total,
-      status: 'Order Created',
-      orderDate: new Date().toISOString(),
-      paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer',
-      paymentStatus: paymentMethod === 'cod' ? 'Pending Payment' : 'Pending Confirmation',
-      statusHistory: [
-        { status: 'Order Created', timestamp: new Date().toISOString() },
-      ],
-    };
+            // 1. Read all product stocks and validate in a loop
+            for (const item of items) {
+                const productRef = doc(db, 'products', item.id);
+                const productDoc = await transaction.get(productRef);
 
-    const docRef = await addDoc(collection(db, 'orders'), newOrderData);
-    const newOrder = { ...newOrderData, id: docRef.id } as Order;
-    
-    const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrder.orderNumber}*\n\n` +
-      newOrder.items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
-      `\n\nSubtotal: RM ${newOrder.subtotal.toFixed(2)}\nSST (6%): RM ${newOrder.sst.toFixed(2)}\n*Total: RM ${newOrder.total.toFixed(2)}*\n\n` +
-      `We will process your order shortly.`;
-    
-    if (userData.phoneNumber) {
-        simulateDirectWhatsApp(userData.phoneNumber, userInvoiceMessage);
-    }
+                if (!productDoc.exists()) {
+                    throw new Error(`Product "${item.name}" does not exist.`);
+                }
 
-    const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
-    if (adminPhoneNumber) {
-        const adminPOMessage = `*New Purchase Order Received*\n\n` +
-            `*Order ID:* ${newOrder.orderNumber}\n` +
-            `*From:* ${userData.restaurantName}\n` +
-            `*Total:* RM ${newOrder.total.toFixed(2)}*\n\n` +
-            `*Items:*\n` +
-            newOrder.items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
-            `\n\nPlease process the order in the admin dashboard.`;
-        
-        simulateDirectWhatsApp(adminPhoneNumber, adminPOMessage);
-    } else {
-        console.warn('Admin WhatsApp number (NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER) not configured. Skipping admin notification.');
+                const currentStock = productDoc.data().stock;
+                if (currentStock < item.quantity) {
+                    throw new Error(`Not enough stock for "${item.name}". Only ${currentStock} left.`);
+                }
+                
+                productUpdates.push({ ref: productRef, newStock: currentStock - item.quantity });
+            }
+
+            // 2. If all validations pass, perform all updates
+            for (const update of productUpdates) {
+                transaction.update(update.ref, { stock: update.newStock });
+            }
+            
+            // 3. Create the order
+            const snapshot = await getCountFromServer(collection(db, 'orders'));
+            const newOrderIndex = snapshot.data().count + 1;
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = String(now.getFullYear()).slice(-2);
+            const datePart = `${day}${month}${year}`;
+            const numberPart = String(newOrderIndex).padStart(4, '0');
+            const newOrderNumber = `PA${numberPart}${datePart}`;
+
+            const newOrderData: Omit<Order, 'id'> = {
+                orderNumber: newOrderNumber,
+                user: userData,
+                items: items.map(item => ({
+                    productId: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    hasSst: !!item.hasSst,
+                })),
+                subtotal,
+                sst,
+                total,
+                status: 'Order Created',
+                orderDate: new Date().toISOString(),
+                paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer',
+                paymentStatus: paymentMethod === 'cod' ? 'Pending Payment' : 'Pending Confirmation',
+                statusHistory: [
+                    { status: 'Order Created', timestamp: new Date().toISOString() },
+                ],
+            };
+            
+            const newOrderRef = doc(collection(db, "orders"));
+            transaction.set(newOrderRef, newOrderData);
+
+            // 4. Handle side-effects (notifications) after transaction logic
+            // Note: These run regardless of transaction commit, but we only get here if it's likely to succeed.
+            const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber}*\n\n` +
+              items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
+              `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*\n\n` +
+              `We will process your order shortly.`;
+            
+            if (userData.phoneNumber) {
+                simulateDirectWhatsApp(userData.phoneNumber, userInvoiceMessage);
+            }
+
+            const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
+            if (adminPhoneNumber) {
+                const adminPOMessage = `*New Purchase Order Received*\n\n` +
+                    `*Order ID:* ${newOrderNumber}\n` +
+                    `*From:* ${userData.restaurantName}\n` +
+                    `*Total:* RM ${total.toFixed(2)}*\n\n` +
+                    `*Items:*\n` +
+                    items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
+                    `\n\nPlease process the order in the admin dashboard.`;
+                
+                simulateDirectWhatsApp(adminPhoneNumber, adminPOMessage);
+            } else {
+                console.warn('Admin WhatsApp number (NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER) not configured. Skipping admin notification.');
+            }
+        });
+    } catch (e: any) {
+        console.error("Order transaction failed: ", e);
+        // Re-throw the specific error message to be caught by the checkout page UI
+        throw new Error(e.message || "Failed to place order due to a stock issue or other error.");
     }
   };
 

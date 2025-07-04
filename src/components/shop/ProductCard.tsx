@@ -11,20 +11,32 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProductCard({ product }: { product: Product }) {
-  const { addToCart } = useCart();
+  const { addToCart, cartItems } = useCart();
   const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
 
+  const itemInCart = cartItems.find(item => item.id === product.id);
+  const stockInCart = itemInCart ? itemInCart.quantity : 0;
+  const availableStock = product.stock - stockInCart;
+
   const handleAddToCart = () => {
-    if (quantity > 0) {
-      addToCart(product, quantity);
-    } else {
+    if (quantity <= 0) {
       toast({
         variant: 'destructive',
         title: 'Invalid Quantity',
         description: 'Please enter a quantity greater than 0.',
       });
+      return;
     }
+     if (quantity > availableStock) {
+      toast({
+        variant: 'destructive',
+        title: 'Not enough stock!',
+        description: `You can only add ${availableStock} more of ${product.name}.`,
+      });
+      return;
+    }
+    addToCart(product, quantity);
   };
   
   return (
@@ -47,20 +59,25 @@ export default function ProductCard({ product }: { product: Product }) {
       <CardContent className="flex-grow p-4 pt-0">
         <p className="text-xl font-semibold text-primary">RM {product.price.toFixed(2)} / {product.unit}</p>
         <p className="text-xs text-muted-foreground">{product.category}</p>
+        <p className={`text-sm mt-2 font-medium ${product.stock > 5 ? 'text-green-600' : 'text-amber-600'} ${product.stock === 0 ? 'text-destructive' : ''}`}>
+          {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+        </p>
       </CardContent>
       <CardFooter className="p-4 pt-0">
         <div className="flex w-full items-center gap-2">
             <Input
                 type="number"
                 min="1"
+                max={availableStock}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
                 className="w-20 h-9 text-center"
                 aria-label="Quantity"
+                disabled={availableStock <= 0}
             />
-            <Button className="w-full" onClick={handleAddToCart}>
+            <Button className="w-full" onClick={handleAddToCart} disabled={availableStock <= 0}>
                 <ShoppingCart className="mr-2 h-4 w-4" />
-                Add to Cart
+                {availableStock > 0 ? 'Add to Cart' : 'Out of Stock'}
             </Button>
         </div>
       </CardFooter>
