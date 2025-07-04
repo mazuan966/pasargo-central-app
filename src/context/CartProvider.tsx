@@ -29,32 +29,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addToCart = (product: Product, quantity: number) => {
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
-      const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
+    const existingItem = cartItems.find(item => item.id === product.id);
+    const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
 
-      if (newQuantityInCart > product.stock) {
-        toast({
-            variant: 'destructive',
-            title: 'Not enough stock!',
-            description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
-        });
-        return prevItems; // Return original state without changes
-      }
-
+    if (newQuantityInCart > product.stock) {
       toast({
-        title: 'Added to Cart',
-        description: `${quantity} x ${product.name}`,
+          variant: 'destructive',
+          title: 'Not enough stock!',
+          description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
       });
+      return; // Exit early
+    }
 
-      if (existingItem) {
-        return prevItems.map(item =>
+    if (existingItem) {
+      setCartItems(prevItems =>
+        prevItems.map(item =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
-        );
-      }
-      return [...prevItems, { ...product, quantity }];
+        )
+      );
+    } else {
+      setCartItems(prevItems => [...prevItems, { ...product, quantity }]);
+    }
+    
+    toast({
+      title: 'Added to Cart',
+      description: `${quantity} x ${product.name}`,
     });
   };
 
@@ -70,25 +71,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeFromCart(productId);
       return;
     }
-    setCartItems(prevItems => {
-      const itemToUpdate = prevItems.find(item => item.id === productId);
-      
-      if (itemToUpdate && quantity > itemToUpdate.stock) {
-          toast({
-              variant: 'destructive',
-              title: 'Not enough stock!',
-              description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
-          });
-          // Revert quantity to max available stock instead of just failing
-          return prevItems.map(item =>
-              item.id === productId ? { ...item, quantity: itemToUpdate.stock } : item
-          );
-      }
+    
+    const itemToUpdate = cartItems.find(item => item.id === productId);
 
-      return prevItems.map(item =>
+    if (itemToUpdate && quantity > itemToUpdate.stock) {
+        toast({
+            variant: 'destructive',
+            title: 'Not enough stock!',
+            description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
+        });
+        // Revert quantity to max available stock
+        setCartItems(prevItems =>
+            prevItems.map(item =>
+                item.id === productId ? { ...item, quantity: itemToUpdate.stock } : item
+            )
+        );
+        return;
+    }
+
+    setCartItems(prevItems =>
+      prevItems.map(item =>
         item.id === productId ? { ...item, quantity } : item
-      );
-    });
+      )
+    );
   };
 
   const clearCart = () => {
