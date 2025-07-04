@@ -2,9 +2,9 @@
 'use client';
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
-import type { Order, CartItem, User } from '@/lib/types';
+import type { Order, CartItem, User, OrderStatus } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where, runTransaction, writeBatch } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 
 const SST_RATE = 0.06;
@@ -15,6 +15,7 @@ interface OrderContextType {
   updateOrder: (updatedOrder: Order) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   amendCodOrder: (originalOrder: Order, amendedItems: CartItem[]) => Promise<void>;
+  bulkUpdateOrderStatus: (orderIds: string[], status: OrderStatus) => Promise<void>;
 }
 
 export const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -102,7 +103,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 }
 
                 for (const update of productUpdates) {
-                    transaction.update(update.ref, { stock: newStock });
+                    transaction.update(update.ref, { stock: update.newStock });
                 }
                 
                 const originalOrderData = originalOrderDoc.data() as Order;
@@ -204,7 +205,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     simulateDirectWhatsApp(userData.phoneNumber, userInvoiceMessage);
                 }
 
-                const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
+                const adminPhoneNumber = "60163864181";
                 if (adminPhoneNumber) {
                     const adminPOMessage = `*New Purchase Order Received*\n\n` +
                         `*Order ID:* ${newOrderNumber}\n` +
@@ -334,11 +335,31 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         console.error("Amend order transaction failed:", error);
         throw new Error(error.message || "An unknown error occurred during the update.");
     }
-  }
+  };
+
+  const bulkUpdateOrderStatus = async (orderIds: string[], newStatus: OrderStatus) => {
+    if (!db) {
+      throw new Error("Firestore is not configured. Cannot perform bulk update.");
+    }
+    const batch = writeBatch(db);
+    const ordersToUpdate = orders.filter(order => orderIds.includes(order.id));
+
+    ordersToUpdate.forEach(order => {
+        const orderRef = doc(db, 'orders', order.id);
+        const newHistoryEntry = { status: newStatus, timestamp: new Date().toISOString() };
+        // Avoid duplicate consecutive statuses
+        const lastStatus = order.statusHistory[order.statusHistory.length - 1];
+        const newHistory = lastStatus.status !== newStatus ? [...order.statusHistory, newHistoryEntry] : order.statusHistory;
+        
+        batch.update(orderRef, { status: newStatus, statusHistory: newHistory });
+    });
+
+    await batch.commit();
+  };
 
 
   return (
-    <OrderContext.Provider value={{ orders, addOrder, updateOrder, deleteOrder, amendCodOrder }}>
+    <OrderContext.Provider value={{ orders, addOrder, updateOrder, deleteOrder, amendCodOrder, bulkUpdateOrderStatus }}>
       {children}
     </OrderContext.Provider>
   );

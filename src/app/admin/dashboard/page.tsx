@@ -15,7 +15,11 @@ import { Badge } from '@/components/ui/badge';
 import { cva } from 'class-variance-authority';
 import { StatusUpdateMenu } from '@/components/admin/StatusUpdateMenu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -53,8 +57,9 @@ const paymentBadgeVariants = cva(
 )
 
 export default function AdminDashboardPage() {
-  const { orders, updateOrder, deleteOrder } = useOrders();
+  const { orders, updateOrder, deleteOrder, bulkUpdateOrderStatus } = useOrders();
   const { toast } = useToast();
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
     const orderToUpdate = orders.find(order => order.id === orderId);
@@ -67,7 +72,7 @@ export default function AdminDashboardPage() {
 
     toast({
       title: 'Order Updated',
-      description: `Order ${orderId} status set to ${status}.`
+      description: `Order ${orderToUpdate.orderNumber} status set to ${status}.`
     });
   };
 
@@ -75,10 +80,40 @@ export default function AdminDashboardPage() {
     await deleteOrder(orderId);
     toast({
       title: 'Order Deleted',
-      description: `Order ${orderId} has been removed.`,
+      description: `Order has been removed.`,
       variant: 'destructive'
     });
   };
+
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
+      setSelectedOrderIds(orders.map(order => order.id));
+    } else {
+      setSelectedOrderIds([]);
+    }
+  };
+
+  const handleSelectRow = (orderId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedOrderIds(prev => [...prev, orderId]);
+    } else {
+      setSelectedOrderIds(prev => prev.filter(id => id !== orderId));
+    }
+  };
+  
+  const handleBulkUpdate = async (status: OrderStatus) => {
+    if (selectedOrderIds.length === 0) return;
+    await bulkUpdateOrderStatus(selectedOrderIds, status);
+    toast({
+      title: 'Bulk Update Successful',
+      description: `${selectedOrderIds.length} orders have been updated to "${status}".`
+    });
+    setSelectedOrderIds([]);
+  };
+
+  const isAllSelected = selectedOrderIds.length > 0 && selectedOrderIds.length === orders.length;
+  const isSomeSelected = selectedOrderIds.length > 0 && selectedOrderIds.length < orders.length;
+  const orderStatuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Completed', 'Cancelled'];
 
   return (
     <Card>
@@ -87,28 +122,62 @@ export default function AdminDashboardPage() {
             <CardDescription>Manage and track all customer orders.</CardDescription>
         </CardHeader>
         <CardContent>
+             {selectedOrderIds.length > 0 && (
+                <div className="flex items-center gap-4 bg-muted p-2 rounded-md mb-4 border">
+                    <p className="text-sm font-medium">{selectedOrderIds.length} selected</p>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                Change status
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            {orderStatuses.map(status => (
+                                <DropdownMenuItem key={status} onSelect={() => handleBulkUpdate(status)}>
+                                    Set to {status}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            )}
             <Table>
                 <TableHeader>
                     <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                          onCheckedChange={handleSelectAll}
+                          checked={isAllSelected ? true : (isSomeSelected ? 'indeterminate' : false)}
+                          aria-label="Select all"
+                        />
+                    </TableHead>
                     <TableHead>Order ID</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Order Status</TableHead>
                     <TableHead>Payment</TableHead>
                     <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-right w-[100px]">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {orders.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
+                        <TableCell colSpan={8} className="h-24 text-center">
                           <p className="text-muted-foreground">No orders found.</p>
                         </TableCell>
                       </TableRow>
                     )}
                     {orders.map((order: Order) => (
-                    <TableRow key={order.id}>
+                    <TableRow key={order.id} data-state={selectedOrderIds.includes(order.id) ? "selected" : undefined}>
+                        <TableCell>
+                           <Checkbox
+                              onCheckedChange={(checked) => handleSelectRow(order.id, !!checked)}
+                              checked={selectedOrderIds.includes(order.id)}
+                              aria-label={`Select order ${order.orderNumber}`}
+                            />
+                        </TableCell>
                         <TableCell className="font-medium">{order.orderNumber}</TableCell>
                         <TableCell>{order.user.restaurantName}</TableCell>
                         <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
@@ -126,7 +195,7 @@ export default function AdminDashboardPage() {
                              orderId={order.id} 
                              currentStatus={order.status}
                              onUpdateStatus={handleUpdateStatus}
-                             onDeleteOrder={handleDeleteOrder}
+                             onDeleteOrder={() => handleDeleteOrder(order.id)}
                            />
                         </TableCell>
                     </TableRow>
