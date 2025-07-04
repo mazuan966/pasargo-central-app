@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, PlusCircle, Trash, Edit as EditIcon, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash, Edit as EditIcon, Loader2, AlertTriangle, CheckCircle, Upload, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm } from '@/components/admin/ProductForm';
 import { useToast } from '@/hooks/use-toast';
@@ -37,46 +37,48 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, FirestoreError } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { StockManager } from '@/components/admin/StockManager';
+import { ProductImporter } from '@/components/admin/ProductImporter';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [dbError, setDbError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    setDbError(null);
+    if (!db) {
+      setDbError("Firebase is not configured. Please add your credentials to the .env file.");
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const productsCollection = collection(db, 'products');
+      const productSnapshot = await getDocs(productsCollection);
+      const productsList = productSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Product[];
+      setProducts(productsList);
+    } catch (error) {
+      if (error instanceof FirestoreError && error.code === 'permission-denied') {
+        setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console to allow reads on the 'products' collection.");
+      } else {
+        setDbError("An error occurred while fetching products.");
+        console.error(error);
+      }
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProducts = async () => {
-      setIsLoading(true);
-      setDbError(null);
-      if (!db) {
-        setDbError("Firebase is not configured. Please add your credentials to the .env file.");
-        setProducts([]);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const productsCollection = collection(db, 'products');
-        const productSnapshot = await getDocs(productsCollection);
-        const productsList = productSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Product[];
-        setProducts(productsList);
-      } catch (error) {
-        if (error instanceof FirestoreError && error.code === 'permission-denied') {
-          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console to allow reads on the 'products' collection.");
-        } else {
-          setDbError("An error occurred while fetching products.");
-          console.error(error);
-        }
-        setProducts([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchProducts();
   }, []);
 
@@ -153,6 +155,54 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (products.length === 0) {
+      toast({ title: 'No Products', description: 'There are no products to export.' });
+      return;
+    }
+  
+    const headers = ['id', 'name', 'description', 'price', 'unit', 'category', 'stock', 'imageUrl', 'hasSst'];
+    
+    const escapeCsv = (val: any) => {
+      if (val === undefined || val === null) return '';
+      let str = String(val);
+      if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+        str = `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    
+    const csvContent = [
+      headers.join(','),
+      ...products.map(p => 
+        [
+          p.id,
+          p.name,
+          p.description,
+          p.price,
+          p.unit,
+          p.category,
+          p.stock,
+          p.imageUrl,
+          p.hasSst || false
+        ].map(escapeCsv).join(',')
+      )
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'products_export.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  
+    toast({ title: 'Export Successful', description: 'Products have been downloaded as CSV.' });
+  };
+  
+
   return (
     <>
       <ProductForm
@@ -160,6 +210,11 @@ export default function AdminProductsPage() {
         setIsOpen={setIsFormOpen}
         product={selectedProduct}
         onSubmit={handleFormSubmit}
+      />
+      <ProductImporter
+        isOpen={isImportOpen}
+        setIsOpen={setIsImportOpen}
+        onImportSuccess={fetchProducts}
       />
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
@@ -178,15 +233,25 @@ export default function AdminProductsPage() {
       </AlertDialog>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <CardTitle className="font-headline text-2xl">Products</CardTitle>
             <CardDescription>Add, edit, and manage your product inventory.</CardDescription>
           </div>
-          <Button onClick={handleAddProduct}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Product
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+            <Button variant="outline" onClick={handleExportCSV}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Button onClick={handleAddProduct}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
