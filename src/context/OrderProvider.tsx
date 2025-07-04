@@ -82,7 +82,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     try {
         if (originalOrderId) {
-            // This is an AMENDMENT to an existing order
+            // This is an AMENDMENT to an existing order (for FPX/pre-paid)
             await runTransaction(db, async (transaction) => {
                 const originalOrderRef = doc(db, 'orders', originalOrderId);
                 const originalOrderDoc = await transaction.get(originalOrderRef);
@@ -106,22 +106,35 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 }
                 
                 const originalOrderData = originalOrderDoc.data() as Order;
-                const newItemsToAdd = items.map(item => ({
-                    productId: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    price: item.price,
-                    hasSst: !!item.hasSst,
-                    amendmentStatus: 'added' as const,
-                }));
+                
+                // Merge new items into the existing list, preventing duplicates
+                const updatedItemsMap = new Map(originalOrderData.items.map(i => [i.productId, { ...i }]));
+
+                for (const newItem of items) {
+                    if (updatedItemsMap.has(newItem.id)) {
+                        const existingItem = updatedItemsMap.get(newItem.id)!;
+                        existingItem.quantity += newItem.quantity;
+                        existingItem.amendmentStatus = 'updated';
+                    } else {
+                        updatedItemsMap.set(newItem.id, {
+                            productId: newItem.id,
+                            name: newItem.name,
+                            quantity: newItem.quantity,
+                            price: newItem.price,
+                            hasSst: !!newItem.hasSst,
+                            amendmentStatus: 'added' as const,
+                        });
+                    }
+                }
+                
+                const finalItems = Array.from(updatedItemsMap.values());
                 
                 transaction.update(originalOrderRef, {
-                    items: [...originalOrderData.items, ...newItemsToAdd],
+                    items: finalItems,
                     subtotal: originalOrderData.subtotal + subtotal,
                     sst: originalOrderData.sst + sst,
                     total: originalOrderData.total + total,
                     isEditable: false,
-                    paymentStatus: 'Paid' // Assume additional payment is successful
                 });
             });
 
@@ -202,7 +215,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                         items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
                         `\n\nPlease process the order in the admin dashboard.`;
                     
-                    simulateDirectWhatsApp(adminPhoneNumber, adminPOMessage);
+                    simulateDirectWhatsApp(adminPOMessage, adminPOMessage);
                 } else {
                     console.warn('Admin WhatsApp number (NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER) not configured. Skipping admin notification.');
                 }

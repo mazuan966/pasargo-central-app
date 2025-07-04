@@ -41,8 +41,8 @@ export function OrderDetails({ order }: { order: Order }) {
           <CardContent>
             <h3 className="font-semibold mb-2">Items Ordered</h3>
             <div className="space-y-2">
-              {order.items.map(item => (
-                <div key={item.productId} className="flex justify-between items-center">
+              {order.items.map((item, index) => (
+                <div key={`${item.productId}-${index}`} className="flex justify-between items-center">
                   <div>
                     <p className="flex items-center gap-2 font-medium">
                       {item.name}
