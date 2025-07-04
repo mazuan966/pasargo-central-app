@@ -75,9 +75,17 @@ export function OrderDetails({ order }: { order: Order }) {
               <p>RM {order.total.toFixed(2)}</p>
             </div>
              <Separator className="my-4" />
-             <div className="space-y-2">
-                <p><span className="font-semibold">Payment Method:</span> {order.paymentMethod}</p>
-                <p><span className="font-semibold">Payment Status:</span> {order.paymentStatus}</p>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <h4 className="font-semibold mb-2">Delivery Details</h4>
+                    <p className="text-sm"><span className="text-muted-foreground">Date:</span> {isMounted ? new Date(order.deliveryDate).toLocaleDateString() : ''}</p>
+                    <p className="text-sm"><span className="text-muted-foreground">Time Slot:</span> {order.deliveryTimeSlot}</p>
+                </div>
+                <div>
+                    <h4 className="font-semibold mb-2">Payment Information</h4>
+                    <p className="text-sm"><span className="text-muted-foreground">Method:</span> {order.paymentMethod}</p>
+                    <p className="text-sm"><span className="text-muted-foreground">Status:</span> {order.paymentStatus}</p>
+                </div>
              </div>
           </CardContent>
         </Card>

@@ -81,7 +81,8 @@ export interface Order {
   total: number;
   status: OrderStatus;
   orderDate: string;
-  deliveryDate?: string;
+  deliveryDate: string;
+  deliveryTimeSlot: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   deliveryPhotoUrl?: string;

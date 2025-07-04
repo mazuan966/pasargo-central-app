@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 interface OrderContextType {
   orders: Order[];
-  addOrder: (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod') => Promise<void>;
+  addOrder: (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod', deliveryDate: string, deliveryTimeSlot: string) => Promise<void>;
   updateOrder: (updatedOrder: Order) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
 }
@@ -71,7 +71,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [currentUser]);
 
-  const addOrder = async (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod') => {
+  const addOrder = async (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod', deliveryDate: string, deliveryTimeSlot: string) => {
     if (!db || !userData) {
       throw new Error("Firestore is not configured or user is not logged in. Cannot add order.");
     }
@@ -128,6 +128,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 total,
                 status: 'Order Created',
                 orderDate: new Date().toISOString(),
+                deliveryDate,
+                deliveryTimeSlot,
                 paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer',
                 paymentStatus: paymentMethod === 'cod' ? 'Pending Payment' : 'Pending Confirmation',
                 statusHistory: [
@@ -141,6 +143,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             // 4. Handle side-effects (notifications) after transaction logic
             // Note: These run regardless of transaction commit, but we only get here if it's likely to succeed.
             const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber}*\n\n` +
+              `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` +
+              `*Delivery Time:* ${deliveryTimeSlot}\n\n` +
               items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
               `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*\n\n` +
               `We will process your order shortly.`;
@@ -155,6 +159,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     `*Order ID:* ${newOrderNumber}\n` +
                     `*From:* ${userData.restaurantName}\n` +
                     `*Total:* RM ${total.toFixed(2)}*\n\n` +
+                    `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` +
                     `*Items:*\n` +
                     items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
                     `\n\nPlease process the order in the admin dashboard.`;

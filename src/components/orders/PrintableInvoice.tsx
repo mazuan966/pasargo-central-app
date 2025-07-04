@@ -25,6 +25,10 @@ export const PrintableInvoice = ({ order }: { order: Order }) => {
         <p className="font-semibold">{order.user.restaurantName}</p>
         <p className="text-sm">{order.user.address}</p>
         {order.user.tin && <p className="text-sm">TIN: {order.user.tin}</p>}
+        <div className="mt-2 pt-2 border-t">
+            <p className="text-sm"><span className="font-semibold">Delivery Date:</span> {new Date(order.deliveryDate).toLocaleDateString()}</p>
+            <p className="text-sm"><span className="font-semibold">Time Slot:</span> {order.deliveryTimeSlot}</p>
+        </div>
       </div>
 
       {/* Items Table */}

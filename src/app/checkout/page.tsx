@@ -10,14 +10,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, Truck, Loader2 } from 'lucide-react';
+import { CreditCard, Truck, Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { addDays, format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type PaymentMethod = 'billplz' | 'cod';
+const timeSlots = ["9AM - 12PM", "1PM - 4PM", "5PM - 8PM"];
 
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
   const { addOrder } = useOrders();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('billplz');
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
+  const [minDate, setMinDate] = useState<Date>(new Date());
+  const [timeSlot, setTimeSlot] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -29,16 +38,39 @@ export default function CheckoutPage() {
     }
   }, [cartItems, router]);
 
+  useEffect(() => {
+    const now = new Date();
+    // Set hours, minutes, seconds, and milliseconds to 0 to compare dates only
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (now.getHours() >= 5) {
+      // After 5 AM, delivery is for the next day
+      setMinDate(addDays(today, 1));
+    } else {
+      // Before 5 AM, delivery can be today
+      setMinDate(today);
+    }
+  }, []);
+
   // Prevent rendering the page content if the cart is empty (while redirecting)
   if (cartItems.length === 0) {
     return null;
   }
   
   const handlePlaceOrder = async () => {
+    if (!deliveryDate || !timeSlot) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please select a delivery date and time slot.',
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
-      await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod);
+      await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod, deliveryDate.toISOString(), timeSlot);
       toast({
         title: 'Order Placed Successfully!',
         description: 'Thank you for your purchase. A confirmation has been sent via WhatsApp.',
@@ -95,7 +127,55 @@ export default function CheckoutPage() {
                     </CardContent>
                 </Card>
             </div>
-            <div>
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Delivery Schedule</CardTitle>
+                        <CardDescription>Select your preferred delivery date and time.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="delivery-date">Delivery Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="delivery-date"
+                                        variant={"outline"}
+                                        className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !deliveryDate && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {deliveryDate ? format(deliveryDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={deliveryDate}
+                                    onSelect={setDeliveryDate}
+                                    disabled={(date) => date < minDate}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="time-slot">Time Slot</Label>
+                            <Select value={timeSlot} onValueChange={setTimeSlot}>
+                                <SelectTrigger id="time-slot">
+                                    <SelectValue placeholder="Select a time slot" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {timeSlots.map(slot => (
+                                        <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader>
                         <CardTitle>Payment Method</CardTitle>
@@ -129,7 +209,7 @@ export default function CheckoutPage() {
                 </Card>
                 <Button 
                     onClick={handlePlaceOrder}
-                    disabled={isLoading}
+                    disabled={isLoading || !deliveryDate || !timeSlot}
                     className="w-full mt-6"
                 >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

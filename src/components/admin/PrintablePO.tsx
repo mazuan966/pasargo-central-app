@@ -31,6 +31,10 @@ export const PrintablePO = ({ order }: { order: Order }) => {
             <h3 className="font-bold border-b pb-1 mb-2">Ship To</h3>
             <p className="font-semibold">{order.user.restaurantName}</p>
             <p className="text-sm">{order.user.address}</p>
+            <div className="mt-2 pt-2 border-t">
+              <p className="text-sm"><span className="font-semibold">Delivery Date:</span> {new Date(order.deliveryDate).toLocaleDateString()}</p>
+              <p className="text-sm"><span className="font-semibold">Time Slot:</span> {order.deliveryTimeSlot}</p>
+            </div>
         </div>
       </div>
 
