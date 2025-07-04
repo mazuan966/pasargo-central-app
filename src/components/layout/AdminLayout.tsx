@@ -8,6 +8,7 @@ import {
   Map,
   ShoppingBag,
   Menu,
+  Users,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -28,6 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navLinks = [
     { href: '/admin/dashboard', icon: Package, label: 'Orders' },
     { href: '/admin/dashboard/products', icon: ShoppingBag, label: 'Products' },
+    { href: '/admin/dashboard/customers', icon: Users, label: 'Customers' },
     { href: '/admin/dashboard/map', icon: Map, label: 'Map View' },
   ];
 
