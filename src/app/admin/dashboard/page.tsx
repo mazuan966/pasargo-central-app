@@ -128,13 +128,15 @@ export default function AdminDashboardPage() {
     selectedOrders.forEach(order => {
         order.items.forEach(item => {
             const key = item.productId;
+            // Provide a fallback 'unit' for older orders that may not have this field.
+            const unit = item.unit || 'item'; 
             if (aggregatedItems.has(key)) {
                 aggregatedItems.get(key)!.quantity += item.quantity;
             } else {
                 aggregatedItems.set(key, {
                     name: item.name,
                     quantity: item.quantity,
-                    unit: item.unit,
+                    unit: unit,
                 });
             }
         });
