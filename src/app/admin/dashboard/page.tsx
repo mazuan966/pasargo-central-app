@@ -111,6 +111,12 @@ export default function AdminDashboardPage() {
     setSelectedOrderIds([]);
   };
 
+  const handleBulkPrintPOs = () => {
+    if (selectedOrderIds.length === 0) return;
+    const ids = selectedOrderIds.join(',');
+    window.open(`/admin/print/po/bulk?ids=${ids}`, '_blank');
+  };
+
   const isAllSelected = selectedOrderIds.length > 0 && selectedOrderIds.length === orders.length;
   const isSomeSelected = selectedOrderIds.length > 0 && selectedOrderIds.length < orders.length;
   const orderStatuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Completed', 'Cancelled'];
@@ -140,6 +146,9 @@ export default function AdminDashboardPage() {
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
+                     <Button variant="outline" size="sm" onClick={handleBulkPrintPOs}>
+                        Print Selected POs
+                      </Button>
                 </div>
             )}
             <Table>
