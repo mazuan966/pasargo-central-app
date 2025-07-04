@@ -29,13 +29,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, PlusCircle, Trash, Edit, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash, Edit as EditIcon, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm } from '@/components/admin/ProductForm';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, FirestoreError } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { StockManager } from '@/components/admin/StockManager';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -127,6 +128,31 @@ export default function AdminProductsPage() {
     setSelectedProduct(undefined);
   };
 
+  const handleStockUpdate = async (productId: string, quantityToAdd: number) => {
+    if (!db) {
+        toast({ title: 'Error', description: 'Database not configured.', variant: 'destructive' });
+        return;
+    }
+    const productRef = doc(db, 'products', productId);
+    const productToUpdate = products.find(p => p.id === productId);
+
+    if (!productToUpdate) {
+        toast({ title: 'Error', description: 'Product not found.', variant: 'destructive' });
+        return;
+    }
+
+    const newStock = productToUpdate.stock + quantityToAdd;
+    
+    try {
+        await updateDoc(productRef, { stock: newStock });
+        setProducts(products.map(p => p.id === productId ? { ...p, stock: newStock } : p));
+        toast({ title: 'Stock Updated', description: `Stock for ${productToUpdate.name} is now ${newStock}.` });
+    } catch (error) {
+        console.error("Stock update error:", error);
+        toast({ title: 'Error', description: 'Failed to update stock.', variant: 'destructive' });
+    }
+  };
+
   return (
     <>
       <ProductForm
@@ -199,14 +225,16 @@ export default function AdminProductsPage() {
                   </TableRow>
                 ) : (
                   products.map((product) => (
-                    <TableRow key={product.id}>
+                    <TableRow key={product.id} className="group">
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{product.category}</Badge>
                       </TableCell>
                       <TableCell>RM {product.price.toFixed(2)}</TableCell>
                       <TableCell>{product.unit}</TableCell>
-                      <TableCell>{product.stock}</TableCell>
+                      <TableCell>
+                        <StockManager product={product} onStockUpdate={handleStockUpdate} />
+                      </TableCell>
                       <TableCell>
                         {product.hasSst && <CheckCircle className="h-5 w-5 text-green-600" />}
                       </TableCell>
@@ -220,7 +248,7 @@ export default function AdminProductsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleEditProduct(product)}>
-                              <Edit className="mr-2 h-4 w-4" />
+                              <EditIcon className="mr-2 h-4 w-4" />
                               <span>Edit</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem
