@@ -10,6 +10,7 @@ export interface Product {
   category: string;
   stock: number;
   "data-ai-hint"?: string;
+  hasSst?: boolean;
 }
 
 export interface CartItem extends Product {
@@ -73,6 +74,7 @@ export interface Order {
     name: string;
     quantity: number;
     price: number;
+    hasSst?: boolean;
   }[];
   subtotal: number;
   sst: number;

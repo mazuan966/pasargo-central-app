@@ -94,6 +94,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         name: item.name,
         quantity: item.quantity,
         price: item.price,
+        hasSst: !!item.hasSst,
       })),
       subtotal,
       sst,

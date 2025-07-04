@@ -71,7 +71,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const cartSst = cartSubtotal * SST_RATE;
+  
+  const cartSst = cartItems.reduce((sum, item) => {
+    if (item.hasSst) {
+      return sum + (item.price * item.quantity * SST_RATE);
+    }
+    return sum;
+  }, 0);
+
   const cartTotal = cartSubtotal + cartSst;
 
   return (

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import type { Product } from '@/lib/types';
 import { useEffect } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -22,6 +23,7 @@ const formSchema = z.object({
   stock: z.coerce.number().int('Stock must be a whole number.'),
   imageUrl: z.string().url('Must be a valid URL.'),
   'data-ai-hint': z.string().optional(),
+  hasSst: z.boolean().default(false).optional(),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>;
@@ -44,13 +46,17 @@ export function ProductForm({ isOpen, setIsOpen, product, onSubmit }: ProductFor
       category: '',
       stock: 0,
       imageUrl: '',
+      hasSst: false,
     },
   });
 
   useEffect(() => {
     if (isOpen) {
         if (product) {
-            form.reset(product);
+            form.reset({
+              ...product,
+              hasSst: product.hasSst || false
+            });
         } else {
             form.reset({
                 name: '',
@@ -60,6 +66,7 @@ export function ProductForm({ isOpen, setIsOpen, product, onSubmit }: ProductFor
                 category: '',
                 stock: 0,
                 imageUrl: '',
+                hasSst: false,
             });
         }
     }
@@ -141,6 +148,28 @@ export function ProductForm({ isOpen, setIsOpen, product, onSubmit }: ProductFor
                 <FormMessage />
               </FormItem>
             )} />
+            <FormField
+              control={form.control}
+              name="hasSst"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Apply SST
+                    </FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Apply 6% Sales and Service Tax to this product.
+                    </p>
+                  </div>
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
               <Button type="submit">Save Product</Button>

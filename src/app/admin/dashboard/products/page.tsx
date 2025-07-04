@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, PlusCircle, Trash, Edit, Loader2, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash, Edit, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm } from '@/components/admin/ProductForm';
 import { useToast } from '@/hooks/use-toast';
@@ -176,13 +176,14 @@ export default function AdminProductsPage() {
                   <TableHead>Price</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Stock</TableHead>
+                  <TableHead>SST (6%)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {dbError ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-48 text-center">
+                    <TableCell colSpan={7} className="h-48 text-center">
                        <Alert variant="destructive">
                           <AlertTriangle className="h-4 w-4" />
                           <AlertTitle>Database Error</AlertTitle>
@@ -192,7 +193,7 @@ export default function AdminProductsPage() {
                   </TableRow>
                 ) : products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       No products found. Add one to get started.
                     </TableCell>
                   </TableRow>
@@ -206,6 +207,9 @@ export default function AdminProductsPage() {
                       <TableCell>RM {product.price.toFixed(2)}</TableCell>
                       <TableCell>{product.unit}</TableCell>
                       <TableCell>{product.stock}</TableCell>
+                      <TableCell>
+                        {product.hasSst && <CheckCircle className="h-5 w-5 text-green-600" />}
+                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
