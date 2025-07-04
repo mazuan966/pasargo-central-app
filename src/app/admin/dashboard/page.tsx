@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { cva } from 'class-variance-authority';
 import { StatusUpdateMenu } from '@/components/admin/StatusUpdateMenu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ChevronDown } from 'lucide-react';
+import { Loader2, ChevronDown, Download } from 'lucide-react';
 import { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -117,6 +117,66 @@ export default function AdminDashboardPage() {
     window.open(`/admin/print/po/bulk?ids=${ids}`, '_blank');
   };
 
+  const handleBulkExport = () => {
+    if (selectedOrderIds.length === 0) return;
+
+    const selectedOrders = orders.filter(order => selectedOrderIds.includes(order.id));
+    
+    // Use a Map to aggregate items by product ID
+    const aggregatedItems = new Map<string, { name: string; quantity: number; unit: string }>();
+
+    selectedOrders.forEach(order => {
+        order.items.forEach(item => {
+            const key = item.productId;
+            if (aggregatedItems.has(key)) {
+                aggregatedItems.get(key)!.quantity += item.quantity;
+            } else {
+                aggregatedItems.set(key, {
+                    name: item.name,
+                    quantity: item.quantity,
+                    unit: item.unit,
+                });
+            }
+        });
+    });
+
+    const escapeCsv = (val: any) => {
+      let str = String(val);
+      if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+          str = `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    
+    const headers = ['Product Name', 'Total Quantity', 'Unit'];
+    const rows = Array.from(aggregatedItems.values()).map(item => [
+        item.name,
+        item.quantity,
+        item.unit
+    ]);
+
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(escapeCsv).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    const date = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `warehouse_packing_list_${date}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+        title: 'Export Successful',
+        description: 'Your warehouse packing list has been downloaded.',
+    });
+  };
+
   const isAllSelected = selectedOrderIds.length > 0 && selectedOrderIds.length === orders.length;
   const isSomeSelected = selectedOrderIds.length > 0 && selectedOrderIds.length < orders.length;
   const orderStatuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Completed', 'Cancelled'];
@@ -129,7 +189,7 @@ export default function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
              {selectedOrderIds.length > 0 && (
-                <div className="flex items-center gap-4 bg-muted p-2 rounded-md mb-4 border">
+                <div className="flex flex-wrap items-center gap-2 bg-muted p-2 rounded-md mb-4 border">
                     <p className="text-sm font-medium">{selectedOrderIds.length} selected</p>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -148,6 +208,10 @@ export default function AdminDashboardPage() {
                     </DropdownMenu>
                      <Button variant="outline" size="sm" onClick={handleBulkPrintPOs}>
                         Print Selected POs
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleBulkExport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export for Warehouse
                       </Button>
                 </div>
             )}

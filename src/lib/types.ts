@@ -83,6 +83,7 @@ export interface Order {
     name: string;
     quantity: number;
     price: number;
+    unit: 'item' | 'kg';
     hasSst?: boolean;
     amendmentStatus?: 'original' | 'added' | 'updated';
   }[];

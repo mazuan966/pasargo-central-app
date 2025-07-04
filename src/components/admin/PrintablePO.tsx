@@ -42,7 +42,7 @@ export const PrintablePO = ({ order, businessDetails }: { order: Order, business
           <tr className="bg-gray-200">
             <th className="p-2 font-bold">Item Description</th>
             <th className="p-2 font-bold text-right">Quantity</th>
-            <th className="p-2 font-bold text-right">Unit Price</th>
+            <th className="p-2 font-bold text-right">Unit Price / Unit</th>
             <th className="p-2 font-bold text-right">Total</th>
           </tr>
         </thead>
@@ -51,7 +51,7 @@ export const PrintablePO = ({ order, businessDetails }: { order: Order, business
             <tr key={item.productId} className="border-b">
               <td className="p-2">{item.name}</td>
               <td className="p-2 text-right">{item.quantity}</td>
-              <td className="p-2 text-right">RM {item.price.toFixed(2)}</td>
+              <td className="p-2 text-right">RM {item.price.toFixed(2)} / {item.unit}</td>
               <td className="p-2 text-right">RM {(item.quantity * item.price).toFixed(2)}</td>
             </tr>
           ))}

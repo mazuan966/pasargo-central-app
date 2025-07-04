@@ -122,6 +122,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                             name: newItem.name,
                             quantity: newItem.quantity,
                             price: newItem.price,
+                            unit: newItem.unit,
                             hasSst: !!newItem.hasSst,
                             amendmentStatus: 'added' as const,
                         });
@@ -174,6 +175,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                         name: item.name,
                         quantity: item.quantity,
                         price: item.price,
+                        unit: item.unit,
                         hasSst: !!item.hasSst,
                         amendmentStatus: 'original',
                     })),
@@ -205,7 +207,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     simulateDirectWhatsApp(userData.phoneNumber, userInvoiceMessage);
                 }
 
-                const adminPhoneNumber = "60163864181";
+                const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
                 if (adminPhoneNumber) {
                     const adminPOMessage = `*New Purchase Order Received*\n\n` +
                         `*Order ID:* ${newOrderNumber}\n` +
@@ -317,6 +319,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     name: amendedItem.name,
                     quantity: amendedItem.quantity,
                     price: amendedItem.price,
+                    unit: amendedItem.unit,
                     hasSst: !!amendedItem.hasSst,
                     amendmentStatus: amendmentStatus,
                 };
