@@ -9,7 +9,7 @@ const CART_STORAGE_KEY = 'pasargo-cart';
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product, quantity: number) => void;
+  addToCart: (product: Product, quantity: number, silent?: boolean) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -26,7 +26,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   // Load cart from localStorage on initial client-side render.
-  // This effect runs ONLY once on component mount.
   useEffect(() => {
     try {
       const storedCart = localStorage.getItem(CART_STORAGE_KEY);
@@ -35,7 +34,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Failed to load cart from localStorage", error);
-      // If parsing fails, clear the corrupted cart data to prevent future errors.
       localStorage.removeItem(CART_STORAGE_KEY);
     }
   }, []);
@@ -50,34 +48,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cartItems]);
 
 
-  const addToCart = (product: Product, quantity: number) => {
-    const existingItem = cartItems.find(item => item.id === product.id);
-    const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
+  const addToCart = (product: Product, quantity: number, silent: boolean = false) => {
+    setCartItems(prevItems => {
+        const existingItem = prevItems.find(item => item.id === product.id);
+        const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
 
-    if (newQuantityInCart > product.stock) {
-      toast({
-          variant: 'destructive',
-          title: 'Not enough stock!',
-          description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
-      });
-      return; // Exit early
-    }
+        if (newQuantityInCart > product.stock) {
+            if (!silent) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Not enough stock!',
+                    description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
+                });
+            }
+            return prevItems; // Return original items without change
+        }
 
-    if (existingItem) {
-      setCartItems(prevItems =>
-        prevItems.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        )
-      );
-    } else {
-      setCartItems(prevItems => [...prevItems, { ...product, quantity }]);
-    }
-    
-    toast({
-      title: 'Added to Cart',
-      description: `${quantity} x ${product.name}`,
+        if (!silent) {
+            toast({
+                title: 'Added to Cart',
+                description: `${quantity} x ${product.name}`,
+            });
+        }
+
+        if (existingItem) {
+            return prevItems.map(item =>
+                item.id === product.id
+                    ? { ...item, quantity: item.quantity + quantity }
+                    : item
+            );
+        } else {
+            return [...prevItems, { ...product, quantity }];
+        }
     });
   };
 
@@ -94,28 +96,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    const itemToUpdate = cartItems.find(item => item.id === productId);
+    setCartItems(prevItems => {
+        const itemToUpdate = prevItems.find(item => item.id === productId);
 
-    if (itemToUpdate && quantity > itemToUpdate.stock) {
-        toast({
-            variant: 'destructive',
-            title: 'Not enough stock!',
-            description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
-        });
-        // Revert quantity to max available stock
-        setCartItems(prevItems =>
-            prevItems.map(item =>
+        if (itemToUpdate && quantity > itemToUpdate.stock) {
+            toast({
+                variant: 'destructive',
+                title: 'Not enough stock!',
+                description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
+            });
+            // Revert quantity to max available stock
+            return prevItems.map(item =>
                 item.id === productId ? { ...item, quantity: itemToUpdate.stock } : item
-            )
-        );
-        return;
-    }
+            );
+        }
 
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === productId ? { ...item, quantity } : item
-      )
-    );
+        return prevItems.map(item =>
+            item.id === productId ? { ...item, quantity } : item
+        );
+    });
   };
 
   const clearCart = () => {

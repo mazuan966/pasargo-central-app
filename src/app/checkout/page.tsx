@@ -10,12 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, Truck, Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { CreditCard, Truck, Loader2, Calendar as CalendarIcon, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type PaymentMethod = 'billplz' | 'cod';
 const timeSlots = [
@@ -28,8 +29,14 @@ const timeSlots = [
     "8:00 PM - 9:00 PM",
     "9:00 PM - 10:00 PM",
     "10:00 PM - 11:00 PM",
-    "11:00 PM - 12:00 AM"
 ];
+
+interface AmendmentInfo {
+    originalOrderId: string;
+    originalOrderNumber: string;
+    deliveryDate: string;
+    deliveryTimeSlot: string;
+}
 
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
@@ -39,35 +46,49 @@ export default function CheckoutPage() {
   const [minDate, setMinDate] = useState<Date>(new Date());
   const [timeSlot, setTimeSlot] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [amendmentInfo, setAmendmentInfo] = useState<AmendmentInfo | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect if cart is empty. This effect runs on the client after mount.
+    // This effect runs on mount to check for amendment info
+    const storedInfo = localStorage.getItem('amendmentInfo');
+    if (storedInfo) {
+      const parsedInfo: AmendmentInfo = JSON.parse(storedInfo);
+      setAmendmentInfo(parsedInfo);
+      // Pre-fill and lock delivery info for amendments
+      setDeliveryDate(new Date(parsedInfo.deliveryDate));
+      setTimeSlot(parsedInfo.deliveryTimeSlot);
+    }
+
+    // Redirect if cart is empty and it's not an amendment flow in progress
     if (cartItems.length === 0) {
       router.replace('/dashboard');
     }
-  }, [cartItems, router]);
+  }, []); // Only on mount
 
   useEffect(() => {
-    const now = new Date();
-    // Set hours, minutes, seconds, and milliseconds to 0 to compare dates only
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    if (now.getHours() >= 5) {
-      // After 5 AM, delivery is for the next day
-      setMinDate(addDays(today, 1));
-    } else {
-      // Before 5 AM, delivery can be today
-      setMinDate(today);
+    // This effect runs only when not in an amendment flow
+    if (!amendmentInfo) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (now.getHours() >= 5) {
+            setMinDate(addDays(today, 1));
+        } else {
+            setMinDate(today);
+        }
     }
+  }, [amendmentInfo]);
+
+  // Cleanup effect to remove amendment info if the user navigates away
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem('amendmentInfo');
+    };
   }, []);
 
-  // Prevent rendering the page content if the cart is empty (while redirecting)
-  if (cartItems.length === 0) {
-    return null;
-  }
-  
+
   const handlePlaceOrder = async () => {
     if (!deliveryDate || !timeSlot) {
       toast({
@@ -81,13 +102,22 @@ export default function CheckoutPage() {
     setIsLoading(true);
     
     try {
-      await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod, deliveryDate.toISOString(), timeSlot);
+      await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod, deliveryDate.toISOString(), timeSlot, amendmentInfo?.originalOrderId);
+      
+      const successToastTitle = amendmentInfo ? 'Amendment Successful!' : 'Order Placed Successfully!';
+      const successToastDesc = amendmentInfo ? `The items have been added to order #${amendmentInfo.originalOrderNumber}.` : 'Thank you for your purchase. A confirmation has been sent via WhatsApp.';
+
       toast({
-        title: 'Order Placed Successfully!',
-        description: 'Thank you for your purchase. A confirmation has been sent via WhatsApp.',
+        title: successToastTitle,
+        description: successToastDesc,
       });
+
+      const redirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
+      
       clearCart();
-      router.push('/orders');
+      localStorage.removeItem('amendmentInfo');
+      router.push(redirectUrl);
+
     } catch (error) {
       console.error("Failed to place order:", error);
       toast({
@@ -100,9 +130,25 @@ export default function CheckoutPage() {
     }
   };
 
+  // Prevent rendering while redirecting
+  if (cartItems.length === 0) {
+    return null;
+  }
+
   return (
     <div className="container mx-auto max-w-4xl py-8">
-        <h1 className="text-3xl font-headline font-bold mb-6">Checkout</h1>
+        <h1 className="text-3xl font-headline font-bold mb-6">{amendmentInfo ? 'Pay for Additional Items' : 'Checkout'}</h1>
+        
+        {amendmentInfo && (
+            <Alert className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
+                <Info className="h-4 w-4 !text-blue-800" />
+                <AlertTitle>Order Amendment</AlertTitle>
+                <AlertDescription>
+                    You are paying for additional items for order <strong>#{amendmentInfo.originalOrderNumber}</strong>. These items will be delivered with your original order.
+                </AlertDescription>
+            </Alert>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
                 <Card>
@@ -142,7 +188,7 @@ export default function CheckoutPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Delivery Schedule</CardTitle>
-                        <CardDescription>Select your preferred delivery date and time.</CardDescription>
+                        <CardDescription>{amendmentInfo ? 'Your delivery is scheduled for:' : 'Select your preferred delivery date and time.'}</CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4">
                         <div className="grid gap-2">
@@ -156,6 +202,7 @@ export default function CheckoutPage() {
                                         "w-full justify-start text-left font-normal",
                                         !deliveryDate && "text-muted-foreground"
                                         )}
+                                        disabled={!!amendmentInfo}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {deliveryDate ? format(deliveryDate, "PPP") : <span>Pick a date</span>}
@@ -166,7 +213,7 @@ export default function CheckoutPage() {
                                     mode="single"
                                     selected={deliveryDate}
                                     onSelect={setDeliveryDate}
-                                    disabled={(date) => date < minDate}
+                                    disabled={(date) => date < minDate || !!amendmentInfo}
                                     initialFocus
                                 />
                                 </PopoverContent>
@@ -174,7 +221,7 @@ export default function CheckoutPage() {
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="time-slot">Time Slot</Label>
-                            <Select value={timeSlot} onValueChange={setTimeSlot}>
+                            <Select value={timeSlot} onValueChange={setTimeSlot} disabled={!!amendmentInfo}>
                                 <SelectTrigger id="time-slot">
                                     <SelectValue placeholder="Select a time slot" />
                                 </SelectTrigger>
@@ -190,7 +237,7 @@ export default function CheckoutPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Payment Method</CardTitle>
-                        <CardDescription>Choose how you&apos;d like to pay.</CardDescription>
+                        <CardDescription>{amendmentInfo ? 'Choose a payment method for the additional amount.' : "Choose how you'd like to pay."}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <RadioGroup 
@@ -224,7 +271,7 @@ export default function CheckoutPage() {
                     className="w-full mt-6"
                 >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isLoading ? 'Placing Order...' : 'Place Order'}
+                    {isLoading ? 'Processing...' : (amendmentInfo ? 'Pay & Add to Order' : 'Place Order')}
                 </Button>
             </div>
         </div>

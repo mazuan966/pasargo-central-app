@@ -27,7 +27,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   
   const { updateOrder, amendCodOrder } = useOrders();
-  const { addToCart } = useCart();
+  const { clearCart, addToCart } = useCart();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -105,18 +105,29 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
             }
 
             if (itemsToCheckout.length > 0) {
+                clearCart();
+                // Add to cart silently without individual toasts
                 for (const item of itemsToCheckout) {
-                    addToCart(item, item.quantity);
+                    addToCart(item, item.quantity, true);
                 }
-                await updateOrder({ ...order, isEditable: false });
+                
+                const amendmentInfo = {
+                    originalOrderId: order.id,
+                    originalOrderNumber: order.orderNumber,
+                    deliveryDate: order.deliveryDate,
+                    deliveryTimeSlot: order.deliveryTimeSlot,
+                };
+                localStorage.setItem('amendmentInfo', JSON.stringify(amendmentInfo));
+
                 toast({
-                    title: 'Items Added to Cart',
-                    description: 'Proceed to checkout to complete your additional order.',
+                    title: 'Proceed to Payment',
+                    description: 'Please pay for the additional items to complete your order amendment.',
                 });
                 router.push('/checkout');
             } else {
+                // If no items were added, just lock the order from editing
                 await updateOrder({ ...order, isEditable: false });
-                toast({ title: 'No Changes Made', description: 'Your order amendment has been cancelled.' });
+                toast({ title: 'No Changes Made', description: 'Your order amendment has been finalized.' });
             }
         }
     } catch (e: any) {
@@ -128,8 +139,10 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
 
 
   const subtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const sst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * (item.price * 0.06)) : sum, 0);
+  const sst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * 0.06) : sum, 0);
   const total = subtotal + sst;
+
+  const additionalCost = total - order.total;
   
   const unlistedProducts = products.filter(p => !amendedItems.some(item => item.id === p.id));
 
@@ -209,9 +222,9 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
             <div className="w-full max-w-xs space-y-2">
                 <div className="flex justify-between"><span>Subtotal:</span> <span>RM {subtotal.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span>SST (6%):</span> <span>RM {sst.toFixed(2)}</span></div>
-                <div className="flex justify-between font-bold text-lg">
-                  <span>{order.paymentMethod === 'Cash on Delivery' ? 'New Total:' : 'Additional Cost:'}</span>
-                  <span>RM {total.toFixed(2)}</span>
+                <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
+                  <span>{order.paymentMethod === 'Cash on Delivery' ? 'New Order Total:' : 'Additional Cost:'}</span>
+                  <span>RM {(order.paymentMethod === 'Cash on Delivery' ? total : additionalCost).toFixed(2)}</span>
                 </div>
             </div>
         </div>
