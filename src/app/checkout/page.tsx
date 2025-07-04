@@ -18,7 +18,18 @@ import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 type PaymentMethod = 'billplz' | 'cod';
-const timeSlots = ["9AM - 12PM", "1PM - 4PM", "5PM - 8PM"];
+const timeSlots = [
+    "2:00 PM - 3:00 PM",
+    "3:00 PM - 4:00 PM",
+    "4:00 PM - 5:00 PM",
+    "5:00 PM - 6:00 PM",
+    "6:00 PM - 7:00 PM",
+    "7:00 PM - 8:00 PM",
+    "8:00 PM - 9:00 PM",
+    "9:00 PM - 10:00 PM",
+    "10:00 PM - 11:00 PM",
+    "11:00 PM - 12:00 AM"
+];
 
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
