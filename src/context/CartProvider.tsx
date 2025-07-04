@@ -5,6 +5,7 @@ import type { CartItem, Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 const SST_RATE = 0.06;
+const CART_STORAGE_KEY = 'pasargo-cart';
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -24,9 +25,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { toast } = useToast();
 
+  // Load cart from localStorage on initial client-side render.
+  // This effect runs ONLY once on component mount.
   useEffect(() => {
-    // You could load cart from localStorage here if needed
+    try {
+      const storedCart = localStorage.getItem(CART_STORAGE_KEY);
+      if (storedCart) {
+        setCartItems(JSON.parse(storedCart));
+      }
+    } catch (error) {
+      console.error("Failed to load cart from localStorage", error);
+      // If parsing fails, clear the corrupted cart data to prevent future errors.
+      localStorage.removeItem(CART_STORAGE_KEY);
+    }
   }, []);
+
+  // Save cart to localStorage whenever it changes.
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    } catch (error) {
+      console.error("Failed to save cart to localStorage", error);
+    }
+  }, [cartItems]);
+
 
   const addToCart = (product: Product, quantity: number) => {
     const existingItem = cartItems.find(item => item.id === product.id);
