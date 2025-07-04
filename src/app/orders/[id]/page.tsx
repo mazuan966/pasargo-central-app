@@ -10,9 +10,12 @@ import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useActionState, useEffect, useState } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
-import type { Order, EInvoice } from '@/lib/types';
+import type { Order, EInvoice, BusinessDetails } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { OrderAmendmentForm } from '@/components/orders/OrderAmendmentForm';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const EInvoiceInitialState = {
   success: false,
@@ -21,12 +24,50 @@ const EInvoiceInitialState = {
 
 function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvoiceGenerated: (invoice: EInvoice) => void }) {
   const [state, formAction, isPending] = useActionState(generateEInvoiceAction, EInvoiceInitialState);
+  const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
   useEffect(() => {
     if (state.success && state.data) {
         onInvoiceGenerated(state.data);
     }
   }, [state, onInvoiceGenerated]);
+
+  useEffect(() => {
+      const fetchBusinessDetails = async () => {
+        if (!db) {
+            setIsLoadingDetails(false);
+            return
+        };
+        setIsLoadingDetails(true);
+        try {
+            const docRef = doc(db, 'settings', 'business');
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                setBusinessDetails(docSnap.data() as BusinessDetails);
+            }
+        } catch (error) {
+            console.error("Could not fetch business details for e-invoice", error);
+        } finally {
+            setIsLoadingDetails(false);
+        }
+      };
+      fetchBusinessDetails();
+  }, []);
+
+  if (isLoadingDetails) {
+      return (
+          <Card>
+              <CardHeader>
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-full" />
+              </CardHeader>
+              <CardContent>
+                  <Skeleton className="h-10 w-40" />
+              </CardContent>
+          </Card>
+      )
+  }
 
   return (
     <Card>
@@ -40,10 +81,10 @@ function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvo
             <input type="hidden" name="orderDate" value={order.orderDate} />
             <input type="hidden" name="total" value={order.total} />
             <input type="hidden" name="items" value={JSON.stringify(order.items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })))} />
-            <input type="hidden" name="seller" value={JSON.stringify({ name: 'Pasargo Central', tin: 'TIN-PASARGO-123' })} />
+            <input type="hidden" name="seller" value={JSON.stringify({ name: businessDetails?.name || 'Pasargo Central', tin: businessDetails?.tin || 'TIN-NOT-SET' })} />
             <input type="hidden" name="buyer" value={JSON.stringify({ name: order.user.restaurantName, tin: order.user.tin, address: order.user.address })} />
             
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || !businessDetails}>
                 {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                 Generate & Validate
             </Button>

@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   Menu,
   Users,
+  Cog,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -31,6 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/dashboard/products', icon: ShoppingBag, label: 'Products' },
     { href: '/admin/dashboard/customers', icon: Users, label: 'Customers' },
     { href: '/admin/dashboard/map', icon: Map, label: 'Map View' },
+    { href: '/admin/dashboard/settings', icon: Cog, label: 'Settings' },
   ];
 
   return (

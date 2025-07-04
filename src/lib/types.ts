@@ -65,6 +65,15 @@ export interface User {
   address?: string;
 }
 
+export interface BusinessDetails {
+  id?: string; // a fixed id like 'business'
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  tin: string;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;

@@ -1,16 +1,15 @@
-import type { Order } from '@/lib/types';
+import type { Order, BusinessDetails } from '@/lib/types';
 import { Logo } from '@/components/icons/logo';
 
-export const PrintableInvoice = ({ order }: { order: Order }) => {
+export const PrintableInvoice = ({ order, businessDetails }: { order: Order, businessDetails: BusinessDetails }) => {
   return (
     <div className="bg-white text-black p-8 font-sans">
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div>
           <Logo className="h-12 w-12 text-gray-800" />
-          <h1 className="font-bold text-2xl mt-2">Pasargo Central</h1>
-          <p className="text-sm">Jalan Teknologi 5, Taman Teknologi Malaysia</p>
-          <p className="text-sm">57000 Kuala Lumpur, Malaysia</p>
+          <h1 className="font-bold text-2xl mt-2">{businessDetails.name}</h1>
+          <p className="text-sm whitespace-pre-line">{businessDetails.address}</p>
         </div>
         <div className="text-right">
           <h2 className="text-4xl font-bold uppercase text-gray-700">Invoice</h2>
@@ -74,7 +73,7 @@ export const PrintableInvoice = ({ order }: { order: Order }) => {
       {/* Footer */}
       <div className="text-center text-sm text-gray-600 border-t pt-4">
         <p>Thank you for your business!</p>
-        <p>Pasargo Central | sales@pasargo.com</p>
+        <p>{businessDetails.name} | {businessDetails.email}</p>
       </div>
     </div>
   );
