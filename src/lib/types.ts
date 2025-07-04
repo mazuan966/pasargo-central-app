@@ -75,6 +75,7 @@ export interface Order {
     quantity: number;
     price: number;
     hasSst?: boolean;
+    amendmentStatus?: 'original' | 'added' | 'updated';
   }[];
   subtotal: number;
   sst: number;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useActionState } from 'react';
@@ -7,7 +8,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, PlusCircle, Loader2, XCircle } from 'lucide-react';
+import { PlusCircle, Loader2, XCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { amendOrderAction } from '@/lib/actions';
@@ -57,14 +58,14 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   }, [formState.success, toast]);
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
-    const quantity = Math.max(0, newQuantity);
-    setAmendedItems(items =>
-      items.map(item => (item.id === productId ? { ...item, quantity } : item)).filter(item => item.quantity > 0)
-    );
-  };
+    const originalItem = order.items.find(i => i.productId === productId);
+    const originalQuantity = originalItem ? originalItem.quantity : 1;
+    
+    const quantity = Math.max(originalQuantity, isNaN(newQuantity) ? originalQuantity : newQuantity);
 
-  const handleRemoveItem = (productId: string) => {
-    setAmendedItems(items => items.filter(item => item.id !== productId));
+    setAmendedItems(items =>
+      items.map(item => (item.id === productId ? { ...item, quantity } : item))
+    );
   };
   
   const handleAddProduct = (product: Product) => {
@@ -103,29 +104,28 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
                         <TableHead>Product</TableHead>
                         <TableHead className="w-[120px]">Quantity</TableHead>
                         <TableHead className="text-right">Total</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {amendedItems.map(item => (
-                        <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>
-                                <Input 
-                                    type="number" 
-                                    value={item.quantity} 
-                                    onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
-                                    className="h-8 w-20 text-center"
-                                />
-                            </TableCell>
-                            <TableCell className="text-right">RM {(item.price * item.quantity).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" type="button" onClick={() => handleRemoveItem(item.id)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {amendedItems.map(item => {
+                        const originalItem = order.items.find(i => i.productId === item.id);
+                        const minQuantity = originalItem ? originalItem.quantity : 1;
+                        return (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell>
+                                    <Input 
+                                        type="number" 
+                                        value={item.quantity} 
+                                        min={minQuantity}
+                                        onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value))}
+                                        className="h-8 w-20 text-center"
+                                    />
+                                </TableCell>
+                                <TableCell className="text-right">RM {(item.price * item.quantity).toFixed(2)}</TableCell>
+                            </TableRow>
+                        )
+                    })}
                      {amendedItems.length === 0 && (
                         <TableRow>
                             <TableCell colSpan={4} className="text-center text-muted-foreground h-24">

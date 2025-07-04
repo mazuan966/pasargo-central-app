@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
@@ -42,7 +43,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const ordersCollection = collection(db, 'orders');
     // For users, we remove the orderBy clause to avoid needing a composite index.
     // We will sort on the client side instead.
-    const q = isUser 
+    const q = isUser && currentUser?.uid
         ? query(ordersCollection, where("user.id", "==", currentUser.uid))
         : query(ordersCollection, orderBy('orderDate', 'desc'));
 
@@ -122,6 +123,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     quantity: item.quantity,
                     price: item.price,
                     hasSst: !!item.hasSst,
+                    amendmentStatus: 'original',
                 })),
                 subtotal,
                 sst,

@@ -1,8 +1,9 @@
+
 'use server';
 
 import { verifyDeliveryPhoto, type VerifyDeliveryPhotoOutput } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
-import { EInvoiceInputSchema, type EInvoiceOutput } from '@/lib/types';
+import { EInvoiceInputSchema, type EInvoiceOutput, type Order } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction } from 'firebase/firestore';
@@ -156,10 +157,10 @@ export async function amendOrderAction(
             const stockAdjustments: Map<string, number> = new Map();
 
             // Calculate stock adjustments
-            const allItemIds = new Set([...originalItems.map(i => i.id || i.productId), ...amendedItems.map(i => i.id)]);
+            const allItemIds = new Set([...originalItems.map(i => i.productId), ...amendedItems.map(i => i.id)]);
 
             for (const itemId of allItemIds) {
-                const originalQty = originalItems.find(i => (i.id || i.productId) === itemId)?.quantity || 0;
+                const originalQty = originalItems.find(i => i.productId === itemId)?.quantity || 0;
                 const amendedQty = amendedItems.find(i => i.id === itemId)?.quantity || 0;
                 const diff = originalQty - amendedQty; // Positive if stock should be returned, negative if stock should be taken
                 if (diff !== 0) {
@@ -194,18 +195,38 @@ export async function amendOrderAction(
                 transaction.update(productRefs[i], { stock: newStock });
             }
 
-            // Recalculate totals
+            // Recalculate totals and determine amendment status
             const newSubtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const newSst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * SST_RATE) : sum, 0);
             const newTotal = newSubtotal + newSst;
             
+            const finalItemsWithStatus: Order['items'] = amendedItems.map(amendedItem => {
+                const originalItem = originalItems.find(i => i.productId === amendedItem.id);
+                let amendmentStatus: Order['items'][0]['amendmentStatus'] = 'original';
+
+                if (!originalItem) {
+                    amendmentStatus = 'added';
+                } else if (amendedItem.quantity > originalItem.quantity) {
+                    amendmentStatus = 'updated';
+                }
+
+                return {
+                    productId: amendedItem.id,
+                    name: amendedItem.name,
+                    quantity: amendedItem.quantity,
+                    price: amendedItem.price,
+                    hasSst: amendedItem.hasSst,
+                    amendmentStatus: amendmentStatus,
+                };
+            });
+
             // Update the order
             transaction.update(orderRef, {
-                items: amendedItems.map(({ id, name, quantity, price, hasSst }) => ({ productId: id, name, quantity, price, hasSst })),
+                items: finalItemsWithStatus,
                 subtotal: newSubtotal,
                 sst: newSst,
                 total: newTotal,
-                isEditable: false,
+                isEditable: false, // Re-lock the order after amendment
             });
         });
 

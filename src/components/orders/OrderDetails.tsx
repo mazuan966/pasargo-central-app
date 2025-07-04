@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Package, Calendar, Truck, CheckCircle, Clock, CheckCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 
 export function OrderDetails({ order }: { order: Order }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -43,7 +44,11 @@ export function OrderDetails({ order }: { order: Order }) {
               {order.items.map(item => (
                 <div key={item.productId} className="flex justify-between items-center">
                   <div>
-                    <p>{item.name}</p>
+                    <p className="flex items-center gap-2 font-medium">
+                      {item.name}
+                      {item.amendmentStatus === 'added' && <Badge className="bg-blue-200 text-blue-800 font-normal">Added</Badge>}
+                      {item.amendmentStatus === 'updated' && <Badge className="bg-yellow-200 text-yellow-800 font-normal">Updated</Badge>}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {item.quantity} x RM {item.price.toFixed(2)}
                     </p>
