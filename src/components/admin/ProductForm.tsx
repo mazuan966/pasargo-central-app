@@ -78,104 +78,106 @@ export function ProductForm({ isOpen, setIsOpen, product, onSubmit }: ProductFor
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           <DialogDescription>
             {product ? 'Update the details of your product.' : 'Fill in the details for the new product.'}
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
-            <FormField control={form.control} name="name" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Product Name</FormLabel>
-                <FormControl><Input {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl><Textarea {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="price" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price (RM)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="unit" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a unit" /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="item">Item</SelectItem>
-                            <SelectItem value="kg">Kg</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="category" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
+        <div className="flex-grow overflow-y-auto pr-6 -mr-6">
+            <Form {...form}>
+            <form id="product-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Product Name</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="stock" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-            </div>
-            <FormField control={form.control} name="imageUrl" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Image URL</FormLabel>
-                <FormControl><Input {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField
-              control={form.control}
-              name="hasSst"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Apply SST
-                    </FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Apply 6% Sales and Service Tax to this product.
-                    </p>
-                  </div>
                 </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button type="submit">Save Product</Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                )} />
+                <FormField control={form.control} name="description" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl><Textarea {...field} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+                )} />
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="price" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Price (RM)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )} />
+                    <FormField control={form.control} name="unit" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Unit</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger><SelectValue placeholder="Select a unit" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="item">Item</SelectItem>
+                                <SelectItem value="kg">Kg</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="category" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )} />
+                    <FormField control={form.control} name="stock" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Stock</FormLabel>
+                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )} />
+                </div>
+                <FormField control={form.control} name="imageUrl" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Image URL</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                </FormItem>
+                )} />
+                <FormField
+                control={form.control}
+                name="hasSst"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                        <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                        <FormLabel>
+                        Apply SST
+                        </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                        Apply 6% Sales and Service Tax to this product.
+                        </p>
+                    </div>
+                    </FormItem>
+                )}
+                />
+            </form>
+            </Form>
+        </div>
+        <DialogFooter className="pt-4 flex-shrink-0">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+            <Button type="submit" form="product-form">Save Product</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
