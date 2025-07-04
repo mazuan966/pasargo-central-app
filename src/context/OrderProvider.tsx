@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 interface OrderContextType {
   orders: Order[];
-  addOrder: (items: CartItem[], total: number, paymentMethod: 'billplz' | 'cod') => Promise<void>;
+  addOrder: (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod') => Promise<void>;
   updateOrder: (updatedOrder: Order) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
 }
@@ -71,7 +71,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [currentUser]);
 
-  const addOrder = async (items: CartItem[], total: number, paymentMethod: 'billplz' | 'cod') => {
+  const addOrder = async (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod') => {
     if (!db || !userData) {
       throw new Error("Firestore is not configured or user is not logged in. Cannot add order.");
     }
@@ -95,7 +95,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         quantity: item.quantity,
         price: item.price,
       })),
-      total: total,
+      subtotal,
+      sst,
+      total,
       status: 'Order Created',
       orderDate: new Date().toISOString(),
       paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer',
@@ -110,7 +112,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrder.orderNumber}*\n\n` +
       newOrder.items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
-      `\n\n*Total: RM ${newOrder.total.toFixed(2)}*\n\n` +
+      `\n\nSubtotal: RM ${newOrder.subtotal.toFixed(2)}\nSST (6%): RM ${newOrder.sst.toFixed(2)}\n*Total: RM ${newOrder.total.toFixed(2)}*\n\n` +
       `We will process your order shortly.`;
     
     if (userData.phoneNumber) {

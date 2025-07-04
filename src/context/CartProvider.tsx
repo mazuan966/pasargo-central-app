@@ -4,6 +4,8 @@ import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import type { CartItem, Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
+const SST_RATE = 0.06;
+
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (product: Product, quantity: number) => void;
@@ -11,6 +13,8 @@ interface CartContextType {
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   cartCount: number;
+  cartSubtotal: number;
+  cartSst: number;
   cartTotal: number;
 }
 
@@ -66,7 +70,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartSst = cartSubtotal * SST_RATE;
+  const cartTotal = cartSubtotal + cartSst;
 
   return (
     <CartContext.Provider
@@ -77,6 +83,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         updateQuantity,
         clearCart,
         cartCount,
+        cartSubtotal,
+        cartSst,
         cartTotal,
       }}
     >

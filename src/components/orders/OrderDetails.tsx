@@ -53,6 +53,17 @@ export function OrderDetails({ order }: { order: Order }) {
               ))}
             </div>
             <Separator className="my-4" />
+            <div className="space-y-1">
+                <div className="flex justify-between">
+                    <p>Subtotal</p>
+                    <p>RM {order.subtotal.toFixed(2)}</p>
+                </div>
+                <div className="flex justify-between">
+                    <p>SST (6%)</p>
+                    <p>RM {order.sst.toFixed(2)}</p>
+                </div>
+            </div>
+            <Separator className="my-4" />
             <div className="flex justify-between font-bold text-lg">
               <p>Total</p>
               <p>RM {order.total.toFixed(2)}</p>

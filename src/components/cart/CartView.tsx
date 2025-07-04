@@ -9,7 +9,7 @@ import { ShoppingCart, Package } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CartView() {
-  const { cartItems, cartTotal, clearCart } = useCart();
+  const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
 
   if (cartItems.length === 0) {
     return (
@@ -48,11 +48,11 @@ export default function CartView() {
           <CardContent className="space-y-4">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>RM {cartTotal.toFixed(2)}</span>
+              <span>RM {cartSubtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Taxes & Fees</span>
-              <span>Calculated at checkout</span>
+             <div className="flex justify-between">
+              <span>SST (6%)</span>
+              <span>RM {cartSst.toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-bold text-lg">

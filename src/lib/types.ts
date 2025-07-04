@@ -74,6 +74,8 @@ export interface Order {
     quantity: number;
     price: number;
   }[];
+  subtotal: number;
+  sst: number;
   total: number;
   status: OrderStatus;
   orderDate: string;

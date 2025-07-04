@@ -15,7 +15,7 @@ import { CreditCard, Truck, Loader2 } from 'lucide-react';
 type PaymentMethod = 'billplz' | 'cod';
 
 export default function CheckoutPage() {
-  const { cartItems, cartTotal, clearCart } = useCart();
+  const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
   const { addOrder } = useOrders();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('billplz');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +38,7 @@ export default function CheckoutPage() {
     setIsLoading(true);
     
     try {
-      await addOrder(cartItems, cartTotal, paymentMethod);
+      await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod);
       toast({
         title: 'Order Placed Successfully!',
         description: 'Thank you for your purchase. A confirmation has been sent via WhatsApp.',
@@ -77,6 +77,15 @@ export default function CheckoutPage() {
                                     <p>RM {(item.quantity * item.price).toFixed(2)}</p>
                                 </div>
                             ))}
+                            <Separator />
+                            <div className="flex justify-between">
+                                <p>Subtotal</p>
+                                <p>RM {cartSubtotal.toFixed(2)}</p>
+                            </div>
+                            <div className="flex justify-between">
+                                <p>SST (6%)</p>
+                                <p>RM {cartSst.toFixed(2)}</p>
+                            </div>
                             <Separator />
                             <div className="flex justify-between font-bold text-lg">
                                 <p>Total</p>

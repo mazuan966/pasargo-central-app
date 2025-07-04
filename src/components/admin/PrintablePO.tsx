@@ -58,10 +58,14 @@ export const PrintablePO = ({ order }: { order: Order }) => {
 
       {/* Total */}
       <div className="flex justify-end mb-8">
-        <div className="w-full max-w-xs">
+        <div className="w-full max-w-xs space-y-1">
           <div className="flex justify-between">
             <span className="font-semibold">Subtotal</span>
-            <span>RM {order.total.toFixed(2)}</span>
+            <span>RM {order.subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-semibold">SST (6%)</span>
+            <span>RM {order.sst.toFixed(2)}</span>
           </div>
           <div className="flex justify-between mt-2 pt-2 border-t-2 border-black">
             <span className="font-bold text-lg">Total</span>
