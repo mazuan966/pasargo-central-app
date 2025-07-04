@@ -7,11 +7,14 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where, runTransaction } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 
+const SST_RATE = 0.06;
+
 interface OrderContextType {
   orders: Order[];
   addOrder: (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod', deliveryDate: string, deliveryTimeSlot: string) => Promise<void>;
   updateOrder: (updatedOrder: Order) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
+  amendCodOrder: (originalOrder: Order, amendedItems: CartItem[]) => Promise<void>;
 }
 
 export const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -203,8 +206,93 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await deleteDoc(orderDocRef);
   };
 
+  const amendCodOrder = async (originalOrder: Order, amendedItems: CartItem[]) => {
+    if (!db) {
+      throw new Error("Database not configured.");
+    }
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const orderRef = doc(db, 'orders', originalOrder.id);
+            const stockAdjustments: Map<string, number> = new Map();
+
+            const allItemIds = new Set([...originalOrder.items.map(i => i.productId), ...amendedItems.map(i => i.id)]);
+
+            for (const itemId of allItemIds) {
+                const originalQty = originalOrder.items.find(i => i.productId === itemId)?.quantity || 0;
+                const amendedQty = amendedItems.find(i => i.id === itemId)?.quantity || 0;
+                const diff = originalQty - amendedQty;
+                if (diff !== 0) {
+                    stockAdjustments.set(itemId, diff);
+                }
+            }
+
+            const productRefs = Array.from(stockAdjustments.keys()).map(id => doc(db, 'products', id));
+            const productDocs = await Promise.all(productRefs.map(ref => transaction.get(ref)));
+            
+            for (let i = 0; i < productDocs.length; i++) {
+                const productDoc = productDocs[i];
+                const productId = productRefs[i].id;
+                const adjustment = stockAdjustments.get(productId)!;
+                
+                if (!productDoc.exists()) throw new Error(`Product with ID ${productId} not found.`);
+                
+                const currentStock = productDoc.data().stock;
+                if (adjustment < 0 && currentStock < Math.abs(adjustment)) {
+                    throw new Error(`Not enough stock for ${productDoc.data().name}. Only ${currentStock} available.`);
+                }
+            }
+
+            for (let i = 0; i < productDocs.length; i++) {
+                const productDoc = productDocs[i];
+                const productId = productRefs[i].id;
+                const adjustment = stockAdjustments.get(productId)!;
+                const newStock = productDoc.data().stock + adjustment;
+                transaction.update(productRefs[i], { stock: newStock });
+            }
+
+            const newSubtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const newSst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * SST_RATE) : sum, 0);
+            const newTotal = newSubtotal + newSst;
+            
+            const finalItemsWithStatus: Order['items'] = amendedItems.map(amendedItem => {
+                const originalItem = originalOrder.items.find(i => i.productId === amendedItem.id);
+                let amendmentStatus: Order['items'][0]['amendmentStatus'] = 'original';
+
+                if (!originalItem) {
+                    amendmentStatus = 'added';
+                } else if (amendedItem.quantity > originalItem.quantity) {
+                    amendmentStatus = 'updated';
+                }
+
+                return {
+                    productId: amendedItem.id,
+                    name: amendedItem.name,
+                    quantity: amendedItem.quantity,
+                    price: amendedItem.price,
+                    hasSst: !!amendedItem.hasSst,
+                    amendmentStatus: amendmentStatus,
+                };
+            });
+
+            transaction.update(orderRef, {
+                items: finalItemsWithStatus,
+                subtotal: newSubtotal,
+                sst: newSst,
+                total: newTotal,
+                isEditable: false,
+            });
+        });
+
+    } catch (error: any) {
+        console.error("Amend order transaction failed:", error);
+        throw new Error(error.message || "An unknown error occurred during the update.");
+    }
+  }
+
+
   return (
-    <OrderContext.Provider value={{ orders, addOrder, updateOrder, deleteOrder }}>
+    <OrderContext.Provider value={{ orders, addOrder, updateOrder, deleteOrder, amendCodOrder }}>
       {children}
     </OrderContext.Provider>
   );

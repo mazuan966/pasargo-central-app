@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useActionState } from 'react';
-import type { Order, Product, CartItem as OrderItem } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import type { Order, Product, CartItem } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -11,33 +11,29 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Loader2, XCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { amendOrderAction } from '@/lib/actions';
 import { useOrders } from '@/hooks/use-orders';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-
-const SST_RATE = 0.06;
-
-const initialState = {
-  success: false,
-  message: '',
-};
+import { useCart } from '@/hooks/use-cart';
+import { useRouter } from 'next/navigation';
 
 export function OrderAmendmentForm({ order }: { order: Order }) {
-  const [amendedItems, setAmendedItems] = useState<OrderItem[]>([]);
+  const [amendedItems, setAmendedItems] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   
-  const { updateOrder } = useOrders();
+  const { updateOrder, amendCodOrder } = useOrders();
+  const { addToCart } = useCart();
+  const router = useRouter();
   const { toast } = useToast();
-  
-  const [formState, formAction, isPending] = useActionState(amendOrderAction, initialState);
 
   useEffect(() => {
-    // Initialize with a deep copy of order items
-    setAmendedItems(JSON.parse(JSON.stringify(order.items.map(item => ({...item, id: item.productId})))));
+    // Initialize with a deep copy of order items, ensuring 'id' is present for CartItem compatibility
+    setAmendedItems(JSON.parse(JSON.stringify(order.items.map(item => ({ ...item, id: item.productId })))));
 
     const fetchProducts = async () => {
       if (!db) return;
@@ -50,21 +46,18 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
     };
     fetchProducts();
   }, [order.items]);
-  
-  useEffect(() => {
-    if (formState.success) {
-        toast({ title: "Order Updated Successfully!" });
-    }
-  }, [formState.success, toast]);
 
-  const handleQuantityChange = (productId: string, newQuantity: number) => {
+  const handleQuantityChange = (productId: string, newQuantityStr: string) => {
     const originalItem = order.items.find(i => i.productId === productId);
     const originalQuantity = originalItem ? originalItem.quantity : 1;
-    
-    const quantity = Math.max(originalQuantity, isNaN(newQuantity) ? originalQuantity : newQuantity);
+    let newQuantity = parseInt(newQuantityStr, 10);
+
+    if (isNaN(newQuantity) || newQuantity < originalQuantity) {
+      newQuantity = originalQuantity;
+    }
 
     setAmendedItems(items =>
-      items.map(item => (item.id === productId ? { ...item, quantity } : item))
+      items.map(item => (item.id === productId ? { ...item, quantity: newQuantity } : item))
     );
   };
   
@@ -74,7 +67,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
         if (existingItem) {
             return currentItems.map(item => item.id === product.id ? {...item, quantity: item.quantity + 1} : item);
         } else {
-            return [...currentItems, {...product, quantity: 1}];
+            return [...currentItems, {...product, quantity: 1, productId: product.id}];
         }
     });
     setPopoverOpen(false);
@@ -84,19 +77,64 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
     await updateOrder({ ...order, isEditable: false });
     toast({ title: 'Amendment Cancelled', description: 'Your order has not been changed.' });
   };
+  
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+        if (order.paymentMethod === 'Cash on Delivery') {
+            await amendCodOrder(order, amendedItems);
+            toast({ title: "Order Updated Successfully!" });
+
+        } else if (order.paymentMethod === 'Bank Transfer') {
+            const originalItemsMap = new Map(order.items.map(i => [i.productId, i.quantity]));
+            const itemsToCheckout: CartItem[] = [];
+
+            for (const amendedItem of amendedItems) {
+                const originalQty = originalItemsMap.get(amendedItem.id) || 0;
+                const addedQty = amendedItem.quantity - originalQty;
+
+                if (addedQty > 0) {
+                    const productData = products.find(p => p.id === amendedItem.id);
+                    if (productData) {
+                        itemsToCheckout.push({ ...productData, quantity: addedQty });
+                    }
+                }
+            }
+
+            if (itemsToCheckout.length > 0) {
+                for (const item of itemsToCheckout) {
+                    addToCart(item, item.quantity);
+                }
+                await updateOrder({ ...order, isEditable: false });
+                toast({
+                    title: 'Items Added to Cart',
+                    description: 'Proceed to checkout to complete your additional order.',
+                });
+                router.push('/checkout');
+            } else {
+                await updateOrder({ ...order, isEditable: false });
+                toast({ title: 'No Changes Made', description: 'Your order amendment has been cancelled.' });
+            }
+        }
+    } catch (e: any) {
+        setError(e.message || "An error occurred.");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
 
   const subtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const sst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * SST_RATE) : sum, 0);
+  const sst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * (item.price * 0.06)) : sum, 0);
   const total = subtotal + sst;
   
   const unlistedProducts = products.filter(p => !amendedItems.some(item => item.id === p.id));
 
   return (
-    <form action={formAction} className="space-y-6">
-        <input type="hidden" name="orderId" value={order.id} />
-        <input type="hidden" name="originalItems" value={JSON.stringify(order.items)} />
-        <input type="hidden" name="amendedItems" value={JSON.stringify(amendedItems)} />
-      
+    <form onSubmit={handleSubmit} className="space-y-6">
         <div className="border rounded-md">
             <Table>
                 <TableHeader>
@@ -118,7 +156,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
                                         type="number" 
                                         value={item.quantity} 
                                         min={minQuantity}
-                                        onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value))}
+                                        onChange={(e) => handleQuantityChange(item.id, e.target.value)}
                                         className="h-8 w-20 text-center"
                                     />
                                 </TableCell>
@@ -171,22 +209,25 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
             <div className="w-full max-w-xs space-y-2">
                 <div className="flex justify-between"><span>Subtotal:</span> <span>RM {subtotal.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span>SST (6%):</span> <span>RM {sst.toFixed(2)}</span></div>
-                <div className="flex justify-between font-bold text-lg"><span>New Total:</span> <span>RM {total.toFixed(2)}</span></div>
+                <div className="flex justify-between font-bold text-lg">
+                  <span>{order.paymentMethod === 'Cash on Delivery' ? 'New Total:' : 'Additional Cost:'}</span>
+                  <span>RM {total.toFixed(2)}</span>
+                </div>
             </div>
         </div>
         
-        {!formState.success && formState.message && (
+        {error && (
              <Alert variant="destructive">
                 <XCircle className="h-4 w-4" />
                 <AlertTitle>Update Failed</AlertTitle>
-                <AlertDescription>{formState.message}</AlertDescription>
+                <AlertDescription>{error}</AlertDescription>
             </Alert>
         )}
         
         <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={handleCancelAmendment} disabled={isPending}>Cancel</Button>
-            <Button type="submit" disabled={isPending || amendedItems.length === 0}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="button" variant="ghost" onClick={handleCancelAmendment} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting || amendedItems.length === 0}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
             </Button>
         </div>
