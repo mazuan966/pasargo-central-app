@@ -98,4 +98,5 @@ export interface Order {
     timestamp: string;
   }[];
   eInvoice?: EInvoice;
+  isEditable?: boolean;
 }

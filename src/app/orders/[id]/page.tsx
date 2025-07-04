@@ -12,6 +12,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { OrderAmendmentForm } from '@/components/orders/OrderAmendmentForm';
 
 const EInvoiceInitialState = {
   success: false,
@@ -147,6 +148,18 @@ export default function OrderDetailsPage() {
             </Button>
         </div>
       </div>
+
+      {order.isEditable && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Amend Your Order</CardTitle>
+            <CardDescription>You can add, remove, or change quantities. Click "Save Changes" when you're done.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrderAmendmentForm order={order} />
+          </CardContent>
+        </Card>
+      )}
       
       <OrderDetails order={order} />
 

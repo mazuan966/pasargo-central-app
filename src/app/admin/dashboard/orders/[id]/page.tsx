@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { PaymentManager } from '@/components/admin/PaymentManager';
+import { AmendmentManager } from '@/components/admin/AmendmentManager';
 
 export default function AdminOrderDetailsPage() {
     const params = useParams<{ id: string }>();
@@ -50,6 +51,7 @@ export default function AdminOrderDetailsPage() {
                     <OrderDetails order={order} />
                 </div>
                 <div className="lg:col-span-1 space-y-6">
+                    <AmendmentManager order={order} />
                     <PaymentManager order={order} />
                     <AdminDeliveryInfo order={order} />
                 </div>

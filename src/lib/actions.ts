@@ -4,6 +4,10 @@ import { verifyDeliveryPhoto, type VerifyDeliveryPhotoOutput } from '@/ai/flows/
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
 import { EInvoiceInputSchema, type EInvoiceOutput } from '@/lib/types';
 import { z } from 'zod';
+import { db } from '@/lib/firebase';
+import { doc, runTransaction } from 'firebase/firestore';
+
+const SST_RATE = 0.06;
 
 const verifyDeliverySchema = z.object({
     orderId: z.string(),
@@ -108,5 +112,107 @@ export async function generateEInvoiceAction(
             success: false,
             message: `E-Invoice generation failed: ${errorMessage}`,
         };
+    }
+}
+
+
+const amendOrderSchema = z.object({
+    orderId: z.string(),
+    originalItems: z.preprocess((val) => typeof val === 'string' ? JSON.parse(val) : val, z.array(z.any())),
+    amendedItems: z.preprocess((val) => typeof val === 'string' ? JSON.parse(val) : val, z.array(z.any())),
+});
+
+type AmendFormState = {
+    success: boolean;
+    message: string;
+}
+
+export async function amendOrderAction(
+    prevState: AmendFormState | undefined,
+    formData: FormData,
+): Promise<AmendFormState> {
+    if (!db) {
+        return { success: false, message: "Database not configured." };
+    }
+
+    const validatedFields = amendOrderSchema.safeParse({
+        orderId: formData.get('orderId'),
+        originalItems: formData.get('originalItems'),
+        amendedItems: formData.get('amendedItems'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: 'Invalid data submitted. ' + JSON.stringify(validatedFields.error.flatten().fieldErrors),
+        };
+    }
+
+    const { orderId, originalItems, amendedItems } = validatedFields.data;
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const orderRef = doc(db, 'orders', orderId);
+            const stockAdjustments: Map<string, number> = new Map();
+
+            // Calculate stock adjustments
+            const allItemIds = new Set([...originalItems.map(i => i.id || i.productId), ...amendedItems.map(i => i.id)]);
+
+            for (const itemId of allItemIds) {
+                const originalQty = originalItems.find(i => (i.id || i.productId) === itemId)?.quantity || 0;
+                const amendedQty = amendedItems.find(i => i.id === itemId)?.quantity || 0;
+                const diff = originalQty - amendedQty; // Positive if stock should be returned, negative if stock should be taken
+                if (diff !== 0) {
+                    stockAdjustments.set(itemId, diff);
+                }
+            }
+
+            // Get all product docs and validate stock
+            const productRefs = Array.from(stockAdjustments.keys()).map(id => doc(db, 'products', id));
+            const productDocs = await Promise.all(productRefs.map(ref => transaction.get(ref)));
+            
+            for (let i = 0; i < productDocs.length; i++) {
+                const productDoc = productDocs[i];
+                const productId = productRefs[i].id;
+                const adjustment = stockAdjustments.get(productId)!;
+                
+                if (!productDoc.exists()) throw new Error(`Product with ID ${productId} not found.`);
+                
+                const currentStock = productDoc.data().stock;
+                // If adjustment is negative, we are taking stock. Ensure enough is available.
+                if (adjustment < 0 && currentStock < Math.abs(adjustment)) {
+                    throw new Error(`Not enough stock for ${productDoc.data().name}. Only ${currentStock} available.`);
+                }
+            }
+
+            // Apply stock updates
+            for (let i = 0; i < productDocs.length; i++) {
+                const productDoc = productDocs[i];
+                const productId = productRefs[i].id;
+                const adjustment = stockAdjustments.get(productId)!;
+                const newStock = productDoc.data().stock + adjustment;
+                transaction.update(productRefs[i], { stock: newStock });
+            }
+
+            // Recalculate totals
+            const newSubtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const newSst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * SST_RATE) : sum, 0);
+            const newTotal = newSubtotal + newSst;
+            
+            // Update the order
+            transaction.update(orderRef, {
+                items: amendedItems.map(({ id, name, quantity, price, hasSst }) => ({ productId: id, name, quantity, price, hasSst })),
+                subtotal: newSubtotal,
+                sst: newSst,
+                total: newTotal,
+                isEditable: false,
+            });
+        });
+
+        return { success: true, message: 'Order updated successfully.' };
+
+    } catch (error: any) {
+        console.error("Amend order transaction failed:", error);
+        return { success: false, message: error.message || "An unknown error occurred during the update." };
     }
 }
