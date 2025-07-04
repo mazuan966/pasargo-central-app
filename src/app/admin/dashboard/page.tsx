@@ -62,10 +62,6 @@ export default function AdminDashboardPage() {
     
     const newHistory = [...orderToUpdate.statusHistory, { status, timestamp: new Date().toISOString() }];
     const updatedOrder: Order = { ...orderToUpdate, status, statusHistory: newHistory };
-          
-    if (status === 'Completed' && orderToUpdate.paymentMethod === 'Cash on Delivery') {
-        updatedOrder.paymentStatus = 'Paid';
-    }
 
     await updateOrder(updatedOrder);
 

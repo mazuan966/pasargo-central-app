@@ -9,6 +9,7 @@ import { AdminDeliveryInfo } from '@/components/admin/AdminDeliveryInfo';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { PaymentManager } from '@/components/admin/PaymentManager';
 
 export default function AdminOrderDetailsPage() {
     const params = useParams<{ id: string }>();
@@ -49,6 +50,7 @@ export default function AdminOrderDetailsPage() {
                     <OrderDetails order={order} />
                 </div>
                 <div className="lg:col-span-1 space-y-6">
+                    <PaymentManager order={order} />
                     <AdminDeliveryInfo order={order} />
                 </div>
             </div>
