@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import type { User, Order } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, MapPin, Phone, User as UserIcon, ArrowLeft, Hash } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -41,14 +41,15 @@ export default function CustomerDetailsPage() {
                 const userData = { id: userDoc.id, ...userDoc.data() } as User;
                 setUser(userData);
 
-                // Fetch user's orders
+                // Fetch user's orders - removed orderBy to avoid needing a composite index
                 const ordersQuery = query(
                     collection(db, 'orders'),
-                    where('user.id', '==', params.id),
-                    orderBy('orderDate', 'desc')
+                    where('user.id', '==', params.id)
                 );
                 const ordersSnapshot = await getDocs(ordersQuery);
                 const ordersList = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
+                // Sort on the client side instead
+                ordersList.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
                 setOrders(ordersList);
 
             } catch (error) {
