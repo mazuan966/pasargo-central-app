@@ -6,7 +6,8 @@ import {
   Package,
   LogOut,
   Map,
-  ShoppingBag
+  ShoppingBag,
+  Menu,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -59,6 +61,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
       <div className="flex flex-col">
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 md:hidden"
+              >
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle navigation menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col">
+              <nav className="grid gap-2 text-lg font-medium">
+                <Link
+                  href="/admin/dashboard"
+                  className="mb-4 flex items-center gap-2 text-lg font-semibold"
+                >
+                  <Logo className="h-6 w-6 text-primary" />
+                  <span className="">Pasargo Admin</span>
+                </Link>
+                {navLinks.map(({ href, icon: Icon, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
+                      (href === '/admin/dashboard' && pathname === href) || (href !== '/admin/dashboard' && pathname.startsWith(href)) ? 'bg-muted text-primary' : 'text-muted-foreground'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+            </SheetContent>
+          </Sheet>
+          
           <div className="w-full flex-1" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

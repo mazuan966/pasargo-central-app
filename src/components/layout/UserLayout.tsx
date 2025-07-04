@@ -8,6 +8,7 @@ import {
   Package,
   LogOut,
   User as UserIcon,
+  Menu,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -25,6 +26,7 @@ import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/hooks/use-auth';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const NavLink = ({ href, children, icon: Icon }: { href: string, children: React.ReactNode, icon: React.ElementType }) => {
   const pathname = usePathname();
@@ -63,6 +65,8 @@ function CartNavLink() {
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { userData } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const { cartCount } = useCart();
 
   const handleLogout = async () => {
     if (auth) {
@@ -75,6 +79,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
+
+  const mobileNavLinks = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/orders", label: "Orders", icon: Package },
+  ];
   
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr] print:hidden">
@@ -97,6 +106,56 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       </div>
       <div className="flex flex-col">
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 print:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 md:hidden"
+              >
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle navigation menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col">
+              <nav className="grid gap-2 text-lg font-medium">
+                <Link
+                  href="/dashboard"
+                  className="mb-4 flex items-center gap-2 text-lg font-semibold"
+                >
+                  <Logo className="h-6 w-6 text-primary" />
+                  <span className="">Pasargo Central</span>
+                </Link>
+                {mobileNavLinks.map(({ href, icon: Icon, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
+                      pathname === href ? 'bg-muted text-primary' : 'text-muted-foreground'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {label}
+                  </Link>
+                ))}
+                <Link
+                  href="/cart"
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary ${
+                    pathname === '/cart' ? 'bg-muted text-primary' : 'text-muted-foreground'
+                  }`}
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  Cart
+                  {cartCount > 0 && (
+                    <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      {cartCount}
+                    </Badge>
+                  )}
+                </Link>
+              </nav>
+            </SheetContent>
+          </Sheet>
+          
           <div className="w-full flex-1" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
