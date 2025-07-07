@@ -218,7 +218,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                         items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
                         `\n\nPlease process the order in the admin dashboard.`;
                     
-                    simulateDirectWhatsApp(adminPOMessage, adminPOMessage);
+                    simulateDirectWhatsApp(adminPhoneNumber, adminPOMessage);
                 } else {
                     console.warn('Admin WhatsApp number (NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER) not configured. Skipping admin notification.');
                 }
