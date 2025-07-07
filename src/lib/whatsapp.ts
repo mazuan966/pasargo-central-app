@@ -1,39 +1,58 @@
 'use server';
 
-import twilio from 'twilio';
-
-// These will be read from environment variables on the server
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER;
-
-// Initialize Twilio client only if credentials are provided
-const client = (accountSid && authToken) ? twilio(accountSid, authToken) : null;
+const baseUrl = process.env.INFOBIP_BASE_URL;
+const apiKey = process.env.INFOBIP_API_KEY;
+const fromNumber = process.env.INFOBIP_SENDER_NUMBER;
 
 /**
- * Sends a WhatsApp message using Twilio.
- * @param to The recipient's phone number in E.164 format (e.g., '+60123456789').
+ * Sends a WhatsApp message using Infobip.
+ * @param to The recipient's phone number in E.164 format (e.g., '60123456789'). Note: No '+' needed for Infobip.
  * @param body The message content.
  * @returns An object indicating success or failure.
  */
-export async function sendWhatsAppMessage(to: string, body: string): Promise<{ success: boolean; error?: string; sid?: string }> {
-  if (!client || !fromNumber) {
-    const errorMessage = 'Twilio service is not configured on the server. Please check environment variables.';
+export async function sendWhatsAppMessage(to: string, body: string): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  if (!baseUrl || !apiKey || !fromNumber) {
+    const errorMessage = 'Infobip service is not configured on the server. Please check environment variables.';
     console.error(errorMessage);
-    // Return an error but don't crash the app
     return { success: false, error: errorMessage };
   }
 
+  // Infobip expects the number without the leading '+'
+  const formattedTo = to.startsWith('+') ? to.substring(1) : to;
+
+  const endpoint = `https://${baseUrl}/whatsapp/1/message/text`;
+  
+  const payload = {
+    from: fromNumber,
+    to: formattedTo,
+    content: {
+      text: body,
+    },
+  };
+
   try {
-    const message = await client.messages.create({
-      from: `whatsapp:${fromNumber}`,
-      to: `whatsapp:${to}`,
-      body: body,
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `App ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
-    console.log(`WhatsApp message sent successfully to ${to}. SID: ${message.sid}`);
-    return { success: true, sid: message.sid };
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      const errorDetails = result.requestError?.serviceException?.text || 'Unknown API error';
+      throw new Error(`API request failed with status ${response.status}: ${errorDetails}`);
+    }
+
+    console.log(`WhatsApp message sent successfully to ${formattedTo}. Message ID: ${result.messages[0]?.messageId}`);
+    return { success: true, messageId: result.messages[0]?.messageId };
+
   } catch (error) {
-    console.error(`Failed to send WhatsApp message to ${to}:`, error);
+    console.error(`Failed to send WhatsApp message to ${formattedTo}:`, error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during message sending';
     return { success: false, error: errorMessage };
   }
