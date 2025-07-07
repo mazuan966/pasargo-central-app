@@ -86,7 +86,8 @@ export default function CheckoutPage() {
     setIsLoading(true);
     
     try {
-      const { redirectUrl } = await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod, deliveryDate.toISOString(), deliveryTime, amendmentInfo?.originalOrderId);
+      const result = await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod, deliveryDate.toISOString(), deliveryTime, amendmentInfo?.originalOrderId);
+      const redirectUrl = result?.redirectUrl;
       
       if (redirectUrl) {
           clearCart();

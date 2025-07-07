@@ -18,7 +18,7 @@ export interface CartItem extends Product {
 }
 
 export type OrderStatus = 'Order Created' | 'Processing' | 'Pick Up' | 'Delivered' | 'Completed' | 'Cancelled';
-export type PaymentMethod = 'Cash on Delivery' | 'Bank Transfer';
+export type PaymentMethod = 'Cash on Delivery' | 'FPX (Toyyibpay)';
 export type PaymentStatus = 'Pending Payment' | 'Paid' | 'Pending Confirmation';
 
 export const EInvoiceInputSchema = z.object({
@@ -96,6 +96,7 @@ export interface Order {
   deliveryTimeSlot: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  toyyibpayBillCode?: string;
   deliveryPhotoUrl?: string;
   paymentProofUrl?: string;
   deliveryVerification?: {

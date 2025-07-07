@@ -2,17 +2,19 @@
 'use client';
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
-import type { Order, CartItem, User, OrderStatus } from '@/lib/types';
+import type { Order, CartItem, User, OrderStatus, PaymentMethod } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where, runTransaction, writeBatch } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
+import crypto from 'crypto-js';
 
 const SST_RATE = 0.06;
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
 interface OrderContextType {
   orders: Order[];
-  addOrder: (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod', deliveryDate: string, deliveryTimeSlot: string, originalOrderId?: string) => Promise<void>;
+  addOrder: (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'toyyibpay' | 'cod', deliveryDate: string, deliveryTimeSlot: string, originalOrderId?: string) => Promise<{ redirectUrl?: string }>;
   updateOrder: (updatedOrder: Order) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   amendCodOrder: (originalOrder: Order, amendedItems: CartItem[]) => Promise<void>;
@@ -36,8 +38,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const isUser = !!currentUser;
 
     const ordersCollection = collection(db, 'orders');
-    // For users, we remove the orderBy clause to avoid needing a composite index.
-    // We will sort on the client side instead.
     const q = isUser && currentUser?.uid
         ? query(ordersCollection, where("user.id", "==", currentUser.uid))
         : query(ordersCollection, orderBy('orderDate', 'desc'));
@@ -48,7 +48,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         ...doc.data()
       })) as Order[];
       
-      // Sort on the client if we didn't do it in the query.
       if (isUser) {
         ordersList.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
       }
@@ -68,7 +67,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }, [currentUser]);
 
   const sendAmendmentNotifications = async (updatedOrder: Order, user: User) => {
-    const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
     const testPhoneNumber = '60163864181';
 
     const itemsSummary = updatedOrder.items.map(item => {
@@ -105,7 +103,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
   };
 
-  const addOrder = async (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod', deliveryDate: string, deliveryTimeSlot: string, originalOrderId?: string) => {
+  const addOrder = async (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'toyyibpay' | 'cod', deliveryDate: string, deliveryTimeSlot: string, originalOrderId?: string): Promise<{ redirectUrl?: string }> => {
     if (!db || !userData) {
       throw new Error("Firestore is not configured or user is not logged in. Cannot add order.");
     }
@@ -114,6 +112,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (originalOrderId) {
             // This is an AMENDMENT to an existing order (for FPX/pre-paid)
             let finalUpdatedOrder: Order | null = null;
+            let redirectUrl: string | undefined = undefined;
+
             await runTransaction(db, async (transaction) => {
                 const originalOrderRef = doc(db, 'orders', originalOrderId);
                 const originalOrderDoc = await transaction.get(originalOrderRef);
@@ -121,6 +121,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 if (!originalOrderDoc.exists()) {
                     throw new Error("Original order not found.");
                 }
+                
+                const originalOrderData = originalOrderDoc.data() as Order;
 
                 const productUpdates: { ref: any, newStock: number }[] = [];
                 for (const item of items) {
@@ -133,12 +135,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 }
 
                 for (const update of productUpdates) {
-                    transaction.update(update.ref, { stock: newStock });
+                    transaction.update(update.ref, { stock: update.newStock });
                 }
                 
-                const originalOrderData = originalOrderDoc.data() as Order;
-                
-                // Merge new items into the existing list, preventing duplicates
                 const updatedItemsMap = new Map(originalOrderData.items.map(i => [i.productId, { ...i }]));
 
                 for (const newItem of items) {
@@ -164,15 +163,28 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 const updatedSst = originalOrderData.sst + sst;
                 const updatedTotal = originalOrderData.total + total;
                 
-                transaction.update(originalOrderRef, {
-                    items: finalItems,
-                    subtotal: updatedSubtotal,
-                    sst: updatedSst,
-                    total: updatedTotal,
-                    isEditable: false,
-                });
-
-                // Prepare data for notification after transaction
+                 if (originalOrderData.paymentMethod === 'FPX (Toyyibpay)') {
+                    const billResponse = await createToyyibpayBill(originalOrderData, total, userData);
+                    transaction.update(originalOrderRef, {
+                        items: finalItems,
+                        subtotal: updatedSubtotal,
+                        sst: updatedSst,
+                        total: updatedTotal,
+                        toyyibpayBillCode: billResponse.billCode,
+                        isEditable: false,
+                        paymentStatus: 'Pending Confirmation' // Reset for new payment
+                    });
+                    redirectUrl = billResponse.paymentUrl;
+                 } else {
+                    transaction.update(originalOrderRef, {
+                        items: finalItems,
+                        subtotal: updatedSubtotal,
+                        sst: updatedSst,
+                        total: updatedTotal,
+                        isEditable: false,
+                    });
+                 }
+                 
                 finalUpdatedOrder = {
                     ...originalOrderData,
                     id: originalOrderId,
@@ -183,15 +195,16 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 };
             });
             
-            if (finalUpdatedOrder) {
+            if (finalUpdatedOrder && finalUpdatedOrder.paymentMethod === 'Cash on Delivery') {
                 await sendAmendmentNotifications(finalUpdatedOrder, userData);
             }
+            return { redirectUrl };
 
         } else {
             // This is a NEW order
-            // Generate the new Order Ref and ID *before* the transaction so we can use it in links.
             const newOrderRef = doc(collection(db, "orders"));
             const newOrderId = newOrderRef.id;
+            let redirectUrl: string | undefined = undefined;
 
             await runTransaction(db, async (transaction) => {
                 const productUpdates: { ref: any, newStock: number }[] = [];
@@ -218,6 +231,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 const numberPart = String(newOrderIndex).padStart(4, '0');
                 const newOrderNumber = `PA${numberPart}${datePart}`;
 
+                let billCode: string | undefined = undefined;
+                let paymentStatus: Order['paymentStatus'] = 'Pending Payment';
+                let finalPaymentMethod: PaymentMethod = paymentMethod === 'cod' ? 'Cash on Delivery' : 'FPX (Toyyibpay)';
+
+                const tempOrderDataForBill:Partial<Order> = {
+                    orderNumber: newOrderNumber,
+                };
+                
+                if (paymentMethod === 'toyyibpay') {
+                    const billResponse = await createToyyibpayBill(tempOrderDataForBill as Order, total, userData);
+                    billCode = billResponse.billCode;
+                    redirectUrl = billResponse.paymentUrl;
+                    paymentStatus = 'Pending Confirmation';
+                }
+
                 const newOrderData: Omit<Order, 'id'> = {
                     orderNumber: newOrderNumber,
                     user: userData,
@@ -237,8 +265,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     orderDate: new Date().toISOString(),
                     deliveryDate,
                     deliveryTimeSlot,
-                    paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer',
-                    paymentStatus: paymentMethod === 'cod' ? 'Pending Payment' : 'Pending Confirmation',
+                    paymentMethod: finalPaymentMethod,
+                    paymentStatus: paymentStatus,
+                    toyyibpayBillCode: billCode,
                     statusHistory: [
                         { status: 'Order Created', timestamp: new Date().toISOString() },
                     ],
@@ -246,21 +275,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 
                 transaction.set(newOrderRef, newOrderData);
 
-                // --- START WHATSAPP NOTIFICATION LOGIC ---
+                // WhatsApp notifications are sent only after successful order creation
                 const testPhoneNumber = '60163864181';
-                const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
-
+                
                 let invoiceMessageSection = '';
                 let poMessageSection = '';
 
                 if (appUrl) {
-                    const invoiceUrl = `${appUrl}/print/invoice/${newOrderId}`;
-                    const poUrl = `${appUrl}/admin/print/po/${newOrderId}`;
-                    invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${invoiceUrl}`;
-                    poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${poUrl}`;
-                } else {
-                    // This will be logged on the server (Firebase Functions logs)
-                    console.error("CRITICAL: 'NEXT_PUBLIC_APP_URL' environment variable is not set. Printable links will not be included in WhatsApp notifications. Please set this variable in your hosting environment (e.g., Firebase App Hosting settings).");
+                    invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderId}`;
+                    poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderId}`;
                 }
 
                 const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber}*\n\n` +
@@ -271,7 +294,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 `${invoiceMessageSection}\n\n`+
                 `We will process your order shortly.`;
                 
-                // Send user invoice to the test number
                 await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
 
                 const adminPOMessage = `*New Purchase Order Received*\n\n` +
@@ -284,10 +306,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     `${poMessageSection}\n\n` +
                     `Please process the order in the admin dashboard.`;
                 
-                // Send admin PO to the same test number, with a prefix to distinguish it
                 await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
-                // --- END WHATSAPP NOTIFICATION LOGIC ---
             });
+            return { redirectUrl };
         }
     } catch (e: any) {
         console.error("Order transaction failed: ", e);
@@ -428,7 +449,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     ordersToUpdate.forEach(order => {
         const orderRef = doc(db, 'orders', order.id);
         const newHistoryEntry = { status: newStatus, timestamp: new Date().toISOString() };
-        // Avoid duplicate consecutive statuses
         const lastStatus = order.statusHistory[order.statusHistory.length - 1];
         const newHistory = lastStatus.status !== newStatus ? [...order.statusHistory, newHistoryEntry] : order.statusHistory;
         
@@ -450,10 +470,58 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await batch.commit();
   };
 
-
   return (
     <OrderContext.Provider value={{ orders, addOrder, updateOrder, deleteOrder, amendCodOrder, bulkUpdateOrderStatus, bulkDeleteOrders }}>
       {children}
     </OrderContext.Provider>
   );
+}
+
+async function createToyyibpayBill(order: Order, total: number, user: User) {
+    const toyyibpaySecretKey = process.env.NEXT_PUBLIC_TOYYIBPAY_SECRET_KEY;
+    const toyyibpayCategoryCode = process.env.NEXT_PUBLIC_TOYYIBPAY_CATEGORY_CODE;
+
+    if (!toyyibpaySecretKey || !toyyibpayCategoryCode || !appUrl) {
+        throw new Error("Toyyibpay credentials or App URL are not configured on the server.");
+    }
+
+    const billAmount = Math.round(total * 100); // Amount in cents
+
+    const billParams = new URLSearchParams({
+        'userSecretKey': toyyibpaySecretKey,
+        'categoryCode': toyyibpayCategoryCode,
+        'billName': `Order ${order.orderNumber}`,
+        'billDescription': `Payment for Order #${order.orderNumber} from ${user.restaurantName}`,
+        'billPriceSetting': '1', // 1 = Fixed Price
+        'billPayorInfo': '1', // 1 = Required
+        'billAmount': String(billAmount),
+        'billReturnUrl': `${appUrl}/payment/status?order_id=${order.id}`,
+        'billCallbackUrl': `${appUrl}/api/toyyibpay/callback`,
+        'billExternalReferenceNo': order.orderNumber,
+        'billTo': user.personInCharge || user.restaurantName,
+        'billEmail': user.email,
+        'billPhone': user.phoneNumber?.replace('+', '') || '0123456789'
+    });
+    
+    try {
+        const response = await fetch('https://toyyibpay.com/index.php/api/createBill', {
+            method: 'POST',
+            body: billParams,
+        });
+
+        const result = await response.json();
+        
+        if (response.ok && result.length > 0 && result[0].BillCode) {
+            const billCode = result[0].BillCode;
+            return {
+                billCode,
+                paymentUrl: `https://toyyibpay.com/${billCode}`
+            };
+        } else {
+            throw new Error(`Toyyibpay API Error: ${JSON.stringify(result)}`);
+        }
+    } catch (error) {
+        console.error("Failed to create Toyyibpay bill:", error);
+        throw new Error("Could not connect to the payment gateway. Please try again later.");
+    }
 }
