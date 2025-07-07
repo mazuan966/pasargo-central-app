@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         
         const billcode = formData.get('billcode') as string;
-        const status = formData.get('status_id') as string; // 1 = success, 2 = pending, 3 = fail
+        // The callback from Toyyibpay uses `status`, not `status_id`. This is a critical change.
+        const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
         const order_id = formData.get('order_id') as string; // This is our orderNumber
         const msg = formData.get('msg') as string;
         const transaction_id = formData.get('transaction_id') as string;
@@ -27,12 +28,12 @@ export async function POST(req: NextRequest) {
             return new Response('Server configuration error', { status: 500 });
         }
         
-        // Toyyibpay signature is sha256(secretkey + billcode + order_id + status)
+        // Toyyibpay signature for callback is sha256(secretkey + billcode + order_id + status)
         const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
         const ourSignature = crypto.SHA256(signatureString).toString();
         
         if (signature !== ourSignature) {
-            console.warn(`Invalid signature received. Got: ${signature}, Expected: ${ourSignature}. String was: "${signatureString}"`);
+            console.warn(`Invalid signature received from Toyyibpay callback. Got: ${signature}, Expected: ${ourSignature}. String was: "${signatureString}"`);
             return new Response('Invalid signature', { status: 400 });
         }
 
