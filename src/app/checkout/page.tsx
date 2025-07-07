@@ -13,23 +13,12 @@ import { Separator } from '@/components/ui/separator';
 import { CreditCard, Truck, Loader2, Calendar as CalendarIcon, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-type PaymentMethod = 'billplz' | 'cod';
-const timeSlots = [
-    "2:00 PM - 3:00 PM",
-    "3:00 PM - 4:00 PM",
-    "4:00 PM - 5:00 PM",
-    "5:00 PM - 6:00 PM",
-    "6:00 PM - 7:00 PM",
-    "7:00 PM - 8:00 PM",
-    "8:00 PM - 9:00 PM",
-    "9:00 PM - 10:00 PM",
-    "10:00 PM - 11:00 PM",
-];
+type PaymentMethod = 'toyyibpay' | 'cod';
 
 interface AmendmentInfo {
     originalOrderId: string;
@@ -41,34 +30,30 @@ interface AmendmentInfo {
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
   const { addOrder } = useOrders();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('billplz');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('toyyibpay');
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
   const [minDate, setMinDate] = useState<Date>(new Date());
-  const [timeSlot, setTimeSlot] = useState<string>('');
+  const [deliveryTime, setDeliveryTime] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [amendmentInfo, setAmendmentInfo] = useState<AmendmentInfo | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    // This effect runs on mount to check for amendment info
     const storedInfo = localStorage.getItem('amendmentInfo');
     if (storedInfo) {
       const parsedInfo: AmendmentInfo = JSON.parse(storedInfo);
       setAmendmentInfo(parsedInfo);
-      // Pre-fill and lock delivery info for amendments
       setDeliveryDate(new Date(parsedInfo.deliveryDate));
-      setTimeSlot(parsedInfo.deliveryTimeSlot);
+      setDeliveryTime(parsedInfo.deliveryTimeSlot);
     }
 
-    // Redirect if cart is empty and it's not an amendment flow in progress
     if (cartItems.length === 0) {
       router.replace('/dashboard');
     }
-  }, []); // Only on mount
+  }, []);
 
   useEffect(() => {
-    // This effect runs only when not in an amendment flow
     if (!amendmentInfo) {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -81,7 +66,6 @@ export default function CheckoutPage() {
     }
   }, [amendmentInfo]);
 
-  // Cleanup effect to remove amendment info if the user navigates away
   useEffect(() => {
     return () => {
       localStorage.removeItem('amendmentInfo');
@@ -90,11 +74,11 @@ export default function CheckoutPage() {
 
 
   const handlePlaceOrder = async () => {
-    if (!deliveryDate || !timeSlot) {
+    if (!deliveryDate || !deliveryTime) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please select a delivery date and time slot.',
+        description: 'Please select a delivery date and time.',
       });
       return;
     }
@@ -102,8 +86,15 @@ export default function CheckoutPage() {
     setIsLoading(true);
     
     try {
-      await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod, deliveryDate.toISOString(), timeSlot, amendmentInfo?.originalOrderId);
+      const { redirectUrl } = await addOrder(cartItems, cartSubtotal, cartSst, cartTotal, paymentMethod, deliveryDate.toISOString(), deliveryTime, amendmentInfo?.originalOrderId);
       
+      if (redirectUrl) {
+          clearCart();
+          localStorage.removeItem('amendmentInfo');
+          window.location.href = redirectUrl;
+          return;
+      }
+
       const successToastTitle = amendmentInfo ? 'Amendment Successful!' : 'Order Placed Successfully!';
       const successToastDesc = amendmentInfo ? `The items have been added to order #${amendmentInfo.originalOrderNumber}.` : 'Thank you for your purchase. A confirmation has been sent via WhatsApp.';
 
@@ -112,25 +103,24 @@ export default function CheckoutPage() {
         description: successToastDesc,
       });
 
-      const redirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
+      const finalRedirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
       
       clearCart();
       localStorage.removeItem('amendmentInfo');
-      router.push(redirectUrl);
+      router.push(finalRedirectUrl);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to place order:", error);
       toast({
         variant: 'destructive',
         title: 'Order Failed',
-        description: 'There was a problem placing your order. Please try again.',
+        description: error.message || 'There was a problem placing your order. Please try again.',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Prevent rendering while redirecting
   if (cartItems.length === 0) {
     return null;
   }
@@ -220,17 +210,26 @@ export default function CheckoutPage() {
                             </Popover>
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="time-slot">Time Slot</Label>
-                            <Select value={timeSlot} onValueChange={setTimeSlot} disabled={!!amendmentInfo}>
-                                <SelectTrigger id="time-slot">
-                                    <SelectValue placeholder="Select a time slot" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {timeSlots.map(slot => (
-                                        <SelectItem key={slot} value={slot}>{slot}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label htmlFor="delivery-time">Delivery Time</Label>
+                             {amendmentInfo ? (
+                                <Input
+                                  id="delivery-time"
+                                  type="text"
+                                  value={deliveryTime}
+                                  readOnly
+                                  disabled
+                                  className="cursor-not-allowed bg-muted/50"
+                                />
+                            ) : (
+                                <Input
+                                    id="delivery-time"
+                                    type="time"
+                                    value={deliveryTime}
+                                    onChange={(e) => setDeliveryTime(e.target.value)}
+                                    className="w-full"
+                                    min="10:00"
+                                />
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -245,11 +244,11 @@ export default function CheckoutPage() {
                             className="space-y-4"
                             onValueChange={(value: PaymentMethod) => setPaymentMethod(value)}
                         >
-                            <Label htmlFor="billplz" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
-                                <RadioGroupItem value="billplz" id="billplz" />
+                            <Label htmlFor="toyyibpay" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
+                                <RadioGroupItem value="toyyibpay" id="toyyibpay" />
                                 <CreditCard className="h-6 w-6" />
                                 <div>
-                                    <p className="font-semibold">FPX Payment (Billplz)</p>
+                                    <p className="font-semibold">FPX Payment (Toyyibpay)</p>
                                     <p className="text-sm text-muted-foreground">Pay securely via online banking.</p>
                                 </div>
                             </Label>
@@ -267,7 +266,7 @@ export default function CheckoutPage() {
                 </Card>
                 <Button 
                     onClick={handlePlaceOrder}
-                    disabled={isLoading || !deliveryDate || !timeSlot}
+                    disabled={isLoading || !deliveryDate || !deliveryTime}
                     className="w-full mt-6"
                 >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
