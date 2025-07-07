@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useActionState, useRef } from 'react';
@@ -37,7 +36,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    setAmendedItems(JSON.parse(JSON.stringify(order.items.map(item => ({ ...item, id: item.productId })))));
+    setAmendedItems(order.items.map(item => ({ ...item, id: item.productId })));
     const fetchProducts = async () => {
       if (!db) return;
       setIsLoadingProducts(true);
@@ -47,7 +46,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
       setIsLoadingProducts(false);
     };
     fetchProducts();
-  }, [order.items]);
+  }, [order.id]);
 
   useEffect(() => {
     if (state.success) {
