@@ -1,18 +1,15 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { useOrders } from '@/hooks/use-orders';
+import { useSearchParams, notFound } from 'next/navigation';
 import { PrintablePO } from '@/components/admin/PrintablePO';
 import { useEffect, useState, useMemo } from 'react';
-import { OrderProvider } from '@/context/OrderProvider';
 import { Order, BusinessDetails } from '@/lib/types';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, documentId } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
 
 function BulkPrintPOComponent() {
     const searchParams = useSearchParams();
-    const { orders } = useOrders();
     const [ordersToPrint, setOrdersToPrint] = useState<Order[]>([]);
     const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -23,40 +20,49 @@ function BulkPrintPOComponent() {
     }, [searchParams]);
 
     useEffect(() => {
-        const foundOrders = orders.filter(o => orderIds.includes(o.id));
-        if (foundOrders.length > 0) {
-          // Sort them in the order of the IDs provided in the URL
-          const sortedOrders = orderIds.map(id => foundOrders.find(o => o.id === id)).filter(Boolean) as Order[];
-          setOrdersToPrint(sortedOrders);
+        if (!orderIds.length || !db) {
+            setIsLoading(false);
+            return;
         }
-    }, [orders, orderIds]);
 
-    useEffect(() => {
-        const fetchBusinessDetails = async () => {
-            if (!db) return;
+        const fetchBulkData = async () => {
+            setIsLoading(true);
             try {
-                const docRef = doc(db, 'settings', 'business');
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setBusinessDetails(docSnap.data() as BusinessDetails);
+                // Fetch business details and orders in parallel
+                const [businessDocSnap, ordersSnapshot] = await Promise.all([
+                    getDoc(doc(db, 'settings', 'business')),
+                    getDocs(query(collection(db, 'orders'), where(documentId(), 'in', orderIds)))
+                ]);
+
+                if (businessDocSnap.exists()) {
+                    setBusinessDetails(businessDocSnap.data() as BusinessDetails);
                 } else {
                     console.log("No business details found!");
                 }
+
+                if (!ordersSnapshot.empty) {
+                    const foundOrders = ordersSnapshot.docs.map(d => ({ ...d.data(), id: d.id }) as Order);
+                     // Sort them in the order of the IDs provided in the URL
+                    const sortedOrders = orderIds.map(id => foundOrders.find(o => o.id === id)).filter(Boolean) as Order[];
+                    setOrdersToPrint(sortedOrders);
+                }
+
             } catch (error) {
-                console.error("Error fetching business details:", error);
+                console.error("Error fetching bulk print data:", error);
+            } finally {
+                setIsLoading(false);
             }
         };
-
-        fetchBusinessDetails();
-    }, []);
+        
+        fetchBulkData();
+    }, [orderIds]);
 
     useEffect(() => {
-        if (ordersToPrint.length > 0 && businessDetails) {
-            setIsLoading(false);
+        if (!isLoading && ordersToPrint.length > 0 && businessDetails) {
             const timer = setTimeout(() => window.print(), 500);
             return () => clearTimeout(timer);
         }
-    }, [ordersToPrint, businessDetails]);
+    }, [isLoading, ordersToPrint, businessDetails]);
 
     if (isLoading) {
         return (
@@ -65,6 +71,10 @@ function BulkPrintPOComponent() {
                  Loading documents...
             </div>
         );
+    }
+    
+    if (ordersToPrint.length === 0 || !businessDetails) {
+        return notFound();
     }
     
     return (
@@ -78,11 +88,6 @@ function BulkPrintPOComponent() {
     );
 }
 
-
 export default function BulkPrintPOPage() {
-    return (
-        <OrderProvider>
-            <BulkPrintPOComponent />
-        </OrderProvider>
-    )
+    return <BulkPrintPOComponent />;
 }

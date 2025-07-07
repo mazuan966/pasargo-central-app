@@ -1,64 +1,82 @@
 'use client';
 
-import { useOrders } from '@/hooks/use-orders';
-import { useParams } from 'next/navigation';
+import { useParams, notFound } from 'next/navigation';
 import { PrintableInvoice } from '@/components/orders/PrintableInvoice';
 import { useEffect, useState } from 'react';
-import { OrderProvider } from '@/context/OrderProvider';
 import { Order, BusinessDetails } from '@/lib/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { Loader2 } from 'lucide-react';
 
 
 function PrintInvoiceComponent() {
     const params = useParams<{ id: string }>();
-    const { orders } = useOrders();
-    const [order, setOrder] = useState<Order | undefined>(undefined);
+    const [order, setOrder] = useState<Order | null>(null);
     const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const foundOrder = orders.find(o => o.id === params.id);
-        setOrder(foundOrder);
-    }, [orders, params.id]);
+        if (!params.id || !db) {
+            setIsLoading(false);
+            return;
+        }
 
-     useEffect(() => {
-        const fetchBusinessDetails = async () => {
-            if (!db) return;
+        const fetchData = async () => {
+            setIsLoading(true);
             try {
-                const docRef = doc(db, 'settings', 'business');
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setBusinessDetails(docSnap.data() as BusinessDetails);
+                // Fetch order and business details in parallel
+                const [orderDocSnap, businessDocSnap] = await Promise.all([
+                    getDoc(doc(db, 'orders', params.id as string)),
+                    getDoc(doc(db, 'settings', 'business'))
+                ]);
+
+                if (orderDocSnap.exists()) {
+                    setOrder({ id: orderDocSnap.id, ...orderDocSnap.data() } as Order);
+                } else {
+                    console.log("No such order document!");
+                    setOrder(null);
+                }
+
+                if (businessDocSnap.exists()) {
+                    setBusinessDetails(businessDocSnap.data() as BusinessDetails);
                 } else {
                     console.log("No business details found!");
                 }
             } catch (error) {
-                console.error("Error fetching business details:", error);
+                console.error("Error fetching print data:", error);
+                setOrder(null);
+            } finally {
+                setIsLoading(false);
             }
         };
 
-        fetchBusinessDetails();
-    }, []);
+        fetchData();
+    }, [params.id]);
 
     useEffect(() => {
-        if (order && businessDetails) {
+        if (!isLoading && order && businessDetails) {
             // Delay to allow rendering before printing
             const timer = setTimeout(() => window.print(), 500);
             return () => clearTimeout(timer);
         }
-    }, [order, businessDetails]);
+    }, [isLoading, order, businessDetails]);
 
+    if (isLoading) {
+        return (
+             <div className="flex h-screen w-full items-center justify-center">
+                 <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+                 Loading invoice...
+            </div>
+        );
+    }
+    
     if (!order || !businessDetails) {
-        return <div>Loading invoice...</div>;
+        return notFound();
     }
     
     return <PrintableInvoice order={order} businessDetails={businessDetails} />;
 }
 
 export default function PrintInvoicePage() {
-    return (
-        <OrderProvider>
-            <PrintInvoiceComponent />
-        </OrderProvider>
-    )
+    return <PrintInvoiceComponent />;
 }
