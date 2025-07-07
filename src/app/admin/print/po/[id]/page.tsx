@@ -39,10 +39,12 @@ function PrintPOComponent() {
                     setBusinessDetails(businessDocSnap.data() as BusinessDetails);
                 } else {
                     console.log("No business details found!");
+                    setBusinessDetails(null);
                 }
             } catch (error) {
                 console.error("Error fetching print data:", error);
                 setOrder(null);
+                setBusinessDetails(null);
             } finally {
                 setIsLoading(false);
             }
@@ -69,7 +71,19 @@ function PrintPOComponent() {
         );
     }
     
-    if (!order || !businessDetails) {
+    if (!businessDetails) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center text-center p-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-destructive mb-2">Configuration Error</h1>
+                    <p className="text-muted-foreground">Business details are not set up.</p>
+                    <p className="text-muted-foreground mt-1">An administrator must save the business settings in the admin dashboard before POs can be printed.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!order) {
         return notFound();
     }
     
