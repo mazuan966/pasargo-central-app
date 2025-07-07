@@ -14,6 +14,7 @@ import { CreditCard, Truck, Loader2, Calendar as CalendarIcon, Info, XCircle } f
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -29,6 +30,21 @@ interface AmendmentInfo {
 }
 
 const initialFormState = { success: false, message: '' };
+
+const timeSlots = [
+    "10:00 AM - 11:00 AM",
+    "11:00 AM - 12:00 PM",
+    "12:00 PM - 1:00 PM",
+    "1:00 PM - 2:00 PM",
+    "2:00 PM - 3:00 PM",
+    "3:00 PM - 4:00 PM",
+    "4:00 PM - 5:00 PM",
+    "5:00 PM - 6:00 PM",
+    "6:00 PM - 7:00 PM",
+    "7:00 PM - 8:00 PM",
+    "8:00 PM - 9:00 PM",
+    "9:00 PM - 10:00 PM",
+];
 
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
@@ -164,9 +180,18 @@ export default function CheckoutPage() {
                   </Popover>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="delivery-time">Delivery Time</Label>
+                  <Label htmlFor="delivery-time">Delivery Time Slot</Label>
                    {amendmentInfo ? ( <Input id="delivery-time" type="text" value={deliveryTime} readOnly disabled className="cursor-not-allowed bg-muted/50" /> ) : (
-                      <Input id="delivery-time" type="time" value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)} className="w-full" min="10:00" />
+                      <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                        <SelectTrigger id="delivery-time">
+                          <SelectValue placeholder="Select a time slot" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {timeSlots.map(slot => (
+                            <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                   )}
                 </div>
               </CardContent>
