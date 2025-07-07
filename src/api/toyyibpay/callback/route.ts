@@ -10,14 +10,23 @@ export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
         
-        const billcode = formData.get('billcode') as string;
-        const status = formData.get('status_id') as string; // 1 = success, 2 = pending, 3 = fail
-        const order_id = formData.get('order_id') as string; // This is our orderNumber
-        const msg = formData.get('msg') as string;
-        const transaction_id = formData.get('transaction_id') as string;
-        const signature = formData.get('signature') as string;
+        // --- DETAILED LOGGING FOR DEBUGGING ---
+        console.log("--- Toyyibpay Callback Received ---");
+        const receivedData: { [key: string]: any } = {};
+        for (const [key, value] of formData.entries()) {
+            receivedData[key] = value;
+            console.log(`Received key: "${key}", value: "${value}"`);
+        }
+        console.log("------------------------------------");
+
+
+        const billcode = receivedData.billcode as string;
+        const status = receivedData.status as string; // 1 = success, 2 = pending, 3 = fail
+        const order_id = receivedData.order_id as string; // This is our orderNumber
+        const signature = receivedData.signature as string;
         
         if (!billcode || !status || !order_id) {
+             console.error('Callback missing required parameters: billcode, status, or order_id');
              return new Response('Missing required parameters', { status: 400 });
         }
         
@@ -27,12 +36,16 @@ export async function POST(req: NextRequest) {
             return new Response('Server configuration error', { status: 500 });
         }
         
-        // Toyyibpay signature is sha256(secretkey + billcode + order_id + status)
+        // Toyyibpay signature for callback is sha256(secretkey + billcode + order_id + status)
         const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
         const ourSignature = crypto.SHA256(signatureString).toString();
         
         if (signature !== ourSignature) {
-            console.warn(`Invalid signature received from Toyyibpay. Got: ${signature}, Expected: ${ourSignature}`);
+            console.warn(`!!! INVALID SIGNATURE - This is the point of failure.`);
+            console.warn(`- Received Signature: "${signature}"`);
+            console.warn(`- Our Calculated Signature: "${ourSignature}"`);
+            console.warn(`- String Used for Hashing: "${signatureString}"`);
+            console.warn(`- Please verify the secret key is correct and there are no extra spaces or characters in the hashed string.`);
             return new Response('Invalid signature', { status: 400 });
         }
 
@@ -63,13 +76,10 @@ export async function POST(req: NextRequest) {
                 const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = { ...orderData, id: orderDoc.id };
                 const testPhoneNumber = '60163864181';
                 const appUrl = process.env.APP_URL;
-                
                 let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
                 let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
-                
                 const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
                 await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
-                
                 const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
                 await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
             }
