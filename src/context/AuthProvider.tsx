@@ -60,7 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
     const isAdminAuthPage = pathname.startsWith('/admin/login');
-    const isPublicPage = pathname === '/' || isAuthPage || isAdminAuthPage;
+    const isPrintPage = pathname.startsWith('/print/') || pathname.startsWith('/admin/print/');
+    const isPublicPage = pathname === '/' || isAuthPage || isAdminAuthPage || isPrintPage;
     
     // Admin routes are not protected by this logic for now
     const isAdminPage = pathname.startsWith('/admin');

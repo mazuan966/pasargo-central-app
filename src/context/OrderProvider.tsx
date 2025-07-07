@@ -132,6 +132,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
         } else {
             // This is a NEW order
+            // Generate the new Order Ref and ID *before* the transaction so we can use it in links.
+            const newOrderRef = doc(collection(db, "orders"));
+            const newOrderId = newOrderRef.id;
+
             await runTransaction(db, async (transaction) => {
                 const productUpdates: { ref: any, newStock: number }[] = [];
                 for (const item of items) {
@@ -183,17 +187,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     ],
                 };
                 
-                const newOrderRef = doc(collection(db, "orders"));
                 transaction.set(newOrderRef, newOrderData);
 
                 // --- START WHATSAPP NOTIFICATION LOGIC ---
                 const testPhoneNumber = '60163864181';
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+                const invoiceUrl = `${appUrl}/print/invoice/${newOrderId}`;
+                const poUrl = `${appUrl}/admin/print/po/${newOrderId}`;
 
                 const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber}*\n\n` +
                 `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` +
                 `*Delivery Time:* ${deliveryTimeSlot}\n\n` +
                 items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
                 `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*\n\n` +
+                `View and print your invoice here:\n${invoiceUrl}\n\n`+
                 `We will process your order shortly.`;
                 
                 // Send user invoice to the test number
@@ -206,7 +213,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` +
                     `*Items:*\n` +
                     items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
-                    `\n\nPlease process the order in the admin dashboard.`;
+                    `\n\nView and print the PO here:\n${poUrl}\n\n` +
+                    `Please process the order in the admin dashboard.`;
                 
                 // Send admin PO to the same test number, with a prefix to distinguish it
                 await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
