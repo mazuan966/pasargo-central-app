@@ -15,6 +15,9 @@ const SST_RATE = 0.06;
 // --- Helper Functions ---
 
 async function createToyyibpayBill(orderNumber: string, total: number, user: User, orderId: string) {
+    const isSandbox = process.env.TOYYIBPAY_SANDBOX_MODE === 'true';
+    const toyyibpayBaseUrl = isSandbox ? 'https://dev.toyyibpay.com' : 'https://toyyibpay.com';
+
     const toyyibpaySecretKey = process.env.TOYYIBPAY_SECRET_KEY;
     const toyyibpayCategoryCode = process.env.TOYYIBPAY_CATEGORY_CODE;
     const appUrl = process.env.APP_URL;
@@ -42,7 +45,7 @@ async function createToyyibpayBill(orderNumber: string, total: number, user: Use
     });
 
     try {
-        const response = await fetch('https://toyyibpay.com/index.php/api/createBill', {
+        const response = await fetch(`${toyyibpayBaseUrl}/index.php/api/createBill`, {
             method: 'POST',
             body: billParams,
         });
@@ -50,10 +53,11 @@ async function createToyyibpayBill(orderNumber: string, total: number, user: Use
         if (response.ok && result.length > 0 && result[0].BillCode) {
             return {
                 billCode: result[0].BillCode,
-                paymentUrl: `https://toyyibpay.com/${result[0].BillCode}`
+                paymentUrl: `${toyyibpayBaseUrl}/${result[0].BillCode}`
             };
         } else {
-            throw new Error(`Toyyibpay API Error: ${JSON.stringify(result)}`);
+             const errorReason = result[0]?.Reason || result.msg || JSON.stringify(result);
+             throw new Error(`Toyyibpay API Error: ${errorReason}`);
         }
     } catch (error) {
         console.error("Failed to create Toyyibpay bill:", error);
