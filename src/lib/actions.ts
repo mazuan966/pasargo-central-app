@@ -6,14 +6,14 @@ import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
 import { EInvoiceInputSchema, type EInvoiceOutput, type Order, type CartItem, type User } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { doc, runTransaction, getCountFromServer, collection } from 'firebase/firestore';
+import { doc, runTransaction, getCountFromServer, collection, setDoc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 
 const SST_RATE = 0.06;
 const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
-// --- Helper Functions (moved from OrderProvider) ---
+// --- Helper Functions ---
 
 async function createToyyibpayBill(orderNumber: string, total: number, user: User, orderId: string) {
     const toyyibpaySecretKey = process.env.TOYYIBPAY_SECRET_KEY;
@@ -131,13 +131,13 @@ export async function placeOrderAction(prevState: PlaceOrderState | null, formDa
 
         await runTransaction(db, async (transaction) => {
             if (originalOrderId) {
-                // AMENDMENT
+                // AMENDMENT LOGIC (FPX/Pre-paid amendments)
                 const originalOrderRef = doc(db, 'orders', originalOrderId);
                 const originalOrderDoc = await transaction.get(originalOrderRef);
                 if (!originalOrderDoc.exists()) throw new Error("Original order not found.");
                 
                 const originalOrderData = originalOrderDoc.data() as Order;
-                // Stock updates for amendment
+                
                 for (const item of items) {
                     const productRef = doc(db, 'products', item.id);
                     const productDoc = await transaction.get(productRef);
@@ -171,16 +171,16 @@ export async function placeOrderAction(prevState: PlaceOrderState | null, formDa
                     total: originalOrderData.total + total,
                     toyyibpayBillCode: billResponse.billCode,
                     isEditable: false,
-                    paymentStatus: 'Pending Confirmation'
+                    status: 'Awaiting Payment',
+                    paymentStatus: 'Pending Payment'
                 });
                 finalRedirectUrl = billResponse.paymentUrl;
 
             } else {
-                // NEW ORDER
+                // NEW ORDER LOGIC
                 const newOrderRef = doc(collection(db, "orders"));
                 const newOrderId = newOrderRef.id;
 
-                // Stock updates for new order
                 for (const item of items) {
                     const productRef = doc(db, 'products', item.id);
                     const productDoc = await transaction.get(productRef);
@@ -198,35 +198,36 @@ export async function placeOrderAction(prevState: PlaceOrderState | null, formDa
 
                 let billCode: string | undefined = undefined;
                 let paymentStatus: Order['paymentStatus'] = 'Pending Payment';
+                let orderStatus: Order['status'] = 'Order Created';
                 let finalPaymentMethod: Order['paymentMethod'] = paymentMethod === 'cod' ? 'Cash on Delivery' : 'FPX (Toyyibpay)';
 
                 if (paymentMethod === 'toyyibpay') {
                     const billResponse = await createToyyibpayBill(newOrderNumber, total, userData, newOrderId);
                     billCode = billResponse.billCode;
                     finalRedirectUrl = billResponse.paymentUrl;
-                    paymentStatus = 'Pending Confirmation';
+                    orderStatus = 'Awaiting Payment';
                 }
 
                 const newOrderData: Omit<Order, 'id'> = {
                     orderNumber: newOrderNumber, user: userData,
                     items: items.map(item => ({ productId: item.id, name: item.name, quantity: item.quantity, price: item.price, unit: item.unit, hasSst: !!item.hasSst, amendmentStatus: 'original' })),
-                    subtotal, sst, total, status: 'Order Created', orderDate: new Date().toISOString(), deliveryDate, deliveryTimeSlot,
+                    subtotal, sst, total, status: orderStatus, orderDate: new Date().toISOString(), deliveryDate, deliveryTimeSlot,
                     paymentMethod: finalPaymentMethod, paymentStatus: paymentStatus, toyyibpayBillCode: billCode,
-                    statusHistory: [{ status: 'Order Created', timestamp: new Date().toISOString() }],
+                    statusHistory: [{ status: orderStatus, timestamp: new Date().toISOString() }],
                 };
                 
                 transaction.set(newOrderRef, newOrderData);
 
-                // --- WhatsApp Notifications ---
-                const testPhoneNumber = '60163864181';
-                let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderId}` : '';
-                let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderId}` : '';
-
-                const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
-                await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
-
-                const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
-                await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+                if (paymentMethod === 'cod') {
+                    // --- WhatsApp Notifications for COD ---
+                    const testPhoneNumber = '60163864181';
+                    let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderId}` : '';
+                    let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderId}` : '';
+                    const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
+                    await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+                    const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
+                    await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+                }
             }
         });
 
@@ -313,7 +314,7 @@ export async function amendOrderAction(prevState: AmendOrderState | null, formDa
     }
 }
 
-// Existing actions from file
+
 const verifyDeliverySchema = z.object({
     orderId: z.string(),
     photoDataUri: z.string().refine(val => val.startsWith('data:image/'), {

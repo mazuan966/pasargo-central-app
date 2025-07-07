@@ -38,6 +38,7 @@ const statusBadgeVariants = cva(
   {
     variants: {
       status: {
+        'Awaiting Payment': "bg-gray-200 text-gray-800",
         'Order Created': "bg-yellow-200 text-yellow-800",
         Processing: "bg-blue-200 text-blue-800",
         'Pick Up': "bg-indigo-200 text-indigo-800",
@@ -57,9 +58,9 @@ const paymentBadgeVariants = cva(
   {
     variants: {
       status: {
-        'Pending Payment': "bg-red-200 text-red-800",
-        'Pending Confirmation': "bg-yellow-200 text-yellow-800",
+        'Pending Payment': "bg-yellow-200 text-yellow-800",
         Paid: "bg-green-200 text-green-800",
+        Failed: "bg-red-200 text-red-800",
       },
     },
     defaultVariants: {
@@ -74,6 +75,8 @@ export default function AdminDashboardPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
+  const visibleOrders = orders.filter(order => order.status !== 'Awaiting Payment');
 
   const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
     const orderToUpdate = orders.find(order => order.id === orderId);
@@ -101,7 +104,7 @@ export default function AdminDashboardPage() {
 
   const handleSelectAll = (checked: boolean | 'indeterminate') => {
     if (checked === true) {
-      setSelectedOrderIds(orders.map(order => order.id));
+      setSelectedOrderIds(visibleOrders.map(order => order.id));
     } else {
       setSelectedOrderIds([]);
     }
@@ -149,13 +152,11 @@ export default function AdminDashboardPage() {
 
     const selectedOrders = orders.filter(order => selectedOrderIds.includes(order.id));
     
-    // Use a Map to aggregate items by product ID
     const aggregatedItems = new Map<string, { name: string; quantity: number; unit: string }>();
 
     selectedOrders.forEach(order => {
         order.items.forEach(item => {
             const key = item.productId;
-            // Provide a fallback 'unit' for older orders that may not have this field.
             const unit = item.unit || 'item'; 
             if (aggregatedItems.has(key)) {
                 aggregatedItems.get(key)!.quantity += item.quantity;
@@ -206,8 +207,8 @@ export default function AdminDashboardPage() {
     });
   };
 
-  const isAllSelected = selectedOrderIds.length > 0 && selectedOrderIds.length === orders.length;
-  const isSomeSelected = selectedOrderIds.length > 0 && selectedOrderIds.length < orders.length;
+  const isAllSelected = selectedOrderIds.length > 0 && selectedOrderIds.length === visibleOrders.length;
+  const isSomeSelected = selectedOrderIds.length > 0 && selectedOrderIds.length < visibleOrders.length;
   const orderStatuses: OrderStatus[] = ['Order Created', 'Processing', 'Pick Up', 'Delivered', 'Completed', 'Cancelled'];
 
   return (
@@ -305,14 +306,14 @@ export default function AdminDashboardPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {orders.length === 0 && (
+                    {visibleOrders.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={8} className="h-24 text-center">
                           <p className="text-muted-foreground">No orders found.</p>
                         </TableCell>
                       </TableRow>
                     )}
-                    {orders.map((order: Order) => (
+                    {visibleOrders.map((order: Order) => (
                     <TableRow key={order.id} data-state={selectedOrderIds.includes(order.id) ? "selected" : undefined}>
                         <TableCell>
                            <Checkbox

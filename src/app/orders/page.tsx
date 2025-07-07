@@ -10,10 +10,7 @@ export default function OrdersPage() {
   const { orders } = useOrders();
   const { currentUser } = useAuth();
   
-  // The useOrders hook now fetches filtered orders if a user is logged in.
-  // If not, it fetches all (for admin, which we'll handle separately).
-  // So, we don't need to filter here again.
-  const userOrders = orders;
+  const userOrders = orders.filter(order => order.status !== 'Awaiting Payment');
 
   return (
     <Card>
