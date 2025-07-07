@@ -6,6 +6,7 @@ import type { Order, CartItem, User, OrderStatus } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, getCountFromServer, where, runTransaction, writeBatch } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
+import { sendWhatsAppMessage } from '@/lib/whatsapp';
 
 const SST_RATE = 0.06;
 
@@ -19,17 +20,6 @@ interface OrderContextType {
 }
 
 export const OrderContext = createContext<OrderContextType | undefined>(undefined);
-
-const simulateDirectWhatsApp = (phoneNumber: string, message: string) => {
-  if (!phoneNumber) {
-    console.error('WhatsApp Simulation Error: Phone number is missing.');
-    return;
-  }
-  console.log('--- SIMULATING WHATSAPP MESSAGE ---');
-  console.log(`To: ${phoneNumber}`);
-  console.log(`Message: ${message}`);
-  console.log('------------------------------------');
-};
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -204,7 +194,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 `We will process your order shortly.`;
                 
                 if (userData.phoneNumber) {
-                    simulateDirectWhatsApp(userData.phoneNumber, userInvoiceMessage);
+                    await sendWhatsAppMessage(userData.phoneNumber, userInvoiceMessage);
                 }
 
                 const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
@@ -218,7 +208,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                         items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
                         `\n\nPlease process the order in the admin dashboard.`;
                     
-                    simulateDirectWhatsApp(adminPhoneNumber, adminPOMessage);
+                    await sendWhatsAppMessage(adminPhoneNumber, adminPOMessage);
                 } else {
                     console.warn('Admin WhatsApp number (NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER) not configured. Skipping admin notification.');
                 }
