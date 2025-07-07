@@ -199,8 +199,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 if (appUrl) {
                     const invoiceUrl = `${appUrl}/print/invoice/${newOrderId}`;
                     const poUrl = `${appUrl}/admin/print/po/${newOrderId}`;
-                    invoiceMessageSection = `\n\nView and print your invoice here:\n${invoiceUrl}`;
-                    poMessageSection = `\n\nView and print the PO here:\n${poUrl}`;
+                    invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${invoiceUrl}`;
+                    poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${poUrl}`;
                 } else {
                     // This will be logged on the server (Firebase Functions logs)
                     console.error("CRITICAL: 'NEXT_PUBLIC_APP_URL' environment variable is not set. Printable links will not be included in WhatsApp notifications. Please set this variable in your hosting environment (e.g., Firebase App Hosting settings).");
