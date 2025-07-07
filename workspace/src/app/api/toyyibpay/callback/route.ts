@@ -1,8 +1,12 @@
+
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
+import { sendWhatsAppMessage } from '@/lib/whatsapp';
+
+const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
 export async function POST(req: NextRequest) {
     try {
@@ -25,17 +29,12 @@ export async function POST(req: NextRequest) {
             return new Response('Server configuration error', { status: 500 });
         }
         
-        // The signature as defined by Toyyibpay documentation is a SHA256 hash.
-        // However, many older integrations and examples use MD5. Let's stick to their defined examples which often use MD5.
-        // Let's create the hash string they expect:
-        const toyyibpaySignatureString = `${billcode}${order_id}${status}`;
-        const ourSignature = crypto.MD5(toyyibpaySignatureString + toyyibpaySecretKey).toString();
-
-        // Let's also check for SHA256 as a fallback, as their docs can be inconsistent
-        const ourSignatureSha256 = crypto.SHA256(toyyibpaySignatureString + toyyibpaySecretKey).toString();
+        // As per Toyyibpay API documentation: sha256(secretkey + billcode + order_id + status)
+        const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
+        const ourSignature = crypto.SHA256(signatureString).toString();
         
-        if (signature !== ourSignature && signature !== ourSignatureSha256) {
-            console.warn('Invalid signature received from Toyyibpay');
+        if (signature !== ourSignature) {
+            console.warn(`Invalid signature. Received: ${signature}, Expected: ${ourSignature}`);
             return new Response('Invalid signature', { status: 400 });
         }
 
@@ -53,7 +52,6 @@ export async function POST(req: NextRequest) {
         const orderRef = doc(db, 'orders', orderDoc.id);
 
         if (status === '1') { // Payment success
-            // Only update if the status is not already 'Paid' to prevent duplicate processing
             if (orderData.paymentStatus !== 'Paid') {
                 const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
                 await updateDoc(orderRef, {
@@ -62,13 +60,28 @@ export async function POST(req: NextRequest) {
                     statusHistory: newHistory
                 });
                 console.log(`Order ${order_id} marked as Paid.`);
+
+                // Send notifications now that payment is confirmed
+                const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = { ...orderData, id: orderDoc.id };
+                const testPhoneNumber = '60163864181';
+                
+                let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
+                let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
+                
+                const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
+                await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+                
+                const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
+                await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
             }
         } else {
-            // For other statuses (pending, fail), we can log them but might not update the order state.
-            console.log(`Received non-successful payment status '${status}' for order ${order_id}.`);
+             await updateDoc(orderRef, {
+                paymentStatus: 'Failed',
+                status: 'Cancelled',
+             });
+            console.log(`Received non-successful payment status '${status}' for order ${order_id}. Marked as Failed/Cancelled.`);
         }
         
-        // Respond to Toyyibpay that we have received the callback.
         return new Response('OK', { status: 200 });
 
     } catch (error) {
