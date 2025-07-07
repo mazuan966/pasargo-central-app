@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         
         const billcode = formData.get('billcode') as string;
-        const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
+        const status = formData.get('status_id') as string; // 1 = success, 2 = pending, 3 = fail
         const order_id = formData.get('order_id') as string; // This is our orderNumber
         const msg = formData.get('msg') as string;
         const transaction_id = formData.get('transaction_id') as string;
@@ -27,9 +27,7 @@ export async function POST(req: NextRequest) {
             return new Response('Server configuration error', { status: 500 });
         }
         
-        // Toyyibpay signature is SHA256 of the secret key prepended to a string of parameters.
-        // It's crucial that the string is exactly what Toyyibpay expects.
-        // Based on community feedback, 'status' should come first.
+        // Toyyibpay signature is sha256(secretkey + billcode + order_id + status)
         const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
         const ourSignature = crypto.SHA256(signatureString).toString();
         

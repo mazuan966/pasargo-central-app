@@ -6,14 +6,12 @@ import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 
-const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
-
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
         
         const billcode = formData.get('billcode') as string;
-        const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
+        const status = formData.get('status_id') as string; // 1 = success, 2 = pending, 3 = fail
         const order_id = formData.get('order_id') as string; // This is our orderNumber
         const msg = formData.get('msg') as string;
         const transaction_id = formData.get('transaction_id') as string;
@@ -29,9 +27,9 @@ export async function POST(req: NextRequest) {
             return new Response('Server configuration error', { status: 500 });
         }
         
-        // Corrected signature generation. Toyyibpay usually expects the secret key to be prepended.
-        const toyyibpaySignatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
-        const ourSignature = crypto.SHA256(toyyibpaySignatureString).toString();
+        // Toyyibpay signature is sha256(secretkey + billcode + order_id + status)
+        const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
+        const ourSignature = crypto.SHA256(signatureString).toString();
         
         if (signature !== ourSignature) {
             console.warn(`Invalid signature received from Toyyibpay. Got: ${signature}, Expected: ${ourSignature}`);
@@ -64,6 +62,7 @@ export async function POST(req: NextRequest) {
                 // Send notifications now that payment is confirmed
                 const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = { ...orderData, id: orderDoc.id };
                 const testPhoneNumber = '60163864181';
+                const appUrl = process.env.APP_URL;
                 
                 let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
                 let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
