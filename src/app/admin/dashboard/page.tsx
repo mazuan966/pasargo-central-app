@@ -15,11 +15,23 @@ import { Badge } from '@/components/ui/badge';
 import { cva } from 'class-variance-authority';
 import { StatusUpdateMenu } from '@/components/admin/StatusUpdateMenu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ChevronDown, Download } from 'lucide-react';
+import { Loader2, ChevronDown, Download, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -57,9 +69,11 @@ const paymentBadgeVariants = cva(
 )
 
 export default function AdminDashboardPage() {
-  const { orders, updateOrder, deleteOrder, bulkUpdateOrderStatus } = useOrders();
+  const { orders, updateOrder, deleteOrder, bulkUpdateOrderStatus, bulkDeleteOrders } = useOrders();
   const { toast } = useToast();
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
     const orderToUpdate = orders.find(order => order.id === orderId);
@@ -109,6 +123,19 @@ export default function AdminDashboardPage() {
       description: `${selectedOrderIds.length} orders have been updated to "${status}".`
     });
     setSelectedOrderIds([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (deleteConfirmation !== 'delete' || selectedOrderIds.length === 0) return;
+    await bulkDeleteOrders(selectedOrderIds);
+    toast({
+      title: 'Bulk Delete Successful',
+      description: `${selectedOrderIds.length} orders have been deleted.`,
+      variant: 'destructive'
+    });
+    setSelectedOrderIds([]);
+    setIsDeleteDialogOpen(false);
+    setDeleteConfirmation('');
   };
 
   const handleBulkPrintPOs = () => {
@@ -215,6 +242,47 @@ export default function AdminDashboardPage() {
                         <Download className="mr-2 h-4 w-4" />
                         Export for Warehouse
                       </Button>
+                      <div className="ml-auto">
+                        <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+                            setIsDeleteDialogOpen(open);
+                            if (!open) {
+                                setDeleteConfirmation('');
+                            }
+                        }}>
+                          <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete ({selectedOrderIds.length})
+                              </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete {selectedOrderIds.length} selected order(s).
+                                      <br/><br/>
+                                      To confirm, please type <strong>delete</strong> below.
+                                  </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <Input
+                                  value={deleteConfirmation}
+                                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                  placeholder='Type "delete" to confirm'
+                                  className="my-2"
+                              />
+                              <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setDeleteConfirmation('')}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                      onClick={handleBulkDelete}
+                                      disabled={deleteConfirmation !== 'delete'}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                      Delete
+                                  </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                      </div>
                 </div>
             )}
             <Table>

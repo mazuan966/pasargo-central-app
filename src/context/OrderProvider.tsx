@@ -17,6 +17,7 @@ interface OrderContextType {
   deleteOrder: (orderId: string) => Promise<void>;
   amendCodOrder: (originalOrder: Order, amendedItems: CartItem[]) => Promise<void>;
   bulkUpdateOrderStatus: (orderIds: string[], status: OrderStatus) => Promise<void>;
+  bulkDeleteOrders: (orderIds: string[]) => Promise<void>;
 }
 
 export const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -368,9 +369,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await batch.commit();
   };
 
+  const bulkDeleteOrders = async (orderIds: string[]) => {
+    if (!db) {
+        throw new Error("Firestore is not configured. Cannot perform bulk delete.");
+    }
+    const batch = writeBatch(db);
+    orderIds.forEach(orderId => {
+        const orderRef = doc(db, 'orders', orderId);
+        batch.delete(orderRef);
+    });
+    await batch.commit();
+  };
+
 
   return (
-    <OrderContext.Provider value={{ orders, addOrder, updateOrder, deleteOrder, amendCodOrder, bulkUpdateOrderStatus }}>
+    <OrderContext.Provider value={{ orders, addOrder, updateOrder, deleteOrder, amendCodOrder, bulkUpdateOrderStatus, bulkDeleteOrders }}>
       {children}
     </OrderContext.Provider>
   );
