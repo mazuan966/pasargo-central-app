@@ -1,60 +1,103 @@
-import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { User, Shield } from 'lucide-react';
-import { Logo } from '@/components/icons/logo';
+'use client';
+
+import { useState, useEffect } from 'react';
+import ProductList from '@/components/shop/ProductList';
+import type { Product } from '@/lib/types';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { AlertTriangle, ShoppingBag } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { StorefrontHeader } from '@/components/layout/StorefrontHeader';
+import { StorefrontFooter } from '@/components/layout/StorefrontFooter';
+
+function ProductGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {[...Array(8)].map((_, i) => (
+        <Card key={i}>
+          <CardHeader className="p-0">
+            <Skeleton className="aspect-video w-full" />
+          </CardHeader>
+          <CardContent className="p-4 space-y-2">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-5 w-1/2 mt-2" />
+          </CardContent>
+          <CardFooter className="p-4">
+            <Skeleton className="h-10 w-full" />
+          </CardFooter>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!db) {
+      setDbError("Firebase is not configured. Please check your credentials.");
+      setIsLoadingProducts(false);
+      setProducts([]);
+      return;
+    }
+    
+    setDbError(null);
+    const productsCollection = collection(db, 'products');
+    const unsubscribe = onSnapshot(productsCollection, (snapshot) => {
+      const productsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+      setProducts(productsList);
+      setIsLoadingProducts(false);
+    }, (error: FirestoreError) => {
+        if (error.code === 'permission-denied') {
+          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console to allow reads on the 'products' collection.");
+        } else {
+          setDbError("An error occurred while fetching products.");
+          console.error("Error fetching products: ", error);
+        }
+        setIsLoadingProducts(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <div className="flex items-center gap-4 mb-8">
-        <Logo className="h-12 w-12 text-primary" />
-        <h1 className="text-4xl font-headline font-bold text-gray-800 dark:text-white">
-          Welcome to Pasargo Central
-        </h1>
-      </div>
-      <p className="mb-12 max-w-2xl text-center text-lg text-muted-foreground">
-        Your one-stop solution for supplying fresh products and groceries to restaurants and cafes across Malaysia.
-      </p>
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 max-w-4xl w-full">
-        <Card className="transform transition-transform hover:scale-105 hover:shadow-xl">
-          <CardHeader>
-            <div className="flex items-center gap-4">
-              <User className="h-8 w-8 text-accent" />
-              <CardTitle className="text-2xl font-headline">User Portal</CardTitle>
-            </div>
-            <CardDescription>
-              For our valued restaurant and cafe partners.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <p>Access your dashboard to place new orders, track existing ones, and manage your account.</p>
-            <Button asChild className="w-full mt-auto">
-              <Link href="/login">User Login</Link>
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              New here? <Link href="/signup" className="text-primary underline">Sign up</Link>
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="transform transition-transform hover:scale-105 hover:shadow-xl">
-          <CardHeader>
-            <div className="flex items-center gap-4">
-              <Shield className="h-8 w-8 text-accent" />
-              <CardTitle className="text-2xl font-headline">Admin Portal</CardTitle>
-            </div>
-            <CardDescription>
-              For Pasargo internal staff and administrators.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <p>Manage orders, update delivery statuses, and oversee the platform's operations.</p>
-            <Button asChild className="w-full mt-auto">
-              <Link href="/admin/login">Admin Login</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="flex min-h-screen flex-col bg-background">
+      <StorefrontHeader />
+      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-2 mb-8">
+            <h1 className="text-3xl lg:text-4xl font-headline font-bold">Fresh Supplies, Delivered.</h1>
+            <p className="text-lg text-muted-foreground">Browse our selection of fresh products and quality groceries for your restaurant or cafe.</p>
+        </div>
+
+        {dbError && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Database Error</AlertTitle>
+            <AlertDescription>
+              {dbError}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isLoadingProducts ? (
+          <ProductGridSkeleton />
+        ) : products.length > 0 ? (
+          <ProductList products={products} />
+        ) : !dbError ? (
+          <div className="text-center py-20 border-dashed border-2 rounded-lg bg-muted/50">
+            <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground" />
+            <h2 className="mt-4 text-2xl font-semibold">No Products Found</h2>
+            <p className="mt-2 text-muted-foreground">It looks like the store is currently empty. Please check back later.</p>
+          </div>
+        ) : null}
+      </main>
+      <StorefrontFooter />
     </div>
   );
 }
