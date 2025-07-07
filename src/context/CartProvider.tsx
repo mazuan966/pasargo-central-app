@@ -49,29 +49,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 
   const addToCart = (product: Product, quantity: number, silent: boolean = false) => {
-    setCartItems(prevItems => {
-        const existingItem = prevItems.find(item => item.id === product.id);
-        const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
+    const existingItem = cartItems.find(item => item.id === product.id);
+    const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
 
-        if (newQuantityInCart > product.stock) {
-            if (!silent) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Not enough stock!',
-                    description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
-                });
-            }
-            return prevItems; // Return original items without change
-        }
-
+    if (newQuantityInCart > product.stock) {
         if (!silent) {
             toast({
-                title: 'Added to Cart',
-                description: `${quantity} x ${product.name}`,
+                variant: 'destructive',
+                title: 'Not enough stock!',
+                description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
             });
         }
+        return; // Exit without changing state
+    }
+    
+    if (!silent) {
+      toast({
+        title: 'Added to Cart',
+        description: `${quantity} x ${product.name}`,
+      });
+    }
 
-        if (existingItem) {
+    setCartItems(prevItems => {
+        const itemExists = prevItems.find(item => item.id === product.id);
+        if (itemExists) {
             return prevItems.map(item =>
                 item.id === product.id
                     ? { ...item, quantity: item.quantity + quantity }
@@ -95,26 +96,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeFromCart(productId);
       return;
     }
-    
-    setCartItems(prevItems => {
-        const itemToUpdate = prevItems.find(item => item.id === productId);
 
-        if (itemToUpdate && quantity > itemToUpdate.stock) {
-            toast({
-                variant: 'destructive',
-                title: 'Not enough stock!',
-                description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
-            });
-            // Revert quantity to max available stock
-            return prevItems.map(item =>
+    const itemToUpdate = cartItems.find(item => item.id === productId);
+
+    if (itemToUpdate && quantity > itemToUpdate.stock) {
+        toast({
+            variant: 'destructive',
+            title: 'Not enough stock!',
+            description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
+        });
+        // Revert quantity to max available stock
+        setCartItems(prevItems =>
+            prevItems.map(item =>
                 item.id === productId ? { ...item, quantity: itemToUpdate.stock } : item
-            );
-        }
-
-        return prevItems.map(item =>
-            item.id === productId ? { ...item, quantity } : item
+            )
         );
-    });
+        return;
+    }
+    
+    setCartItems(prevItems => 
+        prevItems.map(item =>
+            item.id === productId ? { ...item, quantity } : item
+        )
+    );
   };
 
   const clearCart = () => {
