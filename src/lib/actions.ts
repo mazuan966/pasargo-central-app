@@ -11,13 +11,13 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 
 const SST_RATE = 0.06;
-const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
 // --- Helper Functions ---
 
 async function createToyyibpayBill(orderNumber: string, total: number, user: User, orderId: string) {
     const toyyibpaySecretKey = process.env.TOYYIBPAY_SECRET_KEY;
     const toyyibpayCategoryCode = process.env.TOYYIBPAY_CATEGORY_CODE;
+    const appUrl = process.env.APP_URL;
 
     if (!toyyibpaySecretKey || !toyyibpayCategoryCode || !appUrl) {
         throw new Error("Toyyibpay credentials or App URL are not configured on the server.");
@@ -64,6 +64,7 @@ async function createToyyibpayBill(orderNumber: string, total: number, user: Use
 
 async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     const testPhoneNumber = '60163864181';
+    const appUrl = process.env.APP_URL;
 
     const itemsSummary = updatedOrder.items.map(item => {
         let statusTag = '';
@@ -219,6 +220,7 @@ export async function placeOrderAction(prevState: PlaceOrderState | null, formDa
                 transaction.set(newOrderRef, newOrderData);
 
                 if (paymentMethod === 'cod') {
+                    const appUrl = process.env.APP_URL;
                     // --- WhatsApp Notifications for COD ---
                     const testPhoneNumber = '60163864181';
                     let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderId}` : '';
