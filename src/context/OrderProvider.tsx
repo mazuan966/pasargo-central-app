@@ -192,6 +192,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 // --- START WHATSAPP NOTIFICATION LOGIC ---
                 const testPhoneNumber = '60163864181';
                 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+
+                if (appUrl.includes('localhost')) {
+                  console.warn('WARNING: Using localhost for invoice/PO links. These will not be accessible externally. Set NEXT_PUBLIC_APP_URL in your deployment environment.');
+                }
+                
                 const invoiceUrl = `${appUrl}/print/invoice/${newOrderId}`;
                 const poUrl = `${appUrl}/admin/print/po/${newOrderId}`;
 
