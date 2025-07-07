@@ -93,7 +93,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 }
 
                 for (const update of productUpdates) {
-                    transaction.update(update.ref, { stock: update.newStock });
+                    transaction.update(update.ref, { stock: newStock });
                 }
                 
                 const originalOrderData = originalOrderDoc.data() as Order;
@@ -191,7 +191,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
                 // --- START WHATSAPP NOTIFICATION LOGIC ---
                 const testPhoneNumber = '60163864181';
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+                const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
                 let invoiceMessageSection = '';
                 let poMessageSection = '';
