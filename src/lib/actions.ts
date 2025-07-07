@@ -11,7 +11,7 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 
 const SST_RATE = 0.06;
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
 // --- Helper Functions (moved from OrderProvider) ---
 
@@ -33,7 +33,7 @@ async function createToyyibpayBill(orderNumber: string, total: number, user: Use
         'billPriceSetting': '1',
         'billPayorInfo': '1',
         'billAmount': String(billAmount),
-        'billReturnUrl': `${appUrl}/payment/status?order_id=${orderId}`,
+        'billReturnUrl': `${appUrl}/payment/status?doc_id=${orderId}`,
         'billCallbackUrl': `${appUrl}/api/toyyibpay/callback`,
         'billExternalReferenceNo': orderNumber,
         'billTo': user.personInCharge || user.restaurantName,
