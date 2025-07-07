@@ -29,9 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
     }
 
+    // This listener handles auth state changes.
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user) {
+        // If user is logged in, listen for their user document changes.
         const userDocRef = doc(db, 'users', user.uid);
         const unsubscribeSnapshot = onSnapshot(userDocRef, (doc) => {
             if (doc.exists()) {
@@ -39,21 +41,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
                 setUserData(null);
             }
-             if (loading) setLoading(false);
+            // Once we have user data (or know it doesn't exist), we're done loading.
+            setLoading(false);
         }, (error) => {
             console.error("Error fetching user data:", error);
             setUserData(null);
-            if (loading) setLoading(false);
+            setLoading(false); // Also done loading on error.
         });
         return () => unsubscribeSnapshot();
       } else {
+        // If no user, we're also done loading.
         setUserData(null);
-        if (loading) setLoading(false);
+        setLoading(false);
       }
     });
 
+    // Cleanup the auth listener on unmount.
     return () => unsubscribeAuth();
-  }, [loading]);
+  }, []); // <-- Empty dependency array means this effect runs only once on mount.
 
   useEffect(() => {
     if (loading) return;
