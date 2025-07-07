@@ -67,6 +67,44 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [currentUser]);
 
+  const sendAmendmentNotifications = async (updatedOrder: Order, user: User) => {
+    const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
+    const testPhoneNumber = '60163864181';
+
+    const itemsSummary = updatedOrder.items.map(item => {
+        let statusTag = '';
+        if (item.amendmentStatus === 'added') statusTag = ' [Added]';
+        else if (item.amendmentStatus === 'updated') statusTag = ' [Updated]';
+        return `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})${statusTag}`;
+    }).join('\n');
+
+    const adminItemsSummary = updatedOrder.items.map(item => {
+        let statusTag = '';
+        if (item.amendmentStatus === 'added') statusTag = ' [Added]';
+        else if (item.amendmentStatus === 'updated') statusTag = ' [Updated]';
+        return `- ${item.name} (x${item.quantity})${statusTag}`;
+    }).join('\n');
+
+    const userMessage = `Hi ${user.restaurantName}!\n\nYour Order #${updatedOrder.orderNumber} has been successfully *UPDATED*.\n\n` +
+    `*Delivery remains scheduled for:* ${new Date(updatedOrder.deliveryDate).toLocaleDateString()} at ${updatedOrder.deliveryTimeSlot}\n\n` +
+    `*Updated Items:*\n` +
+    itemsSummary +
+    `\n\nSubtotal: RM ${updatedOrder.subtotal.toFixed(2)}\nSST (6%): RM ${updatedOrder.sst.toFixed(2)}\n*New Total: RM ${updatedOrder.total.toFixed(2)}*` +
+    `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}` +
+    `\n\nWe will process your updated order shortly.`;
+    
+    await sendWhatsAppMessage(testPhoneNumber, userMessage);
+
+    const adminMessage = `*Order Amended*\n\n` +
+    `Order *#${updatedOrder.orderNumber}* for *${user.restaurantName}* has been updated.\n\n` +
+    `*New Total: RM ${updatedOrder.total.toFixed(2)}*\n\n` +
+    `*Updated Items:*\n` +
+    adminItemsSummary +
+    `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}`;
+
+    await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
+  };
+
   const addOrder = async (items: CartItem[], subtotal: number, sst: number, total: number, paymentMethod: 'billplz' | 'cod', deliveryDate: string, deliveryTimeSlot: string, originalOrderId?: string) => {
     if (!db || !userData) {
       throw new Error("Firestore is not configured or user is not logged in. Cannot add order.");
@@ -75,6 +113,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     try {
         if (originalOrderId) {
             // This is an AMENDMENT to an existing order (for FPX/pre-paid)
+            let finalUpdatedOrder: Order | null = null;
             await runTransaction(db, async (transaction) => {
                 const originalOrderRef = doc(db, 'orders', originalOrderId);
                 const originalOrderDoc = await transaction.get(originalOrderRef);
@@ -121,15 +160,32 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 }
                 
                 const finalItems = Array.from(updatedItemsMap.values());
+                const updatedSubtotal = originalOrderData.subtotal + subtotal;
+                const updatedSst = originalOrderData.sst + sst;
+                const updatedTotal = originalOrderData.total + total;
                 
                 transaction.update(originalOrderRef, {
                     items: finalItems,
-                    subtotal: originalOrderData.subtotal + subtotal,
-                    sst: originalOrderData.sst + sst,
-                    total: originalOrderData.total + total,
+                    subtotal: updatedSubtotal,
+                    sst: updatedSst,
+                    total: updatedTotal,
                     isEditable: false,
                 });
+
+                // Prepare data for notification after transaction
+                finalUpdatedOrder = {
+                    ...originalOrderData,
+                    id: originalOrderId,
+                    items: finalItems,
+                    subtotal: updatedSubtotal,
+                    sst: updatedSst,
+                    total: updatedTotal
+                };
             });
+            
+            if (finalUpdatedOrder) {
+                await sendAmendmentNotifications(finalUpdatedOrder, userData);
+            }
 
         } else {
             // This is a NEW order
@@ -265,11 +321,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const amendCodOrder = async (originalOrder: Order, amendedItems: CartItem[]) => {
-    if (!db) {
-      throw new Error("Database not configured.");
+    if (!db || !userData) {
+      throw new Error("Database not configured or user not logged in.");
     }
 
     try {
+        let finalUpdatedOrder: Order | null = null;
         await runTransaction(db, async (transaction) => {
             const orderRef = doc(db, 'orders', originalOrder.id);
             const stockAdjustments: Map<string, number> = new Map();
@@ -319,7 +376,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
                 if (!originalItem) {
                     amendmentStatus = 'added';
-                } else if (amendedItem.quantity > originalItem.quantity) {
+                } else if (amendedItem.quantity !== originalItem.quantity) {
                     amendmentStatus = 'updated';
                 }
 
@@ -341,7 +398,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 total: newTotal,
                 isEditable: false,
             });
+
+             finalUpdatedOrder = {
+                ...originalOrder,
+                items: finalItemsWithStatus,
+                subtotal: newSubtotal,
+                sst: newSst,
+                total: newTotal,
+            };
         });
+
+        if (finalUpdatedOrder) {
+            await sendAmendmentNotifications(finalUpdatedOrder, userData);
+        }
 
     } catch (error: any) {
         console.error("Amend order transaction failed:", error);
