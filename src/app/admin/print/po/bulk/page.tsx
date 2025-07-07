@@ -1,77 +1,40 @@
-'use client';
-
-import { useSearchParams, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { PrintablePO } from '@/components/admin/PrintablePO';
-import { useEffect, useState, useMemo } from 'react';
 import { Order, BusinessDetails } from '@/lib/types';
 import { doc, getDoc, collection, query, where, getDocs, documentId } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Loader2 } from 'lucide-react';
+import { PrintHandler } from '@/components/layout/PrintHandler';
 
-function BulkPrintPOComponent() {
-    const searchParams = useSearchParams();
-    const [ordersToPrint, setOrdersToPrint] = useState<Order[]>([]);
-    const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    
-    const orderIds = useMemo(() => {
-        const ids = searchParams.get('ids');
-        return ids ? ids.split(',') : [];
-    }, [searchParams]);
+// This is now a Server Component
+export default async function BulkPrintPOPage({ searchParams }: { searchParams: { ids?: string } }) {
+    const orderIds = searchParams.ids ? searchParams.ids.split(',') : [];
 
-    useEffect(() => {
-        if (!orderIds.length || !db) {
-            setIsLoading(false);
-            return;
+    if (orderIds.length === 0 || !db) {
+        notFound();
+    }
+
+    let ordersToPrint: Order[] = [];
+    let businessDetails: BusinessDetails | null = null;
+
+    try {
+        const [businessDocSnap, ordersSnapshot] = await Promise.all([
+            getDoc(doc(db, 'settings', 'business')),
+            getDocs(query(collection(db, 'orders'), where(documentId(), 'in', orderIds)))
+        ]);
+
+        if (businessDocSnap.exists()) {
+            businessDetails = businessDocSnap.data() as BusinessDetails;
         }
 
-        const fetchBulkData = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch business details and orders in parallel
-                const [businessDocSnap, ordersSnapshot] = await Promise.all([
-                    getDoc(doc(db, 'settings', 'business')),
-                    getDocs(query(collection(db, 'orders'), where(documentId(), 'in', orderIds)))
-                ]);
-
-                if (businessDocSnap.exists()) {
-                    setBusinessDetails(businessDocSnap.data() as BusinessDetails);
-                } else {
-                    console.log("No business details found!");
-                    setBusinessDetails(null);
-                }
-
-                if (!ordersSnapshot.empty) {
-                    const foundOrders = ordersSnapshot.docs.map(d => ({ ...d.data(), id: d.id }) as Order);
-                     // Sort them in the order of the IDs provided in the URL
-                    const sortedOrders = orderIds.map(id => foundOrders.find(o => o.id === id)).filter(Boolean) as Order[];
-                    setOrdersToPrint(sortedOrders);
-                }
-
-            } catch (error) {
-                console.error("Error fetching bulk print data:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        fetchBulkData();
-    }, [orderIds]);
-
-    useEffect(() => {
-        if (!isLoading && ordersToPrint.length > 0 && businessDetails) {
-            const timer = setTimeout(() => window.print(), 500);
-            return () => clearTimeout(timer);
+        if (!ordersSnapshot.empty) {
+            const foundOrders = ordersSnapshot.docs.map(d => ({ ...d.data(), id: d.id }) as Order);
+            const sortedOrders = orderIds.map(id => foundOrders.find(o => o.id === id)).filter(Boolean) as Order[];
+            ordersToPrint = sortedOrders;
         }
-    }, [isLoading, ordersToPrint, businessDetails]);
 
-    if (isLoading) {
-        return (
-            <div className="flex h-screen w-full items-center justify-center">
-                 <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-                 Loading documents...
-            </div>
-        );
+    } catch (error) {
+        console.error("Error fetching bulk print data on server:", error);
+        notFound();
     }
 
     if (!businessDetails) {
@@ -87,7 +50,7 @@ function BulkPrintPOComponent() {
     }
     
     if (ordersToPrint.length === 0) {
-        return notFound();
+        notFound();
     }
     
     return (
@@ -97,10 +60,7 @@ function BulkPrintPOComponent() {
                     <PrintablePO order={order} businessDetails={businessDetails!} />
                 </div>
             ))}
+            <PrintHandler />
         </div>
     );
-}
-
-export default function BulkPrintPOPage() {
-    return <BulkPrintPOComponent />;
 }
