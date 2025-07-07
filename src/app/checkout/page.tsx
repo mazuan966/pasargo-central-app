@@ -115,7 +115,7 @@ export default function CheckoutPage() {
         <input type="hidden" name="sst" value={cartSst} />
         <input type="hidden" name="total" value={cartTotal} />
         <input type="hidden" name="paymentMethod" value={paymentMethod} />
-        <input type="hidden" name="deliveryDate" value={deliveryDate?.toISOString()} />
+        <input type="hidden" name="deliveryDate" value={deliveryDate?.toISOString() || ''} />
         <input type="hidden" name="deliveryTimeSlot" value={deliveryTime} />
         <input type="hidden" name="userData" value={JSON.stringify(userData)} />
         {amendmentInfo && <input type="hidden" name="originalOrderId" value={amendmentInfo.originalOrderId} />}
