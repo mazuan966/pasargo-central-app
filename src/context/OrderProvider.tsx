@@ -186,6 +186,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 const newOrderRef = doc(collection(db, "orders"));
                 transaction.set(newOrderRef, newOrderData);
 
+                // --- START WHATSAPP NOTIFICATION LOGIC ---
+                const testPhoneNumber = '60163864181';
+
                 const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber}*\n\n` +
                 `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` +
                 `*Delivery Time:* ${deliveryTimeSlot}\n\n` +
@@ -193,25 +196,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*\n\n` +
                 `We will process your order shortly.`;
                 
-                if (userData.phoneNumber) {
-                    await sendWhatsAppMessage(userData.phoneNumber, userInvoiceMessage);
-                }
+                // Send user invoice to the test number
+                await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
 
-                const adminPhoneNumber = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER;
-                if (adminPhoneNumber) {
-                    const adminPOMessage = `*New Purchase Order Received*\n\n` +
-                        `*Order ID:* ${newOrderNumber}\n` +
-                        `*From:* ${userData.restaurantName}\n` +
-                        `*Total:* RM ${total.toFixed(2)}*\n\n` +
-                        `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` +
-                        `*Items:*\n` +
-                        items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
-                        `\n\nPlease process the order in the admin dashboard.`;
-                    
-                    await sendWhatsAppMessage(adminPhoneNumber, adminPOMessage);
-                } else {
-                    console.warn('Admin WhatsApp number (NEXT_PUBLIC_ADMIN_WHATSAPP_NUMBER) not configured. Skipping admin notification.');
-                }
+                const adminPOMessage = `*New Purchase Order Received*\n\n` +
+                    `*Order ID:* ${newOrderNumber}\n` +
+                    `*From:* ${userData.restaurantName}\n` +
+                    `*Total:* RM ${total.toFixed(2)}*\n\n` +
+                    `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` +
+                    `*Items:*\n` +
+                    items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') +
+                    `\n\nPlease process the order in the admin dashboard.`;
+                
+                // Send admin PO to the same test number, with a prefix to distinguish it
+                await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+                // --- END WHATSAPP NOTIFICATION LOGIC ---
             });
         }
     } catch (e: any) {
