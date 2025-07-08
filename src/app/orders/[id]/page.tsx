@@ -7,9 +7,9 @@ import { useOrders } from '@/hooks/use-orders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, Printer, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useActionState, useEffect, useState, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice, BusinessDetails } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -18,89 +18,13 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const EInvoiceInitialState = {
-  success: false,
-  message: '',
-};
-
-function EInvoiceGenerator({ order }: { order: Order }) {
-  const [state, formAction, isPending] = useActionState(generateEInvoiceAction, EInvoiceInitialState);
-  const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-
-  useEffect(() => {
-      const fetchBusinessDetails = async () => {
-        if (!db) {
-            setIsLoadingDetails(false);
-            return
-        };
-        setIsLoadingDetails(true);
-        try {
-            const docRef = doc(db, 'settings', 'business');
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                setBusinessDetails(docSnap.data() as BusinessDetails);
-            }
-        } catch (error) {
-            console.error("Could not fetch business details for e-invoice", error);
-        } finally {
-            setIsLoadingDetails(false);
-        }
-      };
-      fetchBusinessDetails();
-  }, []);
-
-  if (isLoadingDetails) {
-      return (
-          <Card>
-              <CardHeader>
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-4 w-full" />
-              </CardHeader>
-              <CardContent>
-                  <Skeleton className="h-10 w-40" />
-              </CardContent>
-          </Card>
-      )
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Generate E-Invoice</CardTitle>
-        <CardDescription>Submit this order to LHDN for e-invoice validation.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form action={formAction}>
-            <input type="hidden" name="orderDocId" value={order.id} />
-            <input type="hidden" name="orderId" value={order.orderNumber} />
-            <input type="hidden" name="orderDate" value={order.orderDate} />
-            <input type="hidden" name="total" value={order.total} />
-            <input type="hidden" name="items" value={JSON.stringify(order.items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })))} />
-            <input type="hidden" name="seller" value={JSON.stringify({ name: businessDetails?.name || 'Pasargo Central', tin: businessDetails?.tin || 'TIN-NOT-SET' })} />
-            <input type="hidden" name="buyer" value={JSON.stringify({ name: order.user.restaurantName, tin: order.user.tin, address: order.user.address })} />
-            
-            <Button type="submit" disabled={isPending || !businessDetails}>
-                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                Generate & Validate
-            </Button>
-        </form>
-         {state && !state.success && state.message && (
-            <Alert variant="destructive" className="mt-4">
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{state.message}</AlertDescription>
-            </Alert>
-          )}
-          {state && state.success && (
-            <Alert className="mt-4">
-              <AlertTitle>Success</AlertTitle>
-              <AlertDescription>{state.message}</AlertDescription>
-            </Alert>
-          )}
-      </CardContent>
-    </Card>
-  );
+type EInvoiceFormState = {
+    success: boolean;
+    message: string;
 }
+
+// NOTE: By defining these components outside of OrderDetailsPage, we prevent them
+// from being re-created on every render, which is a key part of fixing the infinite loop.
 
 function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
     const [isMounted, setIsMounted] = useState(false);
@@ -132,12 +56,102 @@ function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
     );
 }
 
+function EInvoiceGenerator({ order }: { order: Order }) {
+  const [formState, setFormState] = useState<EInvoiceFormState | undefined>();
+  const [isPending, startTransition] = useState(false);
+  const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
+
+  useEffect(() => {
+      const fetchBusinessDetails = async () => {
+        if (!db) {
+            setIsLoadingDetails(false);
+            return
+        };
+        setIsLoadingDetails(true);
+        try {
+            const docRef = doc(db, 'settings', 'business');
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                setBusinessDetails(docSnap.data() as BusinessDetails);
+            }
+        } catch (error) {
+            console.error("Could not fetch business details for e-invoice", error);
+        } finally {
+            setIsLoadingDetails(false);
+        }
+      };
+      fetchBusinessDetails();
+  }, []);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(true);
+    const result = await generateEInvoiceAction(undefined, formData);
+    setFormState(result);
+    startTransition(false);
+  };
+
+  if (isLoadingDetails) {
+      return (
+          <Card>
+              <CardHeader>
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-full" />
+              </CardHeader>
+              <CardContent>
+                  <Skeleton className="h-10 w-40" />
+              </CardContent>
+          </Card>
+      )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Generate E-Invoice</CardTitle>
+        <CardDescription>Submit this order to LHDN for e-invoice validation.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+            <input type="hidden" name="orderDocId" value={order.id} />
+            <input type="hidden" name="orderId" value={order.orderNumber} />
+            <input type="hidden" name="orderDate" value={order.orderDate} />
+            <input type="hidden" name="total" value={order.total} />
+            <input type="hidden" name="items" value={JSON.stringify(order.items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })))} />
+            <input type="hidden" name="seller" value={JSON.stringify({ name: businessDetails?.name || 'Pasargo Central', tin: businessDetails?.tin || 'TIN-NOT-SET' })} />
+            <input type="hidden" name="buyer" value={JSON.stringify({ name: order.user.restaurantName, tin: order.user.tin, address: order.user.address })} />
+            
+            <Button type="submit" disabled={isPending || !businessDetails}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                Generate & Validate
+            </Button>
+        </form>
+         {formState && !formState.success && (
+            <Alert variant="destructive" className="mt-4">
+              <XCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{formState.message}</AlertDescription>
+            </Alert>
+          )}
+          {formState && formState.success && (
+            <Alert className="mt-4">
+              <CheckCircle className="h-4 w-4" />
+              <AlertTitle>Success</AlertTitle>
+              <AlertDescription>{formState.message}</AlertDescription>
+            </Alert>
+          )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
 export default function OrderDetailsPage() {
   const params = useParams<{ id: string }>();
   const { orders } = useOrders();
 
-  // Derive the order directly from the context/props.
-  // This avoids the useEffect/useState loop that caused the error.
   const order = useMemo(() => orders.find(o => o.id === params.id), [orders, params.id]);
 
   if (orders.length > 0 && !order) {

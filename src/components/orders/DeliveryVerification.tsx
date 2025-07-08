@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useTransition, useActionState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Order } from '@/lib/types';
 import { verifyDeliveryAction } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Upload, CheckCircle, XCircle, FileImage, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 
-const initialState = {
+type VerifyFormState = {
+    success: boolean;
+    message: string;
+}
+
+const initialState: VerifyFormState = {
   success: false,
   message: '',
 };
@@ -42,9 +47,9 @@ function VerificationResult({ verification }: { verification: NonNullable<Order[
     );
 }
 
-
 export function DeliveryVerification({ order }: { order: Order }) {
-  const [state, formAction, isPending] = useActionState(verifyDeliveryAction, initialState);
+  const [formState, setFormState] = useState<VerifyFormState | undefined>();
+  const [isPending, startTransition] = useState(false);
   const [preview, setPreview] = useState<string | null>(order.deliveryPhotoUrl || null);
   const photoDataUriRef = useRef<HTMLInputElement>(null);
   
@@ -63,12 +68,26 @@ export function DeliveryVerification({ order }: { order: Order }) {
     }
   };
 
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(true);
+    const result = await verifyDeliveryAction(undefined, formData);
+    setFormState(result);
+    startTransition(false);
+  };
+
+  useEffect(() => {
+    // Reset preview if order photo changes from context
+    setPreview(order.deliveryPhotoUrl || null);
+  }, [order.deliveryPhotoUrl]);
+
   if (order.deliveryVerification) {
       return <VerificationResult verification={order.deliveryVerification} />;
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="orderDocId" value={order.id} />
       <input type="hidden" name="orderNumber" value={order.orderNumber} />
       <input type="hidden" name="photoDataUri" ref={photoDataUriRef} />
@@ -95,18 +114,18 @@ export function DeliveryVerification({ order }: { order: Order }) {
         }
       </div>
 
-      {state && !state.success && state.message && (
+      {formState && !formState.success && (
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{state.message}</AlertDescription>
+          <AlertDescription>{formState.message}</AlertDescription>
         </Alert>
       )}
-      {state && state.success && (
+      {formState && formState.success && (
         <Alert className="mt-4">
             <CheckCircle className="h-4 w-4" />
             <AlertTitle>Success</AlertTitle>
-            <AlertDescription>{state.message}</AlertDescription>
+            <AlertDescription>{formState.message}</AlertDescription>
         </Alert>
       )}
     </form>
