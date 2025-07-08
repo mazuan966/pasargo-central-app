@@ -7,10 +7,10 @@ import { useOrders } from '@/hooks/use-orders';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, FileText, Loader2, Printer, CheckCircle, XCircle, Send } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, Printer, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useMemo, useTransition } from 'react';
-import { generateEInvoiceAction, sendOrderNotificationsAction } from '@/lib/actions';
+import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice, BusinessDetails } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { OrderAmendmentForm } from '@/components/orders/OrderAmendmentForm';
@@ -84,15 +84,6 @@ function EInvoiceGenerator({ order }: { order: Order }) {
       fetchBusinessDetails();
   }, []);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
-        const result = await generateEInvoiceAction(undefined, formData);
-        setFormState(result);
-    });
-  };
-
   if (isLoadingDetails) {
       return (
           <Card>
@@ -114,7 +105,14 @@ function EInvoiceGenerator({ order }: { order: Order }) {
         <CardDescription>Submit this order to LHDN for e-invoice validation.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={async (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.currentTarget);
+            startTransition(async () => {
+                const result = await generateEInvoiceAction(undefined, formData);
+                setFormState(result);
+            });
+        }}>
             <input type="hidden" name="orderDocId" value={order.id} />
             <input type="hidden" name="orderId" value={order.orderNumber} />
             <input type="hidden" name="orderDate" value={order.orderDate} />
@@ -146,47 +144,6 @@ function EInvoiceGenerator({ order }: { order: Order }) {
     </Card>
   );
 }
-
-function NotificationTrigger({ orderId }: { orderId: string }) {
-    const [isPending, startTransition] = useTransition();
-    const [result, setResult] = useState<{success: boolean, message: string} | null>(null);
-
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setResult(null);
-        const formData = new FormData(event.currentTarget);
-        startTransition(async () => {
-            const res = await sendOrderNotificationsAction(undefined, formData);
-            setResult(res);
-        });
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Trigger Notifications</CardTitle>
-                <CardDescription>Manually send the Invoice and PO WhatsApp notifications for this order.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input type="hidden" name="orderId" value={orderId} />
-                    <Button type="submit" disabled={isPending}>
-                        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                        Send Notifications
-                    </Button>
-                </form>
-                {result && (
-                  <Alert className="mt-4" variant={result.success ? "default" : "destructive"}>
-                      {result.success ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                      <AlertTitle>{result.success ? "Success" : "Error"}</AlertTitle>
-                      <AlertDescription>{result.message}</AlertDescription>
-                  </Alert>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
-
 
 export default function OrderDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -227,8 +184,6 @@ export default function OrderDetailsPage() {
             </Button>
         </div>
       </div>
-
-      <NotificationTrigger orderId={order.id} />
 
       {order.isEditable && (
         <Card>

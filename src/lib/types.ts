@@ -19,7 +19,7 @@ export interface CartItem extends Product {
 }
 
 export type OrderStatus = 'Awaiting Payment' | 'Order Created' | 'Processing' | 'Pick Up' | 'Delivered' | 'Completed' | 'Cancelled';
-export type PaymentMethod = 'Cash on Delivery';
+export type PaymentMethod = 'Cash on Delivery' | 'FPX (Toyyibpay)';
 export type PaymentStatus = 'Pending Payment' | 'Paid' | 'Failed';
 
 export const EInvoiceInputSchema = z.object({

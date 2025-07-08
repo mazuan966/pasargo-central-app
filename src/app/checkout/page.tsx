@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -9,16 +9,17 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Calendar as CalendarIcon, Info, XCircle } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Info, CreditCard, Truck } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { placeOrderAction } from '@/lib/actions';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import type { PaymentMethod } from '@/lib/types';
 
 interface AmendmentInfo {
     originalOrderId: string;
@@ -51,6 +52,7 @@ export default function CheckoutPage() {
   const [deliveryTime, setDeliveryTime] = useState<string>('');
   const [amendmentInfo, setAmendmentInfo] = useState<AmendmentInfo | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash on Delivery');
   
   const { toast } = useToast();
   const router = useRouter();
@@ -99,6 +101,13 @@ export default function CheckoutPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'User not logged in.' });
       return;
     }
+    if (paymentMethod === 'FPX (Toyyibpay)') {
+        toast({
+            title: 'Coming Soon',
+            description: 'FPX payment is not yet available. Please select Cash on Delivery.',
+        });
+        return;
+    }
 
     setIsPlacingOrder(true);
     
@@ -110,6 +119,7 @@ export default function CheckoutPage() {
       deliveryDate: deliveryDate.toISOString(),
       deliveryTimeSlot: deliveryTime,
       userData: userData,
+      paymentMethod: paymentMethod,
     });
 
     if (result.success && result.orderId) {
@@ -192,7 +202,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="delivery-time">Delivery Time Slot</Label>
-                   {amendmentInfo ? ( <Input id="delivery-time" type="text" value={deliveryTime} readOnly disabled className="cursor-not-allowed bg-muted/50" /> ) : (
+                   {amendmentInfo ? ( <Select value={deliveryTime} onValueChange={setDeliveryTime} disabled><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={deliveryTime}>{deliveryTime}</SelectItem></SelectContent></Select> ) : (
                       <Select value={deliveryTime} onValueChange={setDeliveryTime}>
                         <SelectTrigger id="delivery-time">
                           <SelectValue placeholder="Select a time slot" />
@@ -206,6 +216,36 @@ export default function CheckoutPage() {
                   )}
                 </div>
               </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Payment Method</CardTitle>
+                    <CardDescription>Choose how you'd like to pay.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <RadioGroup 
+                        value={paymentMethod}
+                        className="space-y-4"
+                        onValueChange={(value: PaymentMethod) => setPaymentMethod(value)}
+                    >
+                        <Label htmlFor="cod" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
+                            <RadioGroupItem value="Cash on Delivery" id="cod" />
+                            <Truck className="h-6 w-6" />
+                            <div>
+                                <p className="font-semibold">Cash on Delivery (COD)</p>
+                                <p className="text-sm text-muted-foreground">Pay with cash upon delivery.</p>
+                            </div>
+                        </Label>
+                        <Label htmlFor="fpx" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
+                            <RadioGroupItem value="FPX (Toyyibpay)" id="fpx" />
+                            <CreditCard className="h-6 w-6" />
+                            <div>
+                                <p className="font-semibold">FPX Payment (Toyyibpay)</p>
+                                <p className="text-sm text-muted-foreground">Pay securely via online banking.</p>
+                            </div>
+                        </Label>
+                    </RadioGroup>
+                </CardContent>
             </Card>
              <Button onClick={handlePlaceOrder} disabled={isPlacingOrder || !deliveryDate || !deliveryTime || isAuthLoading} className="w-full mt-6">
                 {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
