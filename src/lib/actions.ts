@@ -1,6 +1,5 @@
 
 'use server';
-import 'dotenv/config';
 
 import { verifyDeliveryPhoto } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
@@ -127,11 +126,15 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
         
         const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
-        await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+        const userResult = await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
 
         const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber!}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
-        await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+        const adminResult = await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
 
+        if (!userResult.success || !adminResult.success) {
+            const errors = [!userResult.success && `User Msg: ${userResult.error}`, !adminResult.success && `Admin Msg: ${adminResult.error}`].filter(Boolean).join('; ');
+            return { success: false, message: `One or more notifications failed: ${errors}`, orderId: newOrderRef.id };
+        }
 
         // 6. Revalidate paths to update caches
         revalidatePath('/orders');
