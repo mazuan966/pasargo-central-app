@@ -7,13 +7,15 @@
  * @returns An object indicating success or failure.
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const baseUrl = process.env.INFOBIP_BASE_URL;
-  const apiKey = process.env.INFOBIP_API_KEY;
-  const senderNumber = process.env.INFOBIP_SENDER_NUMBER;
+  // NOTE: Hardcoding credentials to bypass environment loading issues for now.
+  // This is not recommended for production environments.
+  const baseUrl = 'lqyllw.api.infobip.com';
+  const apiKey = '769203a73bc44130d27fa2de02d40fbe-8fd8e2e8-52ac-4d98-80a3-b284f204efc3';
+  const senderNumber = '447860099299';
   
   if (!baseUrl || !apiKey || !senderNumber) {
-    const errorMessage = 'Infobip service is not configured on the server. Please check environment variables.';
-    console.error(errorMessage, { baseUrl: !!baseUrl, apiKey: !!apiKey, senderNumber: !!senderNumber });
+    const errorMessage = 'Infobip service is not configured. Hardcoded credentials are missing.';
+    console.error(errorMessage);
     return { success: false, error: errorMessage };
   }
 
