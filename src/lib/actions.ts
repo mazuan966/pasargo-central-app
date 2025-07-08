@@ -13,7 +13,7 @@ import { revalidatePath } from 'next/cache';
 const SST_RATE = 0.06;
 
 async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
-    const testPhoneNumber = '60163864181';
+    const adminPhoneNumber = '60163864181'; // Hardcoded admin number
     const appUrl = process.env.APP_URL;
 
     const itemsSummary = updatedOrder.items.map(item => {
@@ -35,19 +35,21 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     `*Updated Items:*\n` +
     itemsSummary +
     `\n\nSubtotal: RM ${updatedOrder.subtotal.toFixed(2)}\nSST (6%): RM ${updatedOrder.sst.toFixed(2)}\n*New Total: RM ${updatedOrder.total.toFixed(2)}*` +
-    `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}` +
+    (appUrl ? `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}` : '') +
     `\n\nWe will process your updated order shortly.`;
     
-    await sendWhatsAppMessage(testPhoneNumber, userMessage);
+    if (user.phoneNumber) {
+        await sendWhatsAppMessage(user.phoneNumber, userMessage);
+    }
 
     const adminMessage = `*Order Amended*\n\n` +
     `Order *#${updatedOrder.orderNumber}* for *${user.restaurantName}* has been updated.\n\n` +
     `*New Total: RM ${updatedOrder.total.toFixed(2)}*\n\n` +
     `*Updated Items:*\n` +
     adminItemsSummary +
-    `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}`;
+    (appUrl ? `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}` : '');
 
-    await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
+    await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
 };
 
 // --- Server Actions ---
@@ -110,13 +112,20 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
 
         // Post-transaction notifications
         const appUrl = process.env.APP_URL;
-        const testPhoneNumber = '60163864181';
-        let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${newOrderRef.id}` : '';
-        let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
+        const adminPhoneNumber = '60163864181';
+        
+        const invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}` : '';
+        const poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
+        
         const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
-        await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+        
+        if (userData.phoneNumber) {
+            await sendWhatsAppMessage(userData.phoneNumber, userInvoiceMessage);
+        }
+
         const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber!}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
-        await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+        
+        await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
 
         revalidatePath('/orders');
         revalidatePath('/dashboard');
