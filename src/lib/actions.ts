@@ -3,10 +3,10 @@
 
 import { verifyDeliveryPhoto } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
-import { EInvoiceInputSchema, type EInvoiceOutput, type Order, type CartItem, type User } from '@/lib/types';
+import { EInvoiceInputSchema, type Order, type CartItem, type User } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { doc, runTransaction, getCountFromServer, collection, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 
@@ -52,37 +52,27 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
 
 // --- Server Actions ---
 
-type PlaceOrderState = {
-    success: boolean;
-    message: string;
-}
+type PlaceOrderPayload = {
+    items: CartItem[];
+    subtotal: number;
+    sst: number;
+    total: number;
+    deliveryDate: string;
+    deliveryTimeSlot: string;
+    userData: User;
+    originalOrderId?: string;
+};
 
-export async function placeOrderAction(prevState: PlaceOrderState | null, formData: FormData): Promise<PlaceOrderState> {
+export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ success: boolean, message: string }> {
     if (!db) {
         return { success: false, message: 'Database not configured.' };
     }
 
-    // 1. PARSE AND VALIDATE FORM DATA
-    let items: CartItem[], userData: User, subtotal: number, sst: number, total: number, deliveryDate: string, deliveryTimeSlot: string;
-    try {
-        userData = JSON.parse(formData.get('userData') as string) as User;
-        if (!userData) return { success: false, message: 'User data is missing.' };
-        
-        items = JSON.parse(formData.get('items') as string) as CartItem[];
-        subtotal = parseFloat(formData.get('subtotal') as string);
-        sst = parseFloat(formData.get('sst') as string);
-        total = parseFloat(formData.get('total') as string);
-        deliveryDate = formData.get('deliveryDate') as string;
-        deliveryTimeSlot = formData.get('deliveryTimeSlot') as string;
+    const { items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, userData } = payload;
 
-        if (items.length === 0) return { success: false, message: "Cannot place an order with an empty cart." };
-        if (!deliveryDate || !deliveryTimeSlot) return { success: false, message: "Delivery date and time slot are required." };
+    if (items.length === 0) return { success: false, message: "Cannot place an order with an empty cart." };
+    if (!deliveryDate || !deliveryTimeSlot) return { success: false, message: "Delivery date and time slot are required." };
 
-    } catch (e) {
-        return { success: false, message: "Invalid form data provided." };
-    }
-
-    // --- This is now only for COD orders ---
     try {
         const newOrderRef = doc(collection(db, "orders"));
         let newOrderNumber: string;
@@ -121,7 +111,7 @@ export async function placeOrderAction(prevState: PlaceOrderState | null, formDa
         // Post-transaction notifications
         const appUrl = process.env.APP_URL;
         const testPhoneNumber = '60163864181';
-        let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}` : '';
+        let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${newOrderRef.id}` : '';
         let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
         const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
         await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
@@ -139,20 +129,20 @@ export async function placeOrderAction(prevState: PlaceOrderState | null, formDa
 }
 
 
-type AmendOrderState = {
-    success: boolean;
-    message: string;
-}
-export async function amendOrderAction(prevState: AmendOrderState | null, formData: FormData): Promise<AmendOrderState> {
+type AmendOrderPayload = {
+  originalOrder: Order;
+  amendedItems: CartItem[];
+  userData: User;
+};
+
+export async function amendOrderAction(payload: AmendOrderPayload): Promise<{ success: boolean; message: string; }> {
     if (!db) {
         return { success: false, message: 'Database not configured.' };
     }
 
-    try {
-        const originalOrder = JSON.parse(formData.get('originalOrder') as string) as Order;
-        const amendedItems = JSON.parse(formData.get('amendedItems') as string) as CartItem[];
-        const userData = JSON.parse(formData.get('userData') as string) as User;
+    const { originalOrder, amendedItems, userData } = payload;
 
+    try {
         let finalUpdatedOrder: Order | null = null;
         await runTransaction(db, async (transaction) => {
             const orderRef = doc(db, 'orders', originalOrder.id);

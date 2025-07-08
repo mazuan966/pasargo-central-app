@@ -18,21 +18,17 @@ import { Separator } from '@/components/ui/separator';
 import { amendOrderAction } from '@/lib/actions';
 import { useAuth } from '@/hooks/use-auth';
 
-const initialFormState = { success: false, message: '' };
-
 export function OrderAmendmentForm({ order }: { order: Order }) {
   const [amendedItems, setAmendedItems] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  
-  const [state, formAction, isPending] = useActionState(amendOrderAction, initialFormState);
+  const [isPending, setIsPending] = useState(false);
   
   const { updateOrder } = useOrders();
   const { userData } = useAuth();
   const { toast } = useToast();
 
-  // Stringify order.items to create a stable dependency for useEffect, preventing an infinite loop.
   const itemsJson = JSON.stringify(order.items);
 
   useEffect(() => {
@@ -48,14 +44,6 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
     fetchProducts();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.id, itemsJson]);
-
-  useEffect(() => {
-    if (state.success) {
-      toast({ title: "Order Updated Successfully!", description: state.message });
-    } else if (state.message) {
-      toast({ variant: 'destructive', title: 'Update Failed', description: state.message });
-    }
-  }, [state, toast]);
 
   const handleQuantityChange = (productId: string, newQuantityStr: string) => {
     const originalItem = order.items.find(i => i.productId === productId);
@@ -79,18 +67,37 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
     toast({ title: 'Amendment Cancelled', description: 'Your order has not been changed.' });
   };
   
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userData) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to amend an order.' });
+      return;
+    }
+    
+    setIsPending(true);
+
+    const result = await amendOrderAction({
+      originalOrder: order,
+      amendedItems,
+      userData,
+    });
+    
+    if (result.success) {
+      toast({ title: "Order Updated Successfully!", description: result.message });
+    } else {
+      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
+    }
+    
+    setIsPending(false);
+  };
+
   const subtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const sst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * 0.06) : sum, 0);
   const total = subtotal + sst;
   const unlistedProducts = products.filter(p => !amendedItems.some(item => item.id === p.id));
 
   return (
-    <form action={formAction} className="space-y-6">
-        {/* Hidden inputs for server action */}
-        <input type="hidden" name="originalOrder" value={JSON.stringify(order)} />
-        <input type="hidden" name="amendedItems" value={JSON.stringify(amendedItems)} />
-        <input type="hidden" name="userData" value={JSON.stringify(userData)} />
-
+    <form onSubmit={handleSubmit} className="space-y-6">
         <div className="border rounded-md">
             <Table>
                 <TableHeader>
@@ -150,14 +157,6 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
                 </div>
             </div>
         </div>
-        
-        {!state.success && state.message && (
-             <Alert variant="destructive">
-                <XCircle className="h-4 w-4" />
-                <AlertTitle>Update Failed</AlertTitle>
-                <AlertDescription>{state.message}</AlertDescription>
-            </Alert>
-        )}
         
         <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={handleCancelAmendment} disabled={isPending}>Cancel</Button>

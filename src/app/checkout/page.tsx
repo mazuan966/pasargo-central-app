@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useActionState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -27,8 +27,6 @@ interface AmendmentInfo {
     deliveryTimeSlot: string;
 }
 
-const initialFormState = { success: false, message: '' };
-
 const timeSlots = [
     "10:00 AM - 11:00 AM",
     "11:00 AM - 12:00 PM",
@@ -47,15 +45,15 @@ const timeSlots = [
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
   const { userData, loading: isAuthLoading } = useAuth();
-  const [state, formAction, isPending] = useActionState(placeOrderAction, initialFormState);
   
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
   const [minDate, setMinDate] = useState<Date>(new Date());
   const [deliveryTime, setDeliveryTime] = useState<string>('');
   const [amendmentInfo, setAmendmentInfo] = useState<AmendmentInfo | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  
   const { toast } = useToast();
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const storedInfo = localStorage.getItem('amendmentInfo');
@@ -80,22 +78,47 @@ export default function CheckoutPage() {
   }, [amendmentInfo]);
 
   useEffect(() => {
-    if (state.success) {
-        toast({ title: 'Success!', description: state.message });
-        const finalRedirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
-        clearCart();
-        localStorage.removeItem('amendmentInfo');
-        router.push(finalRedirectUrl);
-    } else if (state.message) {
-      toast({ variant: 'destructive', title: 'Order Failed', description: state.message });
-    }
-  }, [state, router, toast, clearCart, amendmentInfo]);
-
-  useEffect(() => {
     return () => {
       localStorage.removeItem('amendmentInfo');
     };
   }, []);
+  
+  const handlePlaceOrder = async () => {
+    if (!deliveryDate || !deliveryTime) {
+      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select delivery details.' });
+      return;
+    }
+    if (!userData) {
+      toast({ variant: 'destructive', title: 'Error', description: 'User not logged in.' });
+      return;
+    }
+
+    setIsPlacingOrder(true);
+    
+    const result = await placeOrderAction({
+      items: cartItems,
+      subtotal: cartSubtotal,
+      sst: cartSst,
+      total: cartTotal,
+      deliveryDate: deliveryDate.toISOString(),
+      deliveryTimeSlot: deliveryTime,
+      userData: userData,
+      originalOrderId: amendmentInfo?.originalOrderId,
+    });
+
+    if (result.success) {
+      toast({ title: 'Success!', description: result.message });
+      const finalRedirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
+      clearCart();
+      localStorage.removeItem('amendmentInfo');
+      router.push(finalRedirectUrl);
+    } else {
+      toast({ variant: 'destructive', title: 'Order Failed', description: result.message });
+    }
+    
+    setIsPlacingOrder(false);
+  };
+
 
   if (cartItems.length === 0) {
     return null;
@@ -115,17 +138,7 @@ export default function CheckoutPage() {
           </Alert>
       )}
 
-      <form ref={formRef} action={formAction}>
-        {/* Hidden fields to pass data to server action */}
-        <input type="hidden" name="items" value={JSON.stringify(cartItems)} />
-        <input type="hidden" name="subtotal" value={cartSubtotal} />
-        <input type="hidden" name="sst" value={cartSst} />
-        <input type="hidden" name="total" value={cartTotal} />
-        <input type="hidden" name="deliveryDate" value={deliveryDate?.toISOString() || ''} />
-        <input type="hidden" name="deliveryTimeSlot" value={deliveryTime} />
-        <input type="hidden" name="userData" value={JSON.stringify(userData)} />
-        {amendmentInfo && <input type="hidden" name="originalOrderId" value={amendmentInfo.originalOrderId} />}
-
+      <div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <Card>
@@ -186,20 +199,13 @@ export default function CheckoutPage() {
                 </div>
               </CardContent>
             </Card>
-             <Button type="submit" disabled={isPending || !deliveryDate || !deliveryTime || isAuthLoading} className="w-full mt-6">
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isPending ? 'Processing...' : (amendmentInfo ? 'Confirm Amendment' : 'Place Order')}
+             <Button onClick={handlePlaceOrder} disabled={isPlacingOrder || !deliveryDate || !deliveryTime || isAuthLoading} className="w-full mt-6">
+                {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isPlacingOrder ? 'Processing...' : (amendmentInfo ? 'Confirm Amendment' : 'Place Order')}
             </Button>
-             {!state.success && state.message && (
-                <Alert variant="destructive" className="mt-4">
-                  <XCircle className="h-4 w-4" />
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{state.message}</AlertDescription>
-                </Alert>
-            )}
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
