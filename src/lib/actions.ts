@@ -1,9 +1,10 @@
 
 'use server';
+import 'dotenv/config';
 
 import { verifyDeliveryPhoto } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
-import { EInvoiceInputSchema, type Order, type CartItem, type User } from '@/lib/types';
+import { EInvoiceInputSchema, type Order, type CartItem, type User, type BusinessDetails } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc } from 'firebase/firestore';
@@ -70,7 +71,7 @@ type PlaceOrderPayload = {
     originalOrderId?: string;
 };
 
-export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ success: boolean, message: string }> {
+export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ success: boolean, message: string, orderId?: string }> {
     if (!db) {
         return { success: false, message: 'Database not configured.' };
     }
@@ -115,31 +116,11 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             transaction.set(newOrderRef, newOrderData);
         });
 
-        // Post-transaction notifications
-        const appUrl = process.env.APP_URL;
-        const adminPhoneNumber = '60163864181';
-        
-        const invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}` : '';
-        const poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
-        
-        const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
-        
-        // Send user notification to the test number
-        const userResult = await sendWhatsAppMessage(adminPhoneNumber, userInvoiceMessage);
-        if (!userResult.success) {
-            console.error(`Failed to send user notification for order ${newOrderNumber!}:`, userResult.error);
-        }
-
-        const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber!}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
-        
-        const adminResult = await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
-        if (!adminResult.success) {
-            console.error(`Failed to send admin notification for order ${newOrderNumber!}:`, adminResult.error);
-        }
-
         revalidatePath('/orders');
         revalidatePath('/dashboard');
-        return { success: true, message: 'Thank you for your purchase. A confirmation has been sent via WhatsApp.' };
+        revalidatePath(`/orders/${newOrderRef.id}`);
+
+        return { success: true, message: 'Order created successfully!', orderId: newOrderRef.id };
 
     } catch (e: any) {
         console.error("COD Order failed: ", e);
@@ -367,5 +348,71 @@ export async function generateEInvoiceAction(
             success: false,
             message: `E-Invoice generation failed: ${errorMessage}`,
         };
+    }
+}
+
+type NotificationFormState = {
+    success: boolean;
+    message: string;
+}
+
+export async function sendOrderNotificationsAction(
+    prevState: NotificationFormState | undefined,
+    formData: FormData,
+): Promise<NotificationFormState> {
+    
+    const orderId = formData.get('orderId') as string;
+    if (!orderId) {
+        return { success: false, message: 'Order ID is missing.' };
+    }
+
+    if (!db) {
+        return { success: false, message: 'Database is not configured.' };
+    }
+
+    try {
+        const orderDocRef = doc(db, 'orders', orderId);
+        const businessDocRef = doc(db, 'settings', 'business');
+
+        const [orderDocSnap, businessDocSnap] = await Promise.all([
+            getDoc(orderDocRef),
+            getDoc(businessDocRef)
+        ]);
+
+        if (!orderDocSnap.exists()) {
+            return { success: false, message: 'Order not found.' };
+        }
+        if (!businessDocSnap.exists()) {
+            return { success: false, message: 'Business details are not configured in admin settings.' };
+        }
+
+        const order = { id: orderDocSnap.id, ...orderDocSnap.data() } as Order;
+        const businessDetails = businessDocSnap.data() as BusinessDetails;
+
+        const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = order;
+        const testPhoneNumber = '60163864181';
+        const appUrl = process.env.APP_URL;
+
+        let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
+        let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
+        
+        const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
+        
+        const userResult = await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+        
+        const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
+        
+        const adminResult = await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+
+        if (userResult.success && adminResult.success) {
+            return { success: true, message: 'Invoice and PO notifications sent successfully!' };
+        } else {
+            const errors = [!userResult.success && `User Msg: ${userResult.error}`, !adminResult.success && `Admin Msg: ${adminResult.error}`].filter(Boolean).join('; ');
+            return { success: false, message: `One or more notifications failed: ${errors}` };
+        }
+
+    } catch (e: any) {
+        console.error("Failed to send notifications:", e);
+        return { success: false, message: e.message || 'An unexpected error occurred.' };
     }
 }

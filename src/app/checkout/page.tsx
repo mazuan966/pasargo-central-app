@@ -78,6 +78,13 @@ export default function CheckoutPage() {
   }, [amendmentInfo]);
 
   useEffect(() => {
+    if (!isPlacingOrder && cartItems.length === 0 && !amendmentInfo) {
+      router.replace('/dashboard');
+    }
+  }, [cartItems, isPlacingOrder, router, amendmentInfo]);
+
+
+  useEffect(() => {
     return () => {
       localStorage.removeItem('amendmentInfo');
     };
@@ -106,22 +113,24 @@ export default function CheckoutPage() {
       originalOrderId: amendmentInfo?.originalOrderId,
     });
 
-    if (result.success) {
+    if (result.success && result.orderId) {
       toast({ title: 'Success!', description: result.message });
-      const finalRedirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
       clearCart();
       localStorage.removeItem('amendmentInfo');
-      router.push(finalRedirectUrl);
+      router.push(`/orders/${result.orderId}`);
     } else {
       toast({ variant: 'destructive', title: 'Order Failed', description: result.message });
+      setIsPlacingOrder(false);
     }
-    
-    setIsPlacingOrder(false);
   };
 
 
   if (cartItems.length === 0) {
-    return null;
+    return (
+       <div className="flex w-full justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
   
   return (
