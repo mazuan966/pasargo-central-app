@@ -4,7 +4,7 @@
 import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, where, writeBatch } from 'firebase/firestore';
+import { collection, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, where, writeBatch, getDocs, documentId } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 
 interface OrderContextType {
@@ -84,23 +84,27 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const bulkUpdateOrderStatus = useCallback(async (orderIds: string[], newStatus: OrderStatus) => {
-    if (!db) {
-      throw new Error("Firestore is not configured. Cannot perform bulk update.");
+    if (!db || orderIds.length === 0) {
+      throw new Error("Firestore is not configured or no orders selected. Cannot perform bulk update.");
     }
+    
     const batch = writeBatch(db);
-    const ordersToUpdate = orders.filter(order => orderIds.includes(order.id));
+    const ordersQuery = query(collection(db, 'orders'), where(documentId(), 'in', orderIds));
+    const ordersSnapshot = await getDocs(ordersQuery);
 
-    ordersToUpdate.forEach(order => {
-        const orderRef = doc(db, 'orders', order.id);
-        const newHistoryEntry = { status: newStatus, timestamp: new Date().toISOString() };
-        const lastStatus = order.statusHistory[order.statusHistory.length - 1];
-        const newHistory = lastStatus.status !== newStatus ? [...order.statusHistory, newHistoryEntry] : order.statusHistory;
-        
-        batch.update(orderRef, { status: newStatus, statusHistory: newHistory });
+    ordersSnapshot.forEach((orderDoc) => {
+      const orderData = orderDoc.data() as Order;
+      const orderRef = doc(db, 'orders', orderDoc.id);
+      const newHistoryEntry = { status: newStatus, timestamp: new Date().toISOString() };
+      
+      const lastStatus = orderData.statusHistory[orderData.statusHistory.length - 1];
+      const newHistory = lastStatus.status !== newStatus ? [...orderData.statusHistory, newHistoryEntry] : orderData.statusHistory;
+      
+      batch.update(orderRef, { status: newStatus, statusHistory: newHistory });
     });
 
     await batch.commit();
-  }, [orders]);
+  }, []);
 
   const bulkDeleteOrders = useCallback(async (orderIds: string[]) => {
     if (!db) {
