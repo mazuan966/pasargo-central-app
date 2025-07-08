@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 export interface Product {
@@ -18,7 +19,7 @@ export interface CartItem extends Product {
 }
 
 export type OrderStatus = 'Awaiting Payment' | 'Order Created' | 'Processing' | 'Pick Up' | 'Delivered' | 'Completed' | 'Cancelled';
-export type PaymentMethod = 'Cash on Delivery' | 'FPX (Toyyibpay)';
+export type PaymentMethod = 'Cash on Delivery';
 export type PaymentStatus = 'Pending Payment' | 'Paid' | 'Failed';
 
 export const EInvoiceInputSchema = z.object({
@@ -96,7 +97,6 @@ export interface Order {
   deliveryTimeSlot: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
-  toyyibpayBillCode?: string;
   deliveryPhotoUrl?: string;
   paymentProofUrl?: string;
   deliveryVerification?: {

@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useActionState, useRef } from 'react';
+import { useState, useEffect, useActionState } from 'react';
 import type { Order, Product, CartItem } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
@@ -14,8 +15,6 @@ import { useOrders } from '@/hooks/use-orders';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { useCart } from '@/hooks/use-cart';
-import { useRouter } from 'next/navigation';
 import { amendOrderAction } from '@/lib/actions';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -30,9 +29,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   const [state, formAction, isPending] = useActionState(amendOrderAction, initialFormState);
   
   const { updateOrder } = useOrders();
-  const { clearCart, addToCart } = useCart();
   const { userData } = useAuth();
-  const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,7 +43,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
       setIsLoadingProducts(false);
     };
     fetchProducts();
-  }, [order.id]);
+  }, [order.id, order.items]);
 
   useEffect(() => {
     if (state.success) {
@@ -78,50 +75,13 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
     toast({ title: 'Amendment Cancelled', description: 'Your order has not been changed.' });
   };
   
-  const handleFormSubmit = (formData: FormData) => {
-    if (order.paymentMethod === 'Cash on Delivery') {
-      formAction(formData);
-    } else if (order.paymentMethod === 'FPX (Toyyibpay)') {
-        const originalItemsMap = new Map(order.items.map(i => [i.productId, i.quantity]));
-        const itemsToCheckout: CartItem[] = [];
-
-        for (const amendedItem of amendedItems) {
-            const originalQty = originalItemsMap.get(amendedItem.id) || 0;
-            const addedQty = amendedItem.quantity - originalQty;
-            if (addedQty > 0) {
-                const productData = products.find(p => p.id === amendedItem.id);
-                if (productData) itemsToCheckout.push({ ...productData, quantity: addedQty });
-            }
-        }
-
-        if (itemsToCheckout.length > 0) {
-            clearCart();
-            for (const item of itemsToCheckout) addToCart(item, item.quantity, true);
-            
-            const amendmentInfo = {
-                originalOrderId: order.id,
-                originalOrderNumber: order.orderNumber,
-                deliveryDate: order.deliveryDate,
-                deliveryTimeSlot: order.deliveryTimeSlot,
-            };
-            localStorage.setItem('amendmentInfo', JSON.stringify(amendmentInfo));
-            toast({ title: 'Proceed to Payment', description: 'Please pay for the additional items to complete your order amendment.' });
-            router.push('/checkout');
-        } else {
-            updateOrder({ ...order, isEditable: false });
-            toast({ title: 'No Changes Made', description: 'Your order amendment has been finalized.' });
-        }
-    }
-  };
-
   const subtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const sst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * 0.06) : sum, 0);
   const total = subtotal + sst;
-  const additionalCost = total - order.total;
   const unlistedProducts = products.filter(p => !amendedItems.some(item => item.id === p.id));
 
   return (
-    <form action={handleFormSubmit} className="space-y-6">
+    <form action={formAction} className="space-y-6">
         {/* Hidden inputs for server action */}
         <input type="hidden" name="originalOrder" value={JSON.stringify(order)} />
         <input type="hidden" name="amendedItems" value={JSON.stringify(amendedItems)} />
@@ -181,8 +141,8 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
                 <div className="flex justify-between"><span>Subtotal:</span> <span>RM {subtotal.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span>SST (6%):</span> <span>RM {sst.toFixed(2)}</span></div>
                 <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                  <span>{order.paymentMethod === 'Cash on Delivery' ? 'New Order Total:' : 'Additional Cost:'}</span>
-                  <span>RM {(order.paymentMethod === 'Cash on Delivery' ? total : additionalCost).toFixed(2)}</span>
+                  <span>New Order Total:</span>
+                  <span>RM {total.toFixed(2)}</span>
                 </div>
             </div>
         </div>

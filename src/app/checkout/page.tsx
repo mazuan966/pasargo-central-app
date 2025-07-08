@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useActionState, useRef } from 'react';
@@ -7,10 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { CreditCard, Truck, Loader2, Calendar as CalendarIcon, Info, XCircle } from 'lucide-react';
+import { Truck, Loader2, Calendar as CalendarIcon, Info, XCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -19,8 +18,6 @@ import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { placeOrderAction } from '@/lib/actions';
-
-type PaymentMethod = 'toyyibpay' | 'cod';
 
 interface AmendmentInfo {
     originalOrderId: string;
@@ -51,7 +48,6 @@ export default function CheckoutPage() {
   const { userData, loading: isAuthLoading } = useAuth();
   const [state, formAction, isPending] = useActionState(placeOrderAction, initialFormState);
   
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('toyyibpay');
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
   const [minDate, setMinDate] = useState<Date>(new Date());
   const [deliveryTime, setDeliveryTime] = useState<string>('');
@@ -84,17 +80,11 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (state.success) {
-      if (state.redirectUrl) {
-        clearCart();
-        localStorage.removeItem('amendmentInfo');
-        window.location.href = state.redirectUrl;
-      } else {
         toast({ title: 'Success!', description: state.message });
         const finalRedirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
         clearCart();
         localStorage.removeItem('amendmentInfo');
         router.push(finalRedirectUrl);
-      }
     } else if (state.message) {
       toast({ variant: 'destructive', title: 'Order Failed', description: state.message });
     }
@@ -112,14 +102,14 @@ export default function CheckoutPage() {
   
   return (
     <div className="container mx-auto max-w-4xl py-8">
-      <h1 className="text-3xl font-headline font-bold mb-6">{amendmentInfo ? 'Pay for Additional Items' : 'Checkout'}</h1>
+      <h1 className="text-3xl font-headline font-bold mb-6">{amendmentInfo ? 'Amend Your Order' : 'Checkout'}</h1>
       
       {amendmentInfo && (
           <Alert className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
               <Info className="h-4 w-4 !text-blue-800" />
               <AlertTitle>Order Amendment</AlertTitle>
               <AlertDescription>
-                  You are paying for additional items for order <strong>#{amendmentInfo.originalOrderNumber}</strong>. These items will be delivered with your original order.
+                  You are amending order <strong>#{amendmentInfo.originalOrderNumber}</strong>. The changes will be delivered with your original order.
               </AlertDescription>
           </Alert>
       )}
@@ -130,7 +120,6 @@ export default function CheckoutPage() {
         <input type="hidden" name="subtotal" value={cartSubtotal} />
         <input type="hidden" name="sst" value={cartSst} />
         <input type="hidden" name="total" value={cartTotal} />
-        <input type="hidden" name="paymentMethod" value={paymentMethod} />
         <input type="hidden" name="deliveryDate" value={deliveryDate?.toISOString() || ''} />
         <input type="hidden" name="deliveryTimeSlot" value={deliveryTime} />
         <input type="hidden" name="userData" value={JSON.stringify(userData)} />
@@ -199,24 +188,17 @@ export default function CheckoutPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Payment Method</CardTitle>
-                <CardDescription>{amendmentInfo ? 'Choose a payment method for the additional amount.' : "Choose how you'd like to pay."}</CardDescription>
               </CardHeader>
               <CardContent>
-                <RadioGroup value={paymentMethod} className="space-y-4" onValueChange={(value: PaymentMethod) => setPaymentMethod(value)}>
-                  <Label htmlFor="toyyibpay" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
-                    <RadioGroupItem value="toyyibpay" id="toyyibpay" /><CreditCard className="h-6 w-6" />
-                    <div><p className="font-semibold">FPX Payment (Toyyibpay)</p><p className="text-sm text-muted-foreground">Pay securely via online banking.</p></div>
-                  </Label>
-                  <Label htmlFor="cod" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
-                    <RadioGroupItem value="cod" id="cod" /><Truck className="h-6 w-6" />
+                <div className="flex items-center gap-4 border rounded-md p-4 bg-muted">
+                    <Truck className="h-6 w-6" />
                     <div><p className="font-semibold">Cash on Delivery (COD)</p><p className="text-sm text-muted-foreground">Pay with cash upon delivery.</p></div>
-                  </Label>
-                </RadioGroup>
+                </div>
               </CardContent>
             </Card>
              <Button type="submit" disabled={isPending || !deliveryDate || !deliveryTime || isAuthLoading} className="w-full mt-6">
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isPending ? 'Processing...' : (amendmentInfo ? 'Pay & Add to Order' : 'Place Order')}
+                {isPending ? 'Processing...' : (amendmentInfo ? 'Confirm Amendment' : 'Place Order')}
             </Button>
              {!state.success && state.message && (
                 <Alert variant="destructive" className="mt-4">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Order, PaymentStatus } from '@/lib/types';
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-const paymentStatuses: PaymentStatus[] = ['Pending Payment', 'Paid', 'Pending Confirmation'];
+const paymentStatuses: PaymentStatus[] = ['Pending Payment', 'Paid', 'Failed'];
 
 export function PaymentManager({ order }: { order: Order }) {
   const { updateOrder } = useOrders();
