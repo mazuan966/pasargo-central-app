@@ -40,10 +40,7 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     `\n\nWe will process your updated order shortly.`;
     
     // Send user notification to the test number
-    const userResult = await sendWhatsAppMessage(adminPhoneNumber, userMessage);
-    if (!userResult.success) {
-        console.error(`Failed to send user amendment notification for order ${updatedOrder.orderNumber}:`, userResult.error);
-    }
+    await sendWhatsAppMessage(adminPhoneNumber, userMessage);
 
     const adminMessage = `*Order Amended*\n\n` +
     `Order *#${updatedOrder.orderNumber}* for *${user.restaurantName}* has been updated.\n\n` +
@@ -52,10 +49,7 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     adminItemsSummary +
     (appUrl ? `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}` : '');
 
-    const adminResult = await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
-     if (!adminResult.success) {
-        console.error(`Failed to send admin amendment notification for order ${updatedOrder.orderNumber}:`, adminResult.error);
-    }
+    await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
 };
 
 // --- Server Actions ---
@@ -68,7 +62,6 @@ type PlaceOrderPayload = {
     deliveryDate: string;
     deliveryTimeSlot: string;
     userData: User;
-    originalOrderId?: string;
 };
 
 export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ success: boolean, message: string, orderId?: string }> {
@@ -77,6 +70,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
     }
 
     const { items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, userData } = payload;
+    const { id: userId, ...userToSave } = userData;
 
     if (items.length === 0) return { success: false, message: "Cannot place an order with an empty cart." };
     if (!deliveryDate || !deliveryTimeSlot) return { success: false, message: "Delivery date and time slot are required." };
@@ -86,6 +80,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         let newOrderNumber: string;
 
         await runTransaction(db, async (transaction) => {
+            // 1. Decrease stock for each item
             for (const item of items) {
                 const productRef = doc(db, 'products', item.id);
                 const productDoc = await transaction.get(productRef);
@@ -95,12 +90,18 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
                 transaction.update(productRef, { stock: currentStock - item.quantity });
             }
             
+            // 2. Generate a new unique order number
             const snapshot = await getCountFromServer(collection(db, 'orders'));
             const newOrderIndex = snapshot.data().count + 1;
-            const datePart = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = String(now.getFullYear()).slice(-2);
+            const datePart = `${day}${month}${year}`;
             const numberPart = String(newOrderIndex).padStart(4, '0');
             newOrderNumber = `PA${numberPart}${datePart}`;
 
+            // 3. Create the new order object
             const newOrderData: Omit<Order, 'id'> = {
                 orderNumber: newOrderNumber,
                 user: userData,
@@ -113,14 +114,31 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
                 deliveryDate, deliveryTimeSlot,
                 statusHistory: [{ status: 'Order Created', timestamp: new Date().toISOString() }],
             };
+            
+            // 4. Set the new order in the transaction
             transaction.set(newOrderRef, newOrderData);
         });
 
+        // 5. Send notifications AFTER the transaction is successful
+        const testPhoneNumber = '60163864181';
+        const appUrl = process.env.APP_URL;
+
+        let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}` : '';
+        let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
+        
+        const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
+        await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+
+        const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber!}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
+        await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+
+
+        // 6. Revalidate paths to update caches
         revalidatePath('/orders');
         revalidatePath('/dashboard');
         revalidatePath(`/orders/${newOrderRef.id}`);
 
-        return { success: true, message: 'Order created successfully!', orderId: newOrderRef.id };
+        return { success: true, message: 'Order created successfully! A confirmation has been sent via WhatsApp.', orderId: newOrderRef.id };
 
     } catch (e: any) {
         console.error("COD Order failed: ", e);

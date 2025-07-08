@@ -110,7 +110,6 @@ export default function CheckoutPage() {
       deliveryDate: deliveryDate.toISOString(),
       deliveryTimeSlot: deliveryTime,
       userData: userData,
-      originalOrderId: amendmentInfo?.originalOrderId,
     });
 
     if (result.success && result.orderId) {
