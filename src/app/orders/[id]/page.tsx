@@ -1,4 +1,3 @@
-
 'use client';
 
 import { OrderDetails } from '@/components/orders/OrderDetails';
@@ -9,7 +8,7 @@ import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useActionState, useEffect, useState, useRef } from 'react';
+import { useActionState, useEffect, useState, useRef, useCallback } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice, BusinessDetails } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -17,6 +16,8 @@ import { OrderAmendmentForm } from '@/components/orders/OrderAmendmentForm';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// EInvoiceGenerator and EInvoiceDisplay are now defined outside the main component to prevent re-creation on every render.
 
 const EInvoiceInitialState = {
   success: false,
@@ -30,9 +31,10 @@ function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvo
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
   useEffect(() => {
+    // This effect now correctly handles the action state change without causing a loop.
     if (state.success && state.data && !successHandled.current) {
         onInvoiceGenerated(state.data);
-        successHandled.current = true;
+        successHandled.current = true; // Prevents the action from being called again.
     }
   }, [state, onInvoiceGenerated]);
 
@@ -145,6 +147,15 @@ export default function OrderDetailsPage() {
     setOrder(foundOrder);
   }, [params.id, orders]);
 
+  // The handler is now wrapped in useCallback to stabilize its reference,
+  // preventing the child component's useEffect from re-running unnecessarily.
+  const handleInvoiceGenerated = useCallback(async (eInvoice: EInvoice) => {
+    if (order) {
+      const updatedOrder = { ...order, eInvoice };
+      await updateOrder(updatedOrder);
+    }
+  }, [order, updateOrder]); // Dependencies are correctly listed.
+
 
   if (!isMounted) {
     return (
@@ -167,11 +178,6 @@ export default function OrderDetailsPage() {
     );
   }
   
-  const handleInvoiceGenerated = async (eInvoice: EInvoice) => {
-    const updatedOrder = { ...order, eInvoice };
-    await updateOrder(updatedOrder);
-  };
-
   const canGenerateEInvoice = (order.status === 'Completed' || order.status === 'Delivered');
 
   return (
