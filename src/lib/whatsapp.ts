@@ -1,11 +1,5 @@
 'use server';
 
-import 'dotenv/config';
-
-const baseUrl = process.env.INFOBIP_BASE_URL;
-const apiKey = process.env.INFOBIP_API_KEY;
-const senderNumber = process.env.INFOBIP_SENDER_NUMBER;
-
 /**
  * Sends a WhatsApp message using Infobip.
  * @param to The recipient's phone number in E.164 format (e.g., '60123456789').
@@ -13,6 +7,10 @@ const senderNumber = process.env.INFOBIP_SENDER_NUMBER;
  * @returns An object indicating success or failure.
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  const baseUrl = process.env.INFOBIP_BASE_URL;
+  const apiKey = process.env.INFOBIP_API_KEY;
+  const senderNumber = process.env.INFOBIP_SENDER_NUMBER;
+  
   if (!baseUrl || !apiKey || !senderNumber) {
     const errorMessage = 'Infobip service is not configured on the server. Please check environment variables.';
     console.error(errorMessage, { baseUrl: !!baseUrl, apiKey: !!apiKey, senderNumber: !!senderNumber });
