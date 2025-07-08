@@ -55,10 +55,10 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<{ s
     }
 
     // Defensive check to ensure the response structure is as expected
-    if (result && Array.isArray(result.messages) && result.messages.length > 0) {
-        const messageId = result.messages[0]?.messageId;
-        console.log(`WhatsApp message sent successfully to ${formattedTo}. Message ID: ${messageId}`);
-        return { success: true, messageId: messageId };
+    // A successful single message response contains a top-level `messageId`.
+    if (result && result.messageId) {
+        console.log(`WhatsApp message sent successfully to ${formattedTo}. Message ID: ${result.messageId}`);
+        return { success: true, messageId: result.messageId };
     } else {
         // This handles cases where the API returns 200 OK but the body is unexpected
         console.warn(`Infobip returned a successful status but with an unexpected response body for ${formattedTo}:`, JSON.stringify(result));
