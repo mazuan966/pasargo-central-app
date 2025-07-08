@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import type { Order, OrderStatus } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, FirestoreError, where, writeBatch } from 'firebase/firestore';
@@ -58,7 +58,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [currentUser]);
 
-  const updateOrder = async (updatedOrder: Order) => {
+  const updateOrder = useCallback(async (updatedOrder: Order) => {
     if (!db) {
       throw new Error("Firestore is not configured. Cannot update order.");
     }
@@ -69,9 +69,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
     const orderDocRef = doc(db, 'orders', id);
     await updateDoc(orderDocRef, orderData);
-  };
+  }, []);
   
-  const deleteOrder = async (orderId: string) => {
+  const deleteOrder = useCallback(async (orderId: string) => {
     if (!db) {
       throw new Error("Firestore is not configured. Cannot delete order.");
     }
@@ -81,9 +81,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
     const orderDocRef = doc(db, 'orders', orderId);
     await deleteDoc(orderDocRef);
-  };
+  }, []);
 
-  const bulkUpdateOrderStatus = async (orderIds: string[], newStatus: OrderStatus) => {
+  const bulkUpdateOrderStatus = useCallback(async (orderIds: string[], newStatus: OrderStatus) => {
     if (!db) {
       throw new Error("Firestore is not configured. Cannot perform bulk update.");
     }
@@ -100,9 +100,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     });
 
     await batch.commit();
-  };
+  }, [orders]);
 
-  const bulkDeleteOrders = async (orderIds: string[]) => {
+  const bulkDeleteOrders = useCallback(async (orderIds: string[]) => {
     if (!db) {
         throw new Error("Firestore is not configured. Cannot perform bulk delete.");
     }
@@ -112,10 +112,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         batch.delete(orderRef);
     });
     await batch.commit();
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    orders,
+    updateOrder,
+    deleteOrder,
+    bulkUpdateOrderStatus,
+    bulkDeleteOrders
+  }), [orders, updateOrder, deleteOrder, bulkUpdateOrderStatus, bulkDeleteOrders]);
+
 
   return (
-    <OrderContext.Provider value={{ orders, updateOrder, deleteOrder, bulkUpdateOrderStatus, bulkDeleteOrders }}>
+    <OrderContext.Provider value={value}>
       {children}
     </OrderContext.Provider>
   );
