@@ -32,6 +32,9 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   const { userData } = useAuth();
   const { toast } = useToast();
 
+  // Stringify order.items to create a stable dependency for useEffect, preventing an infinite loop.
+  const itemsJson = JSON.stringify(order.items);
+
   useEffect(() => {
     setAmendedItems(order.items.map(item => ({ ...item, id: item.productId })));
     const fetchProducts = async () => {
@@ -43,7 +46,8 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
       setIsLoadingProducts(false);
     };
     fetchProducts();
-  }, [order.id, order.items]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.id, itemsJson]);
 
   useEffect(() => {
     if (state.success) {
