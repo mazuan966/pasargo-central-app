@@ -38,9 +38,8 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     (appUrl ? `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}` : '') +
     `\n\nWe will process your updated order shortly.`;
     
-    if (user.phoneNumber) {
-        await sendWhatsAppMessage(user.phoneNumber, userMessage);
-    }
+    // Send user notification to the test number
+    await sendWhatsAppMessage(adminPhoneNumber, userMessage);
 
     const adminMessage = `*Order Amended*\n\n` +
     `Order *#${updatedOrder.orderNumber}* for *${user.restaurantName}* has been updated.\n\n` +
@@ -119,9 +118,8 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         
         const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
         
-        if (userData.phoneNumber) {
-            await sendWhatsAppMessage(userData.phoneNumber, userInvoiceMessage);
-        }
+        // Send user notification to the test number
+        await sendWhatsAppMessage(adminPhoneNumber, userInvoiceMessage);
 
         const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber!}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${new Date(deliveryDate).toLocaleDateString()} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
         
