@@ -1,12 +1,12 @@
 
 'use server';
 
-import { verifyDeliveryPhoto, type VerifyDeliveryPhotoOutput } from '@/ai/flows/verify-delivery-photo';
+import { verifyDeliveryPhoto } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
 import { EInvoiceInputSchema, type EInvoiceOutput, type Order, type CartItem, type User } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { doc, runTransaction, getCountFromServer, collection, setDoc, getDoc } from 'firebase/firestore';
+import { doc, runTransaction, getCountFromServer, collection, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 
@@ -211,7 +211,8 @@ export async function amendOrderAction(prevState: AmendOrderState | null, formDa
 
 
 const verifyDeliverySchema = z.object({
-    orderId: z.string(),
+    orderNumber: z.string(),
+    orderDocId: z.string(),
     photoDataUri: z.string().refine(val => val.startsWith('data:image/'), {
         message: 'Photo must be a valid image data URI',
     }),
@@ -220,7 +221,6 @@ const verifyDeliverySchema = z.object({
 type VerifyFormState = {
     success: boolean;
     message: string;
-    data?: VerifyDeliveryPhotoOutput;
 }
 
 export async function verifyDeliveryAction(
@@ -229,27 +229,63 @@ export async function verifyDeliveryAction(
 ): Promise<VerifyFormState> {
 
     const validatedFields = verifyDeliverySchema.safeParse({
-        orderId: formData.get('orderId'),
+        orderNumber: formData.get('orderNumber'),
+        orderDocId: formData.get('orderDocId'),
         photoDataUri: formData.get('photoDataUri'),
     });
 
     if (!validatedFields.success) {
         return {
             success: false,
-            message: 'Invalid input. ' + validatedFields.error.flatten().fieldErrors,
+            message: 'Invalid input. ' + JSON.stringify(validatedFields.error.flatten().fieldErrors),
         };
     }
 
     try {
         const result = await verifyDeliveryPhoto({
-            orderId: validatedFields.data.orderId,
+            orderId: validatedFields.data.orderNumber,
             photoDataUri: validatedFields.data.photoDataUri,
         });
 
+        if (!db) {
+            return { success: false, message: 'Database not configured.' };
+        }
+        const orderRef = doc(db, 'orders', validatedFields.data.orderDocId);
+        const orderDoc = await getDoc(orderRef);
+        if (!orderDoc.exists()) {
+            return { success: false, message: 'Order not found.' };
+        }
+        const orderData = orderDoc.data() as Order;
+
+        const verificationData = {
+            ...result,
+            verifiedAt: new Date().toISOString()
+        };
+        
+        let newStatus = orderData.status;
+        let newStatusHistory = orderData.statusHistory;
+
+        if (result.isOrderCompleted && orderData.status !== 'Completed') {
+            newStatus = 'Completed';
+            const newHistoryEntry = { status: 'Completed' as const, timestamp: new Date().toISOString() };
+            if (!newStatusHistory.find(h => h.status === 'Completed')) {
+                newStatusHistory = [...orderData.statusHistory, newHistoryEntry];
+            }
+        }
+        
+        await updateDoc(orderRef, { 
+            deliveryVerification: verificationData,
+            deliveryPhotoUrl: validatedFields.data.photoDataUri,
+            status: newStatus,
+            statusHistory: newStatusHistory
+        });
+
+        revalidatePath(`/orders/${validatedFields.data.orderDocId}`);
+        revalidatePath(`/admin/dashboard/orders/${validatedFields.data.orderDocId}`);
+
         return {
             success: true,
-            message: 'Verification successful.',
-            data: result,
+            message: 'Verification successful and order updated.',
         };
 
     } catch (error) {
@@ -266,7 +302,6 @@ export async function verifyDeliveryAction(
 type EInvoiceFormState = {
     success: boolean;
     message: string;
-    data?: EInvoiceOutput;
 }
 
 export async function generateEInvoiceAction(
@@ -275,7 +310,9 @@ export async function generateEInvoiceAction(
 ): Promise<EInvoiceFormState> {
     
     let rawData;
+    let orderDocId: string;
     try {
+        orderDocId = formData.get('orderDocId') as string;
         rawData = {
             orderId: formData.get('orderId'),
             orderDate: formData.get('orderDate'),
@@ -300,10 +337,18 @@ export async function generateEInvoiceAction(
 
     try {
         const result = await generateEInvoice(validatedFields.data);
+        
+        if (!db) {
+            return { success: false, message: 'Database not configured.' };
+        }
+        const orderRef = doc(db, 'orders', orderDocId);
+        await updateDoc(orderRef, { eInvoice: result });
+
+        revalidatePath(`/orders/${orderDocId}`);
+
         return {
             success: true,
             message: 'E-Invoice generated successfully.',
-            data: result,
         };
 
     } catch (error) {

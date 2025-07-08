@@ -1,3 +1,4 @@
+
 'use client';
 
 import { OrderDetails } from '@/components/orders/OrderDetails';
@@ -8,7 +9,7 @@ import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useActionState, useEffect, useState, useRef, useCallback } from 'react';
+import { useActionState, useEffect, useState, useRef } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice, BusinessDetails } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -17,26 +18,15 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// EInvoiceGenerator and EInvoiceDisplay are now defined outside the main component to prevent re-creation on every render.
-
 const EInvoiceInitialState = {
   success: false,
   message: '',
 };
 
-function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvoiceGenerated: (invoice: EInvoice) => void }) {
+function EInvoiceGenerator({ order }: { order: Order }) {
   const [state, formAction, isPending] = useActionState(generateEInvoiceAction, EInvoiceInitialState);
-  const successHandled = useRef(false);
   const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-
-  useEffect(() => {
-    // This effect now correctly handles the action state change without causing a loop.
-    if (state.success && state.data && !successHandled.current) {
-        onInvoiceGenerated(state.data);
-        successHandled.current = true; // Prevents the action from being called again.
-    }
-  }, [state, onInvoiceGenerated]);
 
   useEffect(() => {
       const fetchBusinessDetails = async () => {
@@ -82,6 +72,7 @@ function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvo
       </CardHeader>
       <CardContent>
         <form action={formAction}>
+            <input type="hidden" name="orderDocId" value={order.id} />
             <input type="hidden" name="orderId" value={order.orderNumber} />
             <input type="hidden" name="orderDate" value={order.orderDate} />
             <input type="hidden" name="total" value={order.total} />
@@ -97,6 +88,12 @@ function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvo
          {state && !state.success && state.message && (
             <Alert variant="destructive" className="mt-4">
               <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{state.message}</AlertDescription>
+            </Alert>
+          )}
+          {state && state.success && (
+            <Alert className="mt-4">
+              <AlertTitle>Success</AlertTitle>
               <AlertDescription>{state.message}</AlertDescription>
             </Alert>
           )}
@@ -137,7 +134,7 @@ function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
 
 export default function OrderDetailsPage() {
   const params = useParams<{ id: string }>();
-  const { orders, updateOrder } = useOrders();
+  const { orders } = useOrders();
   const [order, setOrder] = useState<Order | undefined>();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -146,16 +143,6 @@ export default function OrderDetailsPage() {
     const foundOrder = orders.find(o => o.id === params.id);
     setOrder(foundOrder);
   }, [params.id, orders]);
-
-  // The handler is now wrapped in useCallback to stabilize its reference,
-  // preventing the child component's useEffect from re-running unnecessarily.
-  const handleInvoiceGenerated = useCallback(async (eInvoice: EInvoice) => {
-    if (order) {
-      const updatedOrder = { ...order, eInvoice };
-      await updateOrder(updatedOrder);
-    }
-  }, [order, updateOrder]); // Dependencies are correctly listed.
-
 
   if (!isMounted) {
     return (
@@ -213,7 +200,7 @@ export default function OrderDetailsPage() {
       
       <OrderDetails order={order} />
 
-      {canGenerateEInvoice && !order.eInvoice && <EInvoiceGenerator order={order} onInvoiceGenerated={handleInvoiceGenerated} />}
+      {canGenerateEInvoice && !order.eInvoice && <EInvoiceGenerator order={order} />}
       {order.eInvoice && <EInvoiceDisplay eInvoice={order.eInvoice} />}
 
       {(order.status === 'Delivered' || order.status === 'Completed') && (
