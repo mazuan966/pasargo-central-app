@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Truck, Loader2, Calendar as CalendarIcon, Info, XCircle } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Info, XCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -183,17 +183,6 @@ export default function CheckoutPage() {
                         </SelectContent>
                       </Select>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Method</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4 border rounded-md p-4 bg-muted">
-                    <Truck className="h-6 w-6" />
-                    <div><p className="font-semibold">Cash on Delivery (COD)</p><p className="text-sm text-muted-foreground">Pay with cash upon delivery.</p></div>
                 </div>
               </CardContent>
             </Card>
