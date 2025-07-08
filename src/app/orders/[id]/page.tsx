@@ -1,3 +1,4 @@
+
 'use client';
 
 import { OrderDetails } from '@/components/orders/OrderDetails';
@@ -8,7 +9,7 @@ import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, useRef } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice, BusinessDetails } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -24,12 +25,14 @@ const EInvoiceInitialState = {
 
 function EInvoiceGenerator({ order, onInvoiceGenerated }: { order: Order, onInvoiceGenerated: (invoice: EInvoice) => void }) {
   const [state, formAction, isPending] = useActionState(generateEInvoiceAction, EInvoiceInitialState);
+  const successHandled = useRef(false);
   const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
 
   useEffect(() => {
-    if (state.success && state.data) {
+    if (state.success && state.data && !successHandled.current) {
         onInvoiceGenerated(state.data);
+        successHandled.current = true;
     }
   }, [state, onInvoiceGenerated]);
 
