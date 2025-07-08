@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useOrders } from '@/hooks/use-orders';
 import { notFound, useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Order } from '@/lib/types';
 import { OrderDetails } from '@/components/orders/OrderDetails';
 import { AdminDeliveryInfo } from '@/components/admin/AdminDeliveryInfo';
@@ -15,26 +16,22 @@ import { AmendmentManager } from '@/components/admin/AmendmentManager';
 export default function AdminOrderDetailsPage() {
     const params = useParams<{ id: string }>();
     const { orders } = useOrders();
-    const [order, setOrder] = useState<Order | undefined>();
-    const [isMounted, setIsMounted] = useState(false);
 
-    useEffect(() => {
-        setIsMounted(true);
-        const foundOrder = orders.find(o => o.id === params.id);
-        setOrder(foundOrder);
-    }, [params.id, orders]);
+    // Derive the order directly from the context/props.
+    // This avoids the useEffect/useState loop that caused the error.
+    const order = useMemo(() => orders.find(o => o.id === params.id), [orders, params.id]);
 
-    if (!isMounted) {
+    if (orders.length > 0 && !order) {
+        notFound();
+        return null;
+    }
+    
+    if (!order) {
         return (
             <div className="flex w-full justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         );
-    }
-    
-    if (!order) {
-        notFound();
-        return null; // For TypeScript
     }
     
     return (

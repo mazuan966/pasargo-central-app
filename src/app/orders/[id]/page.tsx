@@ -9,7 +9,7 @@ import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, FileText, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useActionState, useEffect, useState, useRef } from 'react';
+import { useActionState, useEffect, useState, useRef, useMemo } from 'react';
 import { generateEInvoiceAction } from '@/lib/actions';
 import type { Order, EInvoice, BusinessDetails } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -135,30 +135,18 @@ function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
 export default function OrderDetailsPage() {
   const params = useParams<{ id: string }>();
   const { orders } = useOrders();
-  const [order, setOrder] = useState<Order | undefined>();
-  const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-    const foundOrder = orders.find(o => o.id === params.id);
-    setOrder(foundOrder);
-  }, [params.id, orders]);
+  // Derive the order directly from the context/props.
+  // This avoids the useEffect/useState loop that caused the error.
+  const order = useMemo(() => orders.find(o => o.id === params.id), [orders, params.id]);
 
-  if (!isMounted) {
-    return (
-      <div className="flex w-full justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  if (orders.length > 0 && !order) {
+    notFound();
+    return null;
   }
 
   if (!order) {
-    // Let the loading spinner show while waiting for realtime data
-    if(orders.length > 0) {
-      notFound();
-      return null;
-    }
-     return (
+    return (
       <div className="flex w-full justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
