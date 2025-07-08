@@ -1,5 +1,6 @@
-
 'use server';
+
+import 'dotenv/config';
 
 const baseUrl = process.env.INFOBIP_BASE_URL;
 const apiKey = process.env.INFOBIP_API_KEY;
@@ -14,7 +15,7 @@ const senderNumber = process.env.INFOBIP_SENDER_NUMBER;
 export async function sendWhatsAppMessage(to: string, body: string): Promise<{ success: boolean; error?: string; messageId?: string }> {
   if (!baseUrl || !apiKey || !senderNumber) {
     const errorMessage = 'Infobip service is not configured on the server. Please check environment variables.';
-    console.error(errorMessage);
+    console.error(errorMessage, { baseUrl: !!baseUrl, apiKey: !!apiKey, senderNumber: !!senderNumber });
     return { success: false, error: errorMessage };
   }
 
