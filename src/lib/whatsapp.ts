@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -53,8 +54,16 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<{ s
       throw new Error(`API request failed with status ${response.status}: ${errorDetails}`);
     }
 
-    console.log(`WhatsApp message sent successfully to ${formattedTo}. Message ID: ${result.messages[0]?.messageId}`);
-    return { success: true, messageId: result.messages[0]?.messageId };
+    // Defensive check to ensure the response structure is as expected
+    if (result && Array.isArray(result.messages) && result.messages.length > 0) {
+        const messageId = result.messages[0]?.messageId;
+        console.log(`WhatsApp message sent successfully to ${formattedTo}. Message ID: ${messageId}`);
+        return { success: true, messageId: messageId };
+    } else {
+        // This handles cases where the API returns 200 OK but the body is unexpected
+        console.warn(`Infobip returned a successful status but with an unexpected response body for ${formattedTo}:`, JSON.stringify(result));
+        throw new Error(`API returned a success status but with an unexpected response body.`);
+    }
 
   } catch (error) {
     console.error(`Failed to send WhatsApp message to ${formattedTo}:`, error);
