@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ProductList from '@/components/shop/ProductList';
 import { useOrders } from '@/hooks/use-orders';
 import { useAuth } from '@/hooks/use-auth';
@@ -9,11 +10,12 @@ import type { Order, Product } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, AlertTriangle } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Search } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 
 export default function DashboardPage() {
   const { orders } = useOrders();
@@ -21,6 +23,8 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
     if (!db) {
@@ -54,6 +58,19 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   
   const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.status === 'Order Created' || order.paymentStatus === 'Pending Payment');
+  
+  const categories = useMemo(() => {
+    if (products.length === 0) return [];
+    return ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, searchTerm, selectedCategory]);
 
   return (
     <div className="space-y-8">
@@ -98,9 +115,33 @@ export default function DashboardPage() {
         </Card>
 
         <div>
-            <div className="flex items-center mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                 <h2 className="text-2xl font-headline font-bold">Products</h2>
+                <div className="relative w-full md:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search products..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                    />
+                </div>
             </div>
+
+            {categories.length > 1 && !isLoadingProducts && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                    {categories.map(category => (
+                        <Button
+                            key={category}
+                            variant={selectedCategory === category ? 'default' : 'outline'}
+                            onClick={() => setSelectedCategory(category)}
+                        >
+                            {category}
+                        </Button>
+                    ))}
+                </div>
+            )}
+
             {isLoadingProducts ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {[...Array(4)].map((_, i) => (
@@ -119,8 +160,12 @@ export default function DashboardPage() {
                   </Card>
                 ))}
               </div>
+            ) : filteredProducts.length > 0 ? (
+              <ProductList products={filteredProducts} />
             ) : (
-              <ProductList products={products} />
+              <div className="text-center py-10 text-muted-foreground border-dashed border-2 rounded-lg bg-muted/50">
+                  No products match your search criteria.
+              </div>
             )}
         </div>
     </div>

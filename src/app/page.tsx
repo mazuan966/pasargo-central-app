@@ -1,16 +1,19 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ProductList from '@/components/shop/ProductList';
 import type { Product } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { AlertTriangle, ShoppingBag } from 'lucide-react';
+import { AlertTriangle, ShoppingBag, Search } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { StorefrontHeader } from '@/components/layout/StorefrontHeader';
 import { StorefrontFooter } from '@/components/layout/StorefrontFooter';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 function ProductGridSkeleton() {
   return (
@@ -38,6 +41,8 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
     if (!db) {
@@ -66,6 +71,19 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
+  const categories = useMemo(() => {
+    if (products.length === 0) return [];
+    return ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, searchTerm, selectedCategory]);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <StorefrontHeader />
@@ -74,6 +92,33 @@ export default function Home() {
             <h1 className="text-3xl lg:text-4xl font-headline font-bold">Fresh Supplies, Delivered.</h1>
             <p className="text-lg text-muted-foreground">Browse our selection of fresh products and quality groceries for your restaurant or cafe.</p>
         </div>
+
+        <div className="flex flex-col gap-4 mb-8">
+            <div className="relative flex-grow">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                    placeholder="Search for products by name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-12 h-12 text-base"
+                />
+            </div>
+             {categories.length > 1 && !isLoadingProducts && (
+                <div className="flex flex-wrap gap-2">
+                    {categories.map(category => (
+                        <Button
+                            key={category}
+                            variant={selectedCategory === category ? 'default' : 'outline'}
+                            onClick={() => setSelectedCategory(category)}
+                            size="sm"
+                        >
+                            {category}
+                        </Button>
+                    ))}
+                </div>
+            )}
+        </div>
+
 
         {dbError && (
           <Alert variant="destructive">
@@ -87,13 +132,13 @@ export default function Home() {
 
         {isLoadingProducts ? (
           <ProductGridSkeleton />
-        ) : products.length > 0 ? (
-          <ProductList products={products} />
+        ) : filteredProducts.length > 0 ? (
+          <ProductList products={filteredProducts} />
         ) : !dbError ? (
           <div className="text-center py-20 border-dashed border-2 rounded-lg bg-muted/50">
             <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground" />
             <h2 className="mt-4 text-2xl font-semibold">No Products Found</h2>
-            <p className="mt-2 text-muted-foreground">It looks like the store is currently empty. Please check back later.</p>
+            <p className="mt-2 text-muted-foreground">Try adjusting your search or category filters.</p>
           </div>
         ) : null}
       </main>
