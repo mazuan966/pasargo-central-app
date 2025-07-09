@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
              return new Response('Missing required parameters', { status: 400 });
         }
         
-        const toyyibpaySecretKey = process.env.TOYYIBPAY_SECRET_KEY || 'dev-08d4hwdk-97w7-g29f-z7bd-c87z6yhdve0f';
+        const toyyibpaySecretKey = 'frfiveec-jeex-kegd-xgwu-ryuzyuvy9qsl';
         if (!toyyibpaySecretKey) {
             console.error('Toyyibpay secret key is not configured.');
             return new Response('Server configuration error', { status: 500 });

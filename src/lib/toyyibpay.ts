@@ -3,8 +3,8 @@
 
 import type { Order, User } from '@/lib/types';
 
-const TOYYIBPAY_SECRET_KEY = 'dev-08d4hwdk-97w7-g29f-z7bd-c87z6yhdve0f';
-const TOYYIBPAY_CATEGORY_CODE = 'nqbwnp0t';
+const TOYYIBPAY_SECRET_KEY = 'frfiveec-jeex-kegd-xgwu-ryuzyuvy9qsl';
+const TOYYIBPAY_CATEGORY_CODE = 'k4lkdp9p';
 const APP_URL = 'https://studio--pasargo-central.us-central1.hosted.app';
 const TOYYIBPAY_API_URL = 'https://toyyibpay.com';
 
