@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useOrders } from '@/hooks/use-orders';
@@ -60,6 +61,7 @@ const paymentBadgeVariants = cva(
     variants: {
       status: {
         'Pending Payment': "bg-yellow-200 text-yellow-800",
+        'Awaiting Payment': "bg-gray-200 text-gray-800",
         Paid: "bg-green-200 text-green-800",
         Failed: "bg-red-200 text-red-800",
       },
@@ -77,7 +79,7 @@ export default function AdminDashboardPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
-  const visibleOrders = orders.filter(order => order.status !== 'Awaiting Payment');
+  const visibleOrders = orders;
 
   const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
     const orderToUpdate = orders.find(order => order.id === orderId);
@@ -246,10 +248,10 @@ export default function AdminDashboardPage() {
                       </Button>
                       <div className="ml-auto">
                         <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
-                            setIsDeleteDialogOpen(open);
                             if (!open) {
                                 setDeleteConfirmation('');
                             }
+                            setIsDeleteDialogOpen(open);
                         }}>
                           <AlertDialogTrigger asChild>
                               <Button variant="destructive" size="sm">

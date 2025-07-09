@@ -1,7 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
 import { sendOrderConfirmationNotifications } from '@/lib/actions';
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
         
         const billcode = formData.get('billcode') as string;
         const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
-        const order_id = formData.get('order_id') as string; // This is the billExternalReferenceNo, which we set to the Firestore document ID
+        const order_id = formData.get('order_id') as string; // This is the billExternalReferenceNo, which we set to the Order Number
         const signature = formData.get('signature') as string;
         
         if (!billcode || !status || !order_id || !signature) {
@@ -34,14 +34,17 @@ export async function POST(req: NextRequest) {
             return new Response('Invalid signature', { status: 400 });
         }
 
-        const orderRef = doc(db, 'orders', order_id);
-        const orderDoc = await getDoc(orderRef);
-        
-        if (!orderDoc.exists()) {
-            console.warn(`Order not found for orderId: ${order_id}`);
+        const ordersCollection = collection(db, 'orders');
+        const q = query(ordersCollection, where('orderNumber', '==', order_id));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            console.warn(`Order not found for orderNumber: ${order_id}`);
             return new Response('Order not found', { status: 404 });
         }
-
+        
+        const orderDoc = querySnapshot.docs[0];
+        const orderRef = orderDoc.ref;
         const orderData = orderDoc.data() as Order;
         
         if (status === '1') { // Payment success
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
                 console.log(`[Callback] Order ${orderData.orderNumber} marked as Paid.`);
 
                 // Trigger notifications now that the order is confirmed and paid.
-                await sendOrderConfirmationNotifications(order_id);
+                await sendOrderConfirmationNotifications(orderDoc.id);
                 console.log(`[Callback] Notifications sent for order ${orderData.orderNumber}.`);
             }
         } else if (status === '3') { // Payment fail
