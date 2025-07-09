@@ -2,7 +2,14 @@ import type { Order, BusinessDetails } from '@/lib/types';
 import { Logo } from '@/components/icons/logo';
 import { format } from 'date-fns';
 
-export const PrintableInvoice = ({ order, businessDetails }: { order: Order, businessDetails: BusinessDetails }) => {
+type PrintableInvoiceProps = {
+  order: Order;
+  businessDetails: BusinessDetails;
+  t: (key: string) => string;
+  getTranslated: (item: any, field: string) => string;
+};
+
+export const PrintableInvoice = ({ order, businessDetails, t, getTranslated }: PrintableInvoiceProps) => {
   return (
     <div className="bg-white text-black p-8 font-sans">
       {/* Header */}
@@ -13,21 +20,21 @@ export const PrintableInvoice = ({ order, businessDetails }: { order: Order, bus
           <p className="text-sm whitespace-pre-line">{businessDetails.address}</p>
         </div>
         <div className="text-right">
-          <h2 className="text-4xl font-bold uppercase text-gray-700">Invoice</h2>
-          <p className="text-sm mt-2">Invoice #: {order.orderNumber}</p>
-          <p className="text-sm">Date: {format(new Date(order.orderDate), 'dd/MM/yyyy')}</p>
+          <h2 className="text-4xl font-bold uppercase text-gray-700">{t('invoice.title')}</h2>
+          <p className="text-sm mt-2">{t('invoice.number')} {order.orderNumber}</p>
+          <p className="text-sm">{t('invoice.date')}: {format(new Date(order.orderDate), 'dd/MM/yyyy')}</p>
         </div>
       </div>
 
       {/* Bill To */}
       <div className="mb-8">
-        <h3 className="font-bold border-b pb-1 mb-2">Bill To</h3>
+        <h3 className="font-bold border-b pb-1 mb-2">{t('invoice.bill_to')}</h3>
         <p className="font-semibold">{order.user.restaurantName}</p>
         <p className="text-sm">{order.user.address}</p>
         {order.user.tin && <p className="text-sm">TIN: {order.user.tin}</p>}
         <div className="mt-2 pt-2 border-t">
-            <p className="text-sm"><span className="font-semibold">Delivery Date:</span> {format(new Date(order.deliveryDate), 'dd/MM/yyyy')}</p>
-            <p className="text-sm"><span className="font-semibold">Time Slot:</span> {order.deliveryTimeSlot}</p>
+            <p className="text-sm"><span className="font-semibold">{t('invoice.delivery_date')}:</span> {format(new Date(order.deliveryDate), 'dd/MM/yyyy')}</p>
+            <p className="text-sm"><span className="font-semibold">{t('invoice.time_slot')}:</span> {order.deliveryTimeSlot}</p>
         </div>
       </div>
 
@@ -35,16 +42,16 @@ export const PrintableInvoice = ({ order, businessDetails }: { order: Order, bus
       <table className="w-full text-left mb-8">
         <thead>
           <tr className="bg-gray-200">
-            <th className="p-2 font-bold">Item Description</th>
-            <th className="p-2 font-bold text-right">Quantity</th>
-            <th className="p-2 font-bold text-right">Unit Price / Unit</th>
-            <th className="p-2 font-bold text-right">Total</th>
+            <th className="p-2 font-bold">{t('invoice.item_description')}</th>
+            <th className="p-2 font-bold text-right">{t('invoice.quantity')}</th>
+            <th className="p-2 font-bold text-right">{t('invoice.unit_price')}</th>
+            <th className="p-2 font-bold text-right">{t('invoice.total_price')}</th>
           </tr>
         </thead>
         <tbody>
-          {order.items.map(item => (
-            <tr key={item.productId} className="border-b">
-              <td className="p-2">{item.name}</td>
+          {order.items.map((item, index) => (
+            <tr key={`${item.productId}-${index}`} className="border-b">
+              <td className="p-2">{getTranslated(item, 'name')}</td>
               <td className="p-2 text-right">{item.quantity}</td>
               <td className="p-2 text-right">RM {item.price.toFixed(2)} / {item.unit || 'item'}</td>
               <td className="p-2 text-right">RM {(item.quantity * item.price).toFixed(2)}</td>
@@ -57,15 +64,15 @@ export const PrintableInvoice = ({ order, businessDetails }: { order: Order, bus
       <div className="flex justify-end mb-8">
         <div className="w-full max-w-xs space-y-1">
           <div className="flex justify-between">
-            <span className="font-semibold">Subtotal</span>
+            <span className="font-semibold">{t('invoice.subtotal')}</span>
             <span>RM {order.subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-semibold">SST (6%)</span>
+            <span className="font-semibold">{t('invoice.sst')}</span>
             <span>RM {order.sst.toFixed(2)}</span>
           </div>
           <div className="flex justify-between mt-2 pt-2 border-t-2 border-black">
-            <span className="font-bold text-lg">Total</span>
+            <span className="font-bold text-lg">{t('invoice.total')}</span>
             <span className="font-bold text-lg">RM {order.total.toFixed(2)}</span>
           </div>
         </div>
@@ -73,7 +80,7 @@ export const PrintableInvoice = ({ order, businessDetails }: { order: Order, bus
       
       {/* Footer */}
       <div className="text-center text-sm text-gray-600 border-t pt-4">
-        <p>Thank you for your business!</p>
+        <p>{t('invoice.thank_you')}</p>
         <p>{businessDetails.name} | {businessDetails.email}</p>
       </div>
     </div>
