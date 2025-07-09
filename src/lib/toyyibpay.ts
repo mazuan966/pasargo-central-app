@@ -2,6 +2,8 @@
 'use server';
 
 import type { Order, User } from '@/lib/types';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
 const TOYYIBPAY_SECRET_KEY = 'frfiveec-jeex-kegd-xgwu-ryuzyuvy9qsl';
 const TOYYIBPAY_CATEGORY_CODE = 'k4lkdp9p';
@@ -10,8 +12,8 @@ const TOYYIBPAY_API_URL = 'https://toyyibpay.com';
 
 export async function createToyyibpayBill(order: Order, user: User): Promise<{ billCode: string; paymentUrl: string }> {
 
-    if (!TOYYIBPAY_SECRET_KEY || !TOYYIBPAY_CATEGORY_CODE || !APP_URL) {
-        throw new Error("Toyyibpay credentials or App URL are not configured on the server.");
+    if (!TOYYIBPAY_SECRET_KEY || !TOYYIBPAY_CATEGORY_CODE || !APP_URL || !db) {
+        throw new Error("Toyyibpay credentials, App URL, or database are not configured on the server.");
     }
 
     const billAmount = Math.round(order.total * 100); // Amount in cents
@@ -26,7 +28,7 @@ export async function createToyyibpayBill(order: Order, user: User): Promise<{ b
         'billAmount': String(billAmount),
         'billReturnUrl': `${APP_URL}/payment/status`,
         'billCallbackUrl': `${APP_URL}/api/toyyibpay/callback`,
-        'billExternalReferenceNo': order.id, // Use the Firestore Document ID for reliable lookup
+        'billExternalReferenceNo': order.id, // Use the Firestore Document ID for the redirect URL
         'billTo': user.personInCharge || user.restaurantName,
         'billEmail': user.email,
         'billPhone': user.phoneNumber || '0123456789'
@@ -42,6 +44,11 @@ export async function createToyyibpayBill(order: Order, user: User): Promise<{ b
         
         if (response.ok && result && result[0] && result[0].BillCode) {
             const billCode = result[0].BillCode;
+            
+            // IMPORTANT: Save the billCode to the order for reliable callback lookup
+            const orderRef = doc(db, 'orders', order.id);
+            await updateDoc(orderRef, { toyyibpayBillCode: billCode });
+
             return {
                 billCode,
                 paymentUrl: `${TOYYIBPAY_API_URL}/${billCode}`

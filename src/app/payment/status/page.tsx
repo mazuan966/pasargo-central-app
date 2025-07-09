@@ -2,81 +2,34 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, Suspense, useState, useTransition } from 'react';
+import { useEffect, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import { confirmFpxPaymentAction } from '@/lib/actions';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 function PaymentStatusContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusId = searchParams.get('status_id');
-  const orderId = searchParams.get('order_id'); // Firestore doc ID
-
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const orderId = searchParams.get('order_id'); // This is the Firestore Doc ID for redirect purposes.
 
   useEffect(() => {
-    // This effect runs only once when the component mounts.
-    if (statusId === '1' && orderId) {
-      startTransition(async () => {
-        const result = await confirmFpxPaymentAction(orderId);
-        if (result.success) {
-          // On success, redirect to the printable invoice.
-          router.replace(`/print/invoice/${orderId}`);
-        } else {
-          setError(result.message || 'An unknown error occurred while confirming your order.');
-        }
-      });
+    // Redirect user to the relevant order page after 5 seconds.
+    // The actual order processing is handled by the server callback.
+    if (orderId) {
+      const timer = setTimeout(() => {
+        router.replace(`/orders/${orderId}`);
+      }, 5000); // 5-second delay before redirecting
+      return () => clearTimeout(timer);
     }
-  }, [statusId, orderId, router]);
-
-  if (isPending) {
-    return (
-      <Card className="w-full max-w-md text-center">
-        <CardHeader>
-          <div className="flex justify-center mb-4">
-            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          </div>
-          <CardTitle className="text-2xl">Confirming Payment...</CardTitle>
-          <CardDescription>
-            Please wait, we are confirming your payment and preparing your notifications.
-            <br/>
-            <strong>Do not close this window.</strong>
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-        <Card className="w-full max-w-md text-center">
-            <CardHeader>
-            <div className="flex justify-center mb-4"><XCircle className="h-16 w-16 text-destructive" /></div>
-            <CardTitle className="text-2xl">Confirmation Failed</CardTitle>
-            <Alert variant="destructive" className="text-left mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-            </Alert>
-            </CardHeader>
-            <CardContent>
-                <Button asChild>
-                    <Link href={orderId ? `/orders/${orderId}` : '/dashboard'}>Return to Order</Link>
-                </Button>
-            </CardContent>
-        </Card>
-    )
-  }
+  }, [orderId, router]);
 
   let title, description, icon;
-  
+
   if (statusId === '1') {
-    title = 'Payment Confirmed!';
-    description = "Your payment has been received. You will be redirected shortly...";
+    title = 'Payment Successful!';
+    description = "Your payment has been received. The order status will be updated shortly via a confirmation from the server. You will be redirected soon.";
     icon = <CheckCircle className="h-16 w-16 text-green-500" />;
   } else if (statusId === '2') {
     title = 'Payment Pending';
@@ -84,34 +37,34 @@ function PaymentStatusContent() {
     icon = <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />;
   } else {
     title = 'Payment Failed';
-    description = "There was a problem with your payment. Please try again.";
+    description = "There was a problem with your payment. Please try again or contact support.";
     icon = <XCircle className="h-16 w-16 text-destructive" />;
   }
 
   return (
     <Card className="w-full max-w-md text-center">
-        <CardHeader>
+      <CardHeader>
         <div className="flex justify-center mb-4">{icon}</div>
         <CardTitle className="text-2xl">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Button asChild>
-                <Link href={orderId ? `/orders/${orderId}` : '/dashboard'}>
-                View Your Order
-                </Link>
-            </Button>
-        </CardContent>
+      </CardHeader>
+      <CardContent>
+        <Button asChild>
+          <Link href={orderId ? `/orders/${orderId}` : '/dashboard'}>
+            Go to Order Details Now
+          </Link>
+        </Button>
+      </CardContent>
     </Card>
   );
 }
 
 export default function PaymentStatusPage() {
-    return (
-        <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-            <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-                <PaymentStatusContent />
-            </Suspense>
-        </main>
-    )
+  return (
+    <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+      <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+        <PaymentStatusContent />
+      </Suspense>
+    </main>
+  );
 }

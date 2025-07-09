@@ -128,9 +128,14 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             transaction.set(newOrderRef, newOrderData);
         });
 
+        const fullOrderData = await getDoc(newOrderRef).then(doc => ({ id: doc.id, ...doc.data() } as Order));
+
         // 5. Send notifications AFTER the transaction is successful, ONLY for COD
         if (paymentMethod === 'Cash on Delivery') {
            await sendOrderConfirmationNotifications(newOrderRef.id);
+        } else if (paymentMethod === 'FPX (Toyyibpay)') {
+            // For FPX, we immediately call initiatePaymentAction to get the redirect URL
+            await initiatePaymentAction(fullOrderData);
         }
 
         // 6. Revalidate paths to update caches
@@ -151,22 +156,13 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
 }
 
 
-export async function initiatePaymentAction(orderId: string) {
-    if (!db) throw new Error("Database not configured.");
-    
-    const orderRef = doc(db, 'orders', orderId);
-    const orderDoc = await getDoc(orderRef);
-
-    if (!orderDoc.exists()) {
-        throw new Error("Order not found.");
+export async function initiatePaymentAction(order: Order) {
+    if (!order.user) {
+        throw new Error("User data is missing from the order.");
     }
-    const order = { id: orderDoc.id, ...orderDoc.data() } as Order;
     
     // Create Toyyibpay Bill
     const { billCode, paymentUrl } = await createToyyibpayBill(order, order.user);
-
-    // Update order with bill code
-    await updateDoc(orderRef, { toyyibpayBillCode: billCode });
 
     // Redirect to payment gateway
     redirect(paymentUrl);
@@ -484,48 +480,3 @@ export async function sendOrderConfirmationNotifications(orderId: string): Promi
         return { success: false, message: e.message || "An unexpected error occurred." };
     }
 }
-
-export async function confirmFpxPaymentAction(orderId: string): Promise<{ success: boolean; message: string }> {
-    if (!db) {
-        return { success: false, message: 'Database not configured.' };
-    }
-    if (!orderId) {
-        return { success: false, message: 'Order ID is required.' };
-    }
-
-    try {
-        const orderRef = doc(db, 'orders', orderId);
-        const orderDoc = await getDoc(orderRef);
-
-        if (!orderDoc.exists()) {
-            throw new Error("Order not found during confirmation.");
-        }
-        
-        const orderData = orderDoc.data() as Order;
-
-        if (orderData.paymentStatus !== 'Paid') {
-            const newHistory = [...orderData.statusHistory, { status: 'Processing' as const, timestamp: new Date().toISOString() }];
-            await updateDoc(orderRef, {
-                paymentStatus: 'Paid',
-                status: 'Processing',
-                statusHistory: newHistory
-            });
-        }
-        
-        // This is the critical fix: we MUST await the notifications.
-        await sendOrderConfirmationNotifications(orderId);
-
-        revalidatePath(`/orders/${orderId}`);
-        revalidatePath(`/admin/dashboard/orders/${orderId}`);
-        revalidatePath('/dashboard');
-        revalidatePath('/admin/dashboard');
-
-        return { success: true, message: "Payment confirmed and notifications sent." };
-
-    } catch(e: any) {
-        console.error("FPX Confirmation Action Failed: ", e);
-        return { success: false, message: e.message || "An error occurred while confirming payment." };
-    }
-}
-
-    
