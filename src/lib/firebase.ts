@@ -3,12 +3,12 @@ import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC9mZlFclntOb_vF4msMjZcduSOETlRY6I",
-  authDomain: "pasargo-central.firebaseapp.com",
-  projectId: "pasargo-central",
-  storageBucket: "pasargo-central.firebasestorage.app",
-  messagingSenderId: "909679104927",
-  appId: "1:909679104927:web:632c43341dc54c1ac6a3aa"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 let app: FirebaseApp | undefined;
@@ -31,7 +31,7 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   // if the Firebase credentials are not provided.
   if (process.env.NODE_ENV !== 'production') {
     console.warn(
-      'Firebase config is missing or incomplete. Firebase services will be disabled.'
+      'Firebase config is missing or incomplete. Firebase services will be disabled. Check your .env file.'
     );
   }
 }
