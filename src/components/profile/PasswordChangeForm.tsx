@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +13,7 @@ import { Loader2 } from 'lucide-react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { useAuth } from '@/hooks/use-auth';
 import { auth } from '@/lib/firebase';
+import { useLanguage } from '@/context/LanguageProvider';
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Please enter your current password.' }),
@@ -28,6 +30,7 @@ export function PasswordChangeForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { currentUser } = useAuth();
+  const { t } = useLanguage();
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordFormSchema),
@@ -117,7 +120,7 @@ export function PasswordChangeForm() {
         />
         <Button type="submit" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Update Password
+          {t('profile.update_password_button')}
         </Button>
       </form>
     </Form>

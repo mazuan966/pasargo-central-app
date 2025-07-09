@@ -17,6 +17,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { amendOrderAction } from '@/lib/actions';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export function OrderAmendmentForm({ order }: { order: Order }) {
   const [amendedItems, setAmendedItems] = useState<CartItem[]>([]);
@@ -28,6 +29,7 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   const { updateOrder } = useOrders();
   const { userData } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const itemsJson = JSON.stringify(order.items);
 
@@ -64,13 +66,13 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
 
   const handleCancelAmendment = async () => {
     await updateOrder({ ...order, isEditable: false });
-    toast({ title: 'Amendment Cancelled', description: 'Your order has not been changed.' });
+    toast({ title: t('order_amendment.toast.cancelled_title'), description: t('order_amendment.toast.cancelled_description') });
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userData) {
-      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to amend an order.' });
+      toast({ variant: 'destructive', title: t('order_amendment.toast.error_title'), description: t('order_amendment.toast.error_description') });
       return;
     }
     
@@ -83,9 +85,9 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
     });
     
     if (result.success) {
-      toast({ title: "Order Updated Successfully!", description: result.message });
+      toast({ title: t('order_amendment.toast.updated_title'), description: result.message });
     } else {
-      toast({ variant: 'destructive', title: 'Update Failed', description: result.message });
+      toast({ variant: 'destructive', title: t('order_amendment.toast.failed_title'), description: result.message });
     }
     
     setIsPending(false);
@@ -127,14 +129,14 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
         <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
                 <Button type="button" variant="outline" disabled={isLoadingProducts}>
-                    {isLoadingProducts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} Add Item
+                    {isLoadingProducts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} {t('order_amendment.add_item_button')}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[300px] p-0" align="start">
                  <Command>
-                    <CommandInput placeholder="Search products..." />
+                    <CommandInput placeholder={t('order_amendment.search_placeholder')} />
                     <CommandList>
-                        <CommandEmpty>No products found.</CommandEmpty>
+                        <CommandEmpty>{t('order_amendment.no_products_found')}</CommandEmpty>
                         <CommandGroup>
                         {unlistedProducts.map((product) => (
                             <CommandItem key={product.id} value={product.name} onSelect={() => handleAddProduct(product)}>{product.name}</CommandItem>
@@ -159,9 +161,9 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
         </div>
         
         <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={handleCancelAmendment} disabled={isPending}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={handleCancelAmendment} disabled={isPending}>{t('order_amendment.cancel_button')}</Button>
             <Button type="submit" disabled={isPending || amendedItems.length === 0}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Changes
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {t('profile.save_button')}
             </Button>
         </div>
     </form>

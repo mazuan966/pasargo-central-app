@@ -1,17 +1,21 @@
+
 'use client';
 
 import { UserProfileForm } from '@/components/profile/UserProfileForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PasswordChangeForm } from '@/components/profile/PasswordChangeForm';
 import { Separator } from '@/components/ui/separator';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle>Your Profile</CardTitle>
-          <CardDescription>Update your account and restaurant details here.</CardDescription>
+          <CardTitle>{t('profile.title')}</CardTitle>
+          <CardDescription>{t('profile.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <UserProfileForm />
@@ -20,8 +24,8 @@ export default function ProfilePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>Leave these fields blank to keep your current password.</CardDescription>
+          <CardTitle>{t('profile.change_password_title')}</CardTitle>
+          <CardDescription>{t('profile.change_password_description')}</CardDescription>
         </CardHeader>
         <CardContent>
             <PasswordChangeForm />

@@ -96,11 +96,11 @@ export default function CheckoutPage() {
   
   const handlePlaceOrder = async () => {
     if (!deliveryDate || !deliveryTime) {
-      toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select delivery details.' });
+      toast({ variant: 'destructive', title: t('checkout.toast.missing_info_title'), description: t('checkout.toast.missing_info_description') });
       return;
     }
     if (!userData) {
-      toast({ variant: 'destructive', title: 'Error', description: 'User not logged in.' });
+      toast({ variant: 'destructive', title: t('checkout.toast.error_title'), description: t('checkout.toast.error_description') });
       return;
     }
 
@@ -126,11 +126,11 @@ export default function CheckoutPage() {
         window.location.href = result.paymentUrl;
       } else {
         // Handle COD success
-        toast({ title: 'Success!', description: result.message });
+        toast({ title: t('checkout.toast.success_title'), description: result.message });
         router.push(result.orderId ? `/orders/${result.orderId}` : '/orders');
       }
     } else {
-      toast({ variant: 'destructive', title: 'Order Failed', description: result.message });
+      toast({ variant: 'destructive', title: t('checkout.toast.failed_title'), description: result.message });
       setIsPlacingOrder(false);
     }
   };

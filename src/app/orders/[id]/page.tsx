@@ -17,6 +17,7 @@ import { OrderAmendmentForm } from '@/components/orders/OrderAmendmentForm';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLanguage } from '@/context/LanguageProvider';
 
 type EInvoiceFormState = {
     success: boolean;
@@ -28,6 +29,7 @@ type EInvoiceFormState = {
 
 function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
     const [isMounted, setIsMounted] = useState(false);
+    const { t } = useLanguage();
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -35,8 +37,8 @@ function EInvoiceDisplay({ eInvoice }: { eInvoice: EInvoice }) {
     return (
         <Card>
             <CardHeader>
-            <CardTitle>E-Invoice Details</CardTitle>
-            <CardDescription>This invoice has been validated by LHDN.</CardDescription>
+            <CardTitle>{t('order_details.e_invoice_title')}</CardTitle>
+            <CardDescription>{t('order_details.e_invoice_description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
             <p><strong>Invoice ID:</strong> {eInvoice.invoiceId}</p>
@@ -61,6 +63,7 @@ function EInvoiceGenerator({ order }: { order: Order }) {
   const [isPending, startTransition] = useTransition();
   const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
       const fetchBusinessDetails = async () => {
@@ -101,8 +104,8 @@ function EInvoiceGenerator({ order }: { order: Order }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Generate E-Invoice</CardTitle>
-        <CardDescription>Submit this order to LHDN for e-invoice validation.</CardDescription>
+        <CardTitle>{t('order_details.generate_e_invoice_title')}</CardTitle>
+        <CardDescription>{t('order_details.generate_e_invoice_description')}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={async (event) => {
@@ -148,6 +151,7 @@ function EInvoiceGenerator({ order }: { order: Order }) {
 export default function OrderDetailsPage() {
   const params = useParams<{ id: string }>();
   const { orders } = useOrders();
+  const { t } = useLanguage();
 
   const order = useMemo(() => orders.find(o => o.id === params.id), [orders, params.id]);
 
@@ -172,14 +176,14 @@ export default function OrderDetailsPage() {
         <Button asChild variant="outline" size="sm" className="mb-4">
           <Link href="/orders" className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              Back to Orders
+              {t('order_details.back_button')}
           </Link>
         </Button>
         <div className="flex items-center gap-2">
             <Button asChild variant="outline">
               <Link href={`/print/invoice/${order.id}`} target="_blank">
                 <Printer className="mr-2 h-4 w-4" />
-                Print Invoice
+                {t('order_details.print_invoice_button')}
               </Link>
             </Button>
         </div>
@@ -188,8 +192,8 @@ export default function OrderDetailsPage() {
       {order.isEditable && (
         <Card>
           <CardHeader>
-            <CardTitle>Amend Your Order</CardTitle>
-            <CardDescription>You can add, remove, or change quantities. Click "Save Changes" when you're done.</CardDescription>
+            <CardTitle>{t('order_details.amend_order_title')}</CardTitle>
+            <CardDescription>{t('order_details.amend_order_description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <OrderAmendmentForm order={order} />
@@ -205,11 +209,11 @@ export default function OrderDetailsPage() {
       {(order.status === 'Delivered' || order.status === 'Completed') && (
         <Card>
             <CardHeader>
-                <CardTitle>Delivery Verification</CardTitle>
+                <CardTitle>{t('order_details.delivery_verification_title')}</CardTitle>
                 <CardDescription>
                     {order.deliveryVerification 
-                        ? 'Verification has been completed for this order.'
-                        : 'Please upload a photo of the signed receipt to complete the order.'}
+                        ? t('order_details.delivery_verification_description_completed')
+                        : t('order_details.delivery_verification_description_pending')}
                 </CardDescription>
             </CardHeader>
             <CardContent>

@@ -26,16 +26,16 @@ export default function ProductCard({ product }: { product: Product }) {
     if (quantity <= 0) {
       toast({
         variant: 'destructive',
-        title: 'Invalid Quantity',
-        description: 'Please enter a quantity greater than 0.',
+        title: t('toast.invalid_quantity_title'),
+        description: t('toast.invalid_quantity_description'),
       });
       return;
     }
      if (quantity > availableStock) {
       toast({
         variant: 'destructive',
-        title: 'Not enough stock!',
-        description: `You can only add ${availableStock} more of ${getTranslated(product, 'name')}.`,
+        title: t('toast.not_enough_stock_title'),
+        description: t('toast.not_enough_stock_description', { stock: availableStock, name: getTranslated(product, 'name') }),
       });
       return;
     }

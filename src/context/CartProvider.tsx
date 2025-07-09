@@ -1,8 +1,10 @@
+
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import type { CartItem, Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from './LanguageProvider';
 
 const SST_RATE = 0.06;
 const CART_STORAGE_KEY = 'pasargo-cart';
@@ -24,6 +26,7 @@ export const CartContext = createContext<CartContextType | undefined>(undefined)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { toast } = useToast();
+  const { t, getTranslated } = useLanguage();
 
   // Load cart from localStorage on initial client-side render.
   useEffect(() => {
@@ -56,8 +59,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (!silent) {
             toast({
                 variant: 'destructive',
-                title: 'Not enough stock!',
-                description: `Cannot add ${quantity} more of ${product.name}. Only ${product.stock} available in total.`,
+                title: t('toast.not_enough_stock_title'),
+                description: t('toast.not_enough_stock_description', { stock: product.stock, name: getTranslated(product, 'name') }),
             });
         }
         return; // Exit without changing state
@@ -65,8 +68,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     
     if (!silent) {
       toast({
-        title: 'Added to Cart',
-        description: `${quantity} x ${product.name}`,
+        title: t('toast.added_to_cart_title'),
+        description: `${quantity} x ${getTranslated(product, 'name')}`,
       });
     }
 
@@ -87,7 +90,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const removeFromCart = (productId: string) => {
     setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
     toast({
-      title: 'Removed from Cart',
+      title: t('toast.removed_from_cart_title'),
     });
   };
 
@@ -102,8 +105,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (itemToUpdate && quantity > itemToUpdate.stock) {
         toast({
             variant: 'destructive',
-            title: 'Not enough stock!',
-            description: `Only ${itemToUpdate.stock} of ${itemToUpdate.name} available.`,
+            title: t('toast.not_enough_stock_title'),
+            description: t('toast.not_enough_stock_description', { stock: itemToUpdate.stock, name: getTranslated(itemToUpdate, 'name') }),
         });
         // Revert quantity to max available stock
         setCartItems(prevItems =>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '../ui/skeleton';
+import { useLanguage } from '@/context/LanguageProvider';
 
 const profileFormSchema = z.object({
   restaurantName: z.string().min(1, { message: 'Restaurant name is required.' }),
@@ -62,6 +64,7 @@ export function UserProfileForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { userData, currentUser, loading } = useAuth();
+  const { t } = useLanguage();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -201,7 +204,7 @@ export function UserProfileForm() {
         </div>
         <Button type="submit" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save Changes
+          {t('profile.save_button')}
         </Button>
       </form>
     </Form>

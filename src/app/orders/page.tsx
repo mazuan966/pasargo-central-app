@@ -6,18 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useOrders } from '@/hooks/use-orders';
 import { useAuth } from '@/hooks/use-auth';
 import type { Order } from '@/lib/types';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export default function OrdersPage() {
   const { orders } = useOrders();
   const { currentUser } = useAuth();
+  const { t } = useLanguage();
   
   const userOrders = orders;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">Your Orders</CardTitle>
-        <CardDescription>View your order history and track current deliveries.</CardDescription>
+        <CardTitle className="font-headline text-2xl">{t('orders.title')}</CardTitle>
+        <CardDescription>{t('orders.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="divide-y">
@@ -26,7 +28,7 @@ export default function OrdersPage() {
                     <OrderListItem key={order.id} order={order} />
                 ))
             ) : (
-                <p className="text-center text-muted-foreground py-12">You haven&apos;t placed any orders yet.</p>
+                <p className="text-center text-muted-foreground py-12">{t('orders.no_orders')}</p>
             )}
         </div>
       </CardContent>
