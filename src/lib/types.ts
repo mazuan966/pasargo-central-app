@@ -12,6 +12,10 @@ export interface Product {
   stock: number;
   "data-ai-hint"?: string;
   hasSst?: boolean;
+  name_ms?: string;
+  description_ms?: string;
+  name_th?: string;
+  description_th?: string;
 }
 
 export interface CartItem extends Product {

@@ -38,6 +38,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, FirestoreError 
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { StockManager } from '@/components/admin/StockManager';
 import { ProductImporter } from '@/components/admin/ProductImporter';
+import { translateProduct } from '@/ai/flows/translate-product-flow';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -113,21 +114,37 @@ export default function AdminProductsPage() {
       return;
     }
 
+    let docRef;
+
     if (selectedProduct) {
       // Edit
-      const productRef = doc(db, 'products', data.id);
-      await updateDoc(productRef, { ...data });
+      docRef = doc(db, 'products', data.id);
+      await updateDoc(docRef, { ...data });
       setProducts(products.map((p) => (p.id === data.id ? data : p)));
       toast({ title: 'Product Updated', description: `${data.name} has been updated.` });
     } else {
       // Add
       const { id, ...newProductData } = data;
-      const docRef = await addDoc(collection(db, 'products'), newProductData);
+      docRef = await addDoc(collection(db, 'products'), newProductData);
       setProducts([{ ...newProductData, id: docRef.id } as Product, ...products]);
       toast({ title: 'Product Added', description: `${data.name} has been created.` });
     }
+    
     setIsFormOpen(false);
     setSelectedProduct(undefined);
+
+    // After saving, trigger the AI translation
+    try {
+      toast({ title: 'Translating product...', description: 'AI is generating translations for Malay and Thai.' });
+      const translations = await translateProduct({ name: data.name, description: data.description });
+      await updateDoc(docRef, translations);
+      toast({ title: 'Translation Successful', description: 'Product has been translated.' });
+      // Refresh local data with translations
+      fetchProducts();
+    } catch (error) {
+      console.error("Translation error:", error);
+      toast({ title: 'Translation Failed', description: 'Could not translate product details.', variant: 'destructive' });
+    }
   };
 
   const handleStockUpdate = async (productId: string, quantityToAdd: number) => {
