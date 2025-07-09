@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ const statusBadgeVariants = cva(
   {
     variants: {
       status: {
+        'Awaiting Payment': "bg-gray-200 text-gray-800 hover:bg-gray-300",
         'Order Created': "bg-yellow-200 text-yellow-800 hover:bg-yellow-300",
         Processing: "bg-blue-200 text-blue-800 hover:bg-blue-300",
         'Pick Up': "bg-indigo-200 text-indigo-800 hover:bg-indigo-300",
@@ -26,6 +28,9 @@ const statusBadgeVariants = cva(
 )
 
 export function OrderListItem({ order }: { order: Order }) {
+  const isAwaitingPayment = order.status === 'Awaiting Payment';
+  const buttonLink = isAwaitingPayment ? `/payment/${order.id}` : `/orders/${order.id}`;
+  const buttonText = isAwaitingPayment ? 'Complete Payment' : 'View Details';
 
   return (
     <div className="py-4 px-2 hover:bg-muted/50 rounded-lg transition-colors">
@@ -58,8 +63,8 @@ export function OrderListItem({ order }: { order: Order }) {
         </div>
 
         <Button asChild variant="outline" size="sm">
-          <Link href={`/orders/${order.id}`}>
-            View Details
+          <Link href={buttonLink}>
+            {buttonText}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>

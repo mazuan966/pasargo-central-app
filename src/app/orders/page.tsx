@@ -1,3 +1,4 @@
+
 'use client';
 
 import { OrderListItem } from '@/components/orders/OrderListItem';
@@ -10,7 +11,7 @@ export default function OrdersPage() {
   const { orders } = useOrders();
   const { currentUser } = useAuth();
   
-  const userOrders = orders.filter(order => order.status !== 'Awaiting Payment');
+  const userOrders = orders;
 
   return (
     <Card>

@@ -3,7 +3,7 @@
 
 import { verifyDeliveryPhoto } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
-import { EInvoiceInputSchema, type Order, type CartItem, type User, type BusinessDetails, type PaymentMethod } from '@/lib/types';
+import { EInvoiceInputSchema, type Order, type CartItem, type User, type BusinessDetails, type PaymentMethod, type OrderStatus } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc } from 'firebase/firestore';
@@ -15,7 +15,7 @@ const SST_RATE = 0.06;
 
 async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     const adminPhoneNumber = '60163864181'; // Hardcoded admin number
-    const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
+    const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app/';
 
     const itemsSummary = updatedOrder.items.map(item => {
         let statusTag = '';
@@ -106,42 +106,44 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             newOrderNumber = `PA${numberPart}${datePart}`;
 
             // 3. Create the new order object
+            const status: OrderStatus = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Order Created';
+            const paymentStatus: Order['paymentStatus'] = 'Pending Payment';
+
             const newOrderData: Omit<Order, 'id'> = {
                 orderNumber: newOrderNumber,
                 user: userData,
                 items: items.map(item => ({ productId: item.id, name: item.name, quantity: item.quantity, price: item.price, unit: item.unit, hasSst: !!item.hasSst, amendmentStatus: 'original' })),
                 subtotal, sst, total,
-                status: 'Order Created',
-                paymentStatus: 'Pending Payment',
-                paymentMethod: paymentMethod,
+                status,
+                paymentStatus,
+                paymentMethod,
                 orderDate: new Date().toISOString(),
                 deliveryDate, deliveryTimeSlot,
-                statusHistory: [{ status: 'Order Created', timestamp: new Date().toISOString() }],
+                statusHistory: [{ status, timestamp: new Date().toISOString() }],
             };
             
             // 4. Set the new order in the transaction
             transaction.set(newOrderRef, newOrderData);
         });
 
-        // 5. Send notifications AFTER the transaction is successful, only for COD
+        // 5. Send notifications AFTER the transaction is successful, ONLY for COD
         if (paymentMethod === 'Cash on Delivery') {
             const testPhoneNumber = '60163864181';
-            const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
+            const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app/';
 
-            const invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}`;
-            const poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}`;
+            let invoiceMessageSection = '';
+            let poMessageSection = '';
+
+            if (appUrl) {
+                invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${appUrl}print/invoice/${newOrderRef.id}`;
+                poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}admin/print/po/${newOrderRef.id}`;
+            }
             
             const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
-            const userResult = await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+            await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
 
             const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber!}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
-            const adminResult = await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
-
-            if (!userResult.success || !adminResult.success) {
-                const errors = [!userResult.success && `User Msg: ${userResult.error}`, !adminResult.success && `Admin Msg: ${adminResult.error}`].filter(Boolean).join('; ');
-                // Still return success for order creation, but with a warning message.
-                return { success: true, message: `Order created, but one or more notifications failed: ${errors}`, orderId: newOrderRef.id };
-            }
+            await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
         }
 
         // 6. Revalidate paths to update caches
@@ -149,10 +151,14 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         revalidatePath('/dashboard');
         revalidatePath(`/orders/${newOrderRef.id}`);
 
-        return { success: true, message: 'Order created successfully! A confirmation has been sent via WhatsApp.', orderId: newOrderRef.id };
+        const message = paymentMethod === 'Cash on Delivery'
+            ? 'Order created successfully! A confirmation has been sent via WhatsApp.'
+            : 'Order created. Please proceed to payment.';
+
+        return { success: true, message, orderId: newOrderRef.id };
 
     } catch (e: any) {
-        console.error("COD Order failed: ", e);
+        console.error("Order failed: ", e);
         return { success: false, message: e.message || "Failed to process order." };
     }
 }

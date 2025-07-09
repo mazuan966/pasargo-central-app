@@ -101,13 +101,6 @@ export default function CheckoutPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'User not logged in.' });
       return;
     }
-    if (paymentMethod === 'FPX (Toyyibpay)') {
-        toast({
-            title: 'Coming Soon',
-            description: 'FPX payment is not yet available. Please select Cash on Delivery.',
-        });
-        return;
-    }
 
     setIsPlacingOrder(true);
     
@@ -123,10 +116,15 @@ export default function CheckoutPage() {
     });
 
     if (result.success && result.orderId) {
-      toast({ title: 'Success!', description: result.message });
       clearCart();
       localStorage.removeItem('amendmentInfo');
-      router.push(`/orders/${result.orderId}`);
+      
+      if (paymentMethod === 'FPX (Toyyibpay)') {
+        router.push(`/payment/${result.orderId}`);
+      } else {
+        toast({ title: 'Success!', description: result.message });
+        router.push(`/orders/${result.orderId}`);
+      }
     } else {
       toast({ variant: 'destructive', title: 'Order Failed', description: result.message });
       setIsPlacingOrder(false);
@@ -194,7 +192,7 @@ export default function CheckoutPage() {
                     <PopoverTrigger asChild>
                       <Button id="delivery-date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")} disabled={!!amendmentInfo}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {deliveryDate ? format(deliveryDate, "PPP") : <span>Pick a date</span>}
+                        {deliveryDate ? format(deliveryDate, "dd/MM/yyyy") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={deliveryDate} onSelect={setDeliveryDate} disabled={(date) => date < minDate || !!amendmentInfo} initialFocus /></PopoverContent>
