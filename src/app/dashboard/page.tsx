@@ -26,7 +26,7 @@ export default function DashboardPage() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const { getTranslated } = useLanguage();
+  const { getTranslated, t } = useLanguage();
 
   useEffect(() => {
     if (!db) {
@@ -77,7 +77,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
         <div>
-            <h1 className="text-3xl font-headline font-bold">Welcome to your Dashboard</h1>
+            <h1 className="text-3xl font-headline font-bold">{t('dashboard.welcome')}</h1>
         </div>
 
         {dbError && (
@@ -93,12 +93,12 @@ export default function DashboardPage() {
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-x-4">
                 <div>
-                    <CardTitle className="font-headline text-2xl">Action Required</CardTitle>
-                    <CardDescription>Orders that are processing or pending payment.</CardDescription>
+                    <CardTitle className="font-headline text-2xl">{t('dashboard.action_required')}</CardTitle>
+                    <CardDescription>{t('dashboard.action_required_desc')}</CardDescription>
                 </div>
                 <Button asChild variant="outline" size="sm">
                     <Link href="/orders">
-                        View All Orders
+                        {t('dashboard.view_all_orders')}
                         <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                 </Button>
@@ -111,18 +111,18 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-muted-foreground text-center py-8">{!dbError ? "You have no orders requiring attention." : "Order data is unavailable."}</p>
+                    <p className="text-muted-foreground text-center py-8">{!dbError ? t('dashboard.no_actions') : "Order data is unavailable."}</p>
                 )}
             </CardContent>
         </Card>
 
         <div>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                <h2 className="text-2xl font-headline font-bold">Products</h2>
+                <h2 className="text-2xl font-headline font-bold">{t('dashboard.products')}</h2>
                 <div className="relative w-full md:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search products..."
+                        placeholder={t('dashboard.search_products')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10"

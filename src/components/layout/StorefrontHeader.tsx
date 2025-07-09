@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/hooks/use-cart';
 import React from 'react';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export function StorefrontHeader() {
   const { cartCount } = useCart();
+  const { t } = useLanguage();
   
   // To avoid hydration mismatch, we only render the badge on the client.
   const [isMounted, setIsMounted] = React.useState(false);
@@ -44,7 +46,7 @@ export function StorefrontHeader() {
         </Button>
         {isMounted && <LanguageSwitcher />}
         <Button asChild>
-          <Link href="/login">Login / Sign Up</Link>
+          <Link href="/login">{t('header.login_signup')}</Link>
         </Button>
       </div>
     </header>

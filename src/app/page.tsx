@@ -44,7 +44,7 @@ export default function Home() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const { getTranslated } = useLanguage();
+  const { getTranslated, t } = useLanguage();
 
   useEffect(() => {
     if (!db) {
@@ -91,15 +91,15 @@ export default function Home() {
       <StorefrontHeader />
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-2 mb-8">
-            <h1 className="text-3xl lg:text-4xl font-headline font-bold">Fresh Supplies, Delivered.</h1>
-            <p className="text-lg text-muted-foreground">Browse our selection of fresh products and quality groceries for your restaurant or cafe.</p>
+            <h1 className="text-3xl lg:text-4xl font-headline font-bold">{t('home.title')}</h1>
+            <p className="text-lg text-muted-foreground">{t('home.subtitle')}</p>
         </div>
 
         <div className="flex flex-col gap-4 mb-8">
             <div className="relative flex-grow">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
-                    placeholder="Search for products by name..."
+                    placeholder={t('home.search_placeholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-12 h-12 text-base"
@@ -139,8 +139,8 @@ export default function Home() {
         ) : !dbError ? (
           <div className="text-center py-20 border-dashed border-2 rounded-lg bg-muted/50">
             <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground" />
-            <h2 className="mt-4 text-2xl font-semibold">No Products Found</h2>
-            <p className="mt-2 text-muted-foreground">Try adjusting your search or category filters.</p>
+            <h2 className="mt-4 text-2xl font-semibold">{t('home.no_products_title')}</h2>
+            <p className="mt-2 text-muted-foreground">{t('home.no_products_subtitle')}</p>
           </div>
         ) : null}
       </main>

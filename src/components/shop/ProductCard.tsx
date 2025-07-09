@@ -14,7 +14,7 @@ import { useLanguage } from '@/context/LanguageProvider';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart, cartItems } = useCart();
-  const { getTranslated } = useLanguage();
+  const { getTranslated, t } = useLanguage();
   const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
 
@@ -63,7 +63,7 @@ export default function ProductCard({ product }: { product: Product }) {
         <p className="text-xl font-semibold text-primary">RM {product.price.toFixed(2)} / {product.unit}</p>
         <p className="text-xs text-muted-foreground">{product.category}</p>
         <p className={`text-sm mt-2 font-medium ${product.stock > 5 ? 'text-green-600' : 'text-amber-600'} ${product.stock === 0 ? 'text-destructive' : ''}`}>
-          {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+          {product.stock > 0 ? t('product.in_stock', { count: product.stock }) : t('product.out_of_stock')}
         </p>
       </CardContent>
       <CardFooter className="p-4 pt-0">
@@ -80,7 +80,7 @@ export default function ProductCard({ product }: { product: Product }) {
             />
             <Button className="w-full" onClick={handleAddToCart} disabled={availableStock <= 0}>
                 <ShoppingCart className="mr-2 h-4 w-4" />
-                {availableStock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                {availableStock > 0 ? t('product.add_to_cart') : t('product.out_of_stock')}
             </Button>
         </div>
       </CardFooter>

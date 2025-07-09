@@ -46,7 +46,7 @@ const timeSlots = [
 
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
-  const { getTranslated } = useLanguage();
+  const { getTranslated, t } = useLanguage();
   const { userData, loading: isAuthLoading } = useAuth();
   
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
@@ -146,15 +146,13 @@ export default function CheckoutPage() {
   
   return (
     <div className="container mx-auto max-w-4xl py-8">
-      <h1 className="text-3xl font-headline font-bold mb-6">{amendmentInfo ? 'Amend Your Order' : 'Checkout'}</h1>
+      <h1 className="text-3xl font-headline font-bold mb-6">{amendmentInfo ? t('checkout.amend_order_title') : t('checkout.title')}</h1>
       
       {amendmentInfo && (
           <Alert className="mb-6 bg-blue-50 border-blue-200 text-blue-800">
               <Info className="h-4 w-4 !text-blue-800" />
-              <AlertTitle>Order Amendment</AlertTitle>
-              <AlertDescription>
-                  You are amending order <strong>#{amendmentInfo.originalOrderNumber}</strong>. The changes will be delivered with your original order.
-              </AlertDescription>
+              <AlertTitle>{t('checkout.amendment_alert_title')}</AlertTitle>
+              <AlertDescription dangerouslySetInnerHTML={{ __html: t('checkout.amendment_alert_desc', { orderNumber: amendmentInfo.originalOrderNumber }) }} />
           </Alert>
       )}
 
@@ -162,7 +160,7 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <Card>
-              <CardHeader><CardTitle>Order Summary</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t('cart.summary_title')}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {cartItems.map(item => (
@@ -175,10 +173,10 @@ export default function CheckoutPage() {
                     </div>
                   ))}
                   <Separator />
-                  <div className="flex justify-between"><p>Subtotal</p><p>RM {cartSubtotal.toFixed(2)}</p></div>
-                  <div className="flex justify-between"><p>SST (6%)</p><p>RM {cartSst.toFixed(2)}</p></div>
+                  <div className="flex justify-between"><p>{t('cart.subtotal')}</p><p>RM {cartSubtotal.toFixed(2)}</p></div>
+                  <div className="flex justify-between"><p>{t('cart.sst')}</p><p>RM {cartSst.toFixed(2)}</p></div>
                   <Separator />
-                  <div className="flex justify-between font-bold text-lg"><p>Total</p><p>RM {cartTotal.toFixed(2)}</p></div>
+                  <div className="flex justify-between font-bold text-lg"><p>{t('cart.total')}</p><p>RM {cartTotal.toFixed(2)}</p></div>
                 </div>
               </CardContent>
             </Card>
@@ -186,28 +184,28 @@ export default function CheckoutPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Delivery Schedule</CardTitle>
-                <CardDescription>{amendmentInfo ? 'Your delivery is scheduled for:' : 'Select your preferred delivery date and time.'}</CardDescription>
+                <CardTitle>{t('checkout.delivery_schedule_title')}</CardTitle>
+                <CardDescription>{amendmentInfo ? 'Your delivery is scheduled for:' : t('checkout.delivery_schedule_desc')}</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="delivery-date">Delivery Date</Label>
+                  <Label htmlFor="delivery-date">{t('checkout.delivery_date')}</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button id="delivery-date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")} disabled={!!amendmentInfo}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {deliveryDate ? format(deliveryDate, "dd/MM/yyyy") : <span>Pick a date</span>}
+                        {deliveryDate ? format(deliveryDate, "dd/MM/yyyy") : <span>{t('checkout.pick_a_date')}</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={deliveryDate} onSelect={setDeliveryDate} disabled={(date) => date < minDate || !!amendmentInfo} initialFocus /></PopoverContent>
                   </Popover>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="delivery-time">Delivery Time Slot</Label>
+                  <Label htmlFor="delivery-time">{t('checkout.delivery_time')}</Label>
                    {amendmentInfo ? ( <Select value={deliveryTime} onValueChange={setDeliveryTime} disabled><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value={deliveryTime}>{deliveryTime}</SelectItem></SelectContent></Select> ) : (
                       <Select value={deliveryTime} onValueChange={setDeliveryTime}>
                         <SelectTrigger id="delivery-time">
-                          <SelectValue placeholder="Select a time slot" />
+                          <SelectValue placeholder={t('checkout.select_time')} />
                         </SelectTrigger>
                         <SelectContent>
                           {timeSlots.map(slot => (
@@ -221,8 +219,8 @@ export default function CheckoutPage() {
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle>Payment Method</CardTitle>
-                    <CardDescription>Choose how you'd like to pay.</CardDescription>
+                    <CardTitle>{t('checkout.payment_method_title')}</CardTitle>
+                    <CardDescription>{t('checkout.payment_method_desc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <RadioGroup 
@@ -234,16 +232,16 @@ export default function CheckoutPage() {
                             <RadioGroupItem value="Cash on Delivery" id="cod" />
                             <Truck className="h-6 w-6" />
                             <div>
-                                <p className="font-semibold">Cash on Delivery (COD)</p>
-                                <p className="text-sm text-muted-foreground">Pay with cash upon delivery.</p>
+                                <p className="font-semibold">{t('checkout.cod_title')}</p>
+                                <p className="text-sm text-muted-foreground">{t('checkout.cod_desc')}</p>
                             </div>
                         </Label>
                         <Label htmlFor="fpx" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
                             <RadioGroupItem value="FPX (Toyyibpay)" id="fpx" />
                             <CreditCard className="h-6 w-6" />
                             <div>
-                                <p className="font-semibold">FPX Payment (Toyyibpay)</p>
-                                <p className="text-sm text-muted-foreground">Pay securely via online banking.</p>
+                                <p className="font-semibold">{t('checkout.fpx_title')}</p>
+                                <p className="text-sm text-muted-foreground">{t('checkout.fpx_desc')}</p>
                             </div>
                         </Label>
                     </RadioGroup>
@@ -251,7 +249,7 @@ export default function CheckoutPage() {
             </Card>
              <Button onClick={handlePlaceOrder} disabled={isPlacingOrder || !deliveryDate || !deliveryTime || isAuthLoading} className="w-full mt-6">
                 {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isPlacingOrder ? 'Processing...' : (amendmentInfo ? 'Confirm Amendment' : 'Place Order')}
+                {isPlacingOrder ? t('checkout.processing') : (amendmentInfo ? t('checkout.confirm_amendment') : t('checkout.place_order'))}
             </Button>
           </div>
         </div>

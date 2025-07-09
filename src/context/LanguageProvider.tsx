@@ -1,7 +1,8 @@
 
 'use client';
 
-import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
+import translations from '@/lib/translations';
 
 export type Language = 'en' | 'ms' | 'th';
 
@@ -9,6 +10,7 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (language: Language) => void;
   getTranslated: (item: any, field: string) => string;
+  t: (key: string, replacements?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -48,10 +50,21 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return translatedField || baseField || '';
   };
 
+  const t = useCallback((key: string, replacements?: Record<string, string | number>): string => {
+    let translation = translations[language][key] || translations['en'][key] || key;
+    if (replacements) {
+        Object.keys(replacements).forEach(replaceKey => {
+            translation = translation.replace(`{${replaceKey}}`, String(replacements[replaceKey]));
+        });
+    }
+    return translation;
+  }, [language]);
+
   const value = {
     language,
     setLanguage: handleSetLanguage,
     getTranslated,
+    t,
   };
 
   return (
