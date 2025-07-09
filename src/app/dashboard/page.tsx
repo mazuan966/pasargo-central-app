@@ -16,6 +16,7 @@ import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export default function DashboardPage() {
   const { orders } = useOrders();
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const { getTranslated } = useLanguage();
 
   useEffect(() => {
     if (!db) {
@@ -67,10 +69,10 @@ export default function DashboardPage() {
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
       const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = getTranslated(product, 'name').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, searchTerm, selectedCategory, getTranslated]);
 
   return (
     <div className="space-y-8">

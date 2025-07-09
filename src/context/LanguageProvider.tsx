@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 
 export type Language = 'en' | 'ms' | 'th';
 
@@ -29,16 +29,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const handleSetLanguage = useCallback((lang: Language) => {
+  const handleSetLanguage = (lang: Language) => {
     setLanguage(lang);
     try {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
     } catch (error)      {
         console.error("Failed to save language to localStorage", error);
     }
-  }, []);
+  };
   
-  const getTranslated = useCallback((item: any, field: string): string => {
+  const getTranslated = (item: any, field: string): string => {
     if (!item) return '';
     const baseField = item[field]; // e.g., item['name']
     if (language === 'en') {
@@ -46,13 +46,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
     const translatedField = item[`${field}_${language}`]; // e.g., item['name_th']
     return translatedField || baseField || '';
-  }, [language]);
+  };
 
-  const value = useMemo(() => ({
+  const value = {
     language,
     setLanguage: handleSetLanguage,
     getTranslated,
-  }), [language, handleSetLanguage, getTranslated]);
+  };
 
   return (
     <LanguageContext.Provider value={value}>
