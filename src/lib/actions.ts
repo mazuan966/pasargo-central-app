@@ -14,7 +14,7 @@ const SST_RATE = 0.06;
 
 async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     const adminPhoneNumber = '60163864181'; // Hardcoded admin number
-    const appUrl = process.env.APP_URL;
+    const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
     const itemsSummary = updatedOrder.items.map(item => {
         let statusTag = '';
@@ -122,7 +122,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         // 5. Send notifications AFTER the transaction is successful, only for COD
         if (paymentMethod === 'Cash on Delivery') {
             const testPhoneNumber = '60163864181';
-            const appUrl = process.env.APP_URL;
+            const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
             let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}` : '';
             let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
