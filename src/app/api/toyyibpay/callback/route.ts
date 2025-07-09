@@ -9,10 +9,20 @@ export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();
         
-        const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
         const billcode = formData.get('billcode') as string;
+        const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
+        const order_id_from_toyyibpay = formData.get('order_id') as string; // This is the Firestore Doc ID we sent.
         
-        if (!status || !billcode) {
+        // Log the incoming data for debugging
+        console.log('[Callback] Received data from Toyyibpay:', {
+            billcode,
+            status,
+            order_id: order_id_from_toyyibpay,
+            refno: formData.get('refno'),
+            reason: formData.get('reason'),
+        });
+        
+        if (!billcode || !status) {
              console.warn('[Callback] Received request with missing status or billcode.');
              // Return OK to Toyyibpay to prevent retries.
              return new Response('OK', { status: 200 }); 
