@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { confirmAndNotifyPaymentAction } from '@/lib/actions';
+import { sendOrderConfirmationNotifications } from '@/lib/actions';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import type { Order } from '@/lib/types';
 
 function PaymentStatusContent() {
   const searchParams = useSearchParams();
@@ -19,27 +22,51 @@ function PaymentStatusContent() {
   const [message, setMessage] = useState('Processing your payment...');
 
   useEffect(() => {
-    // This effect ensures the server action completes before redirecting.
     if (statusId === '1' && orderId) {
+      const confirmPayment = async () => {
         setIsProcessing(true);
         setMessage("Payment successful! Finalizing your order... Do not close this page.");
-        
-        confirmAndNotifyPaymentAction(orderId).then(result => {
-            if (result.success) {
-                // On success, redirect to the invoice after 1 second.
-                const timer = setTimeout(() => {
-                    router.replace(`/print/invoice/${orderId}`);
-                }, 1000); // Redirect after 1 second as requested.
-                return () => clearTimeout(timer);
-            } else {
-                // If the server action fails, show an error and stop processing.
-                setMessage(`Error: ${result.message}`);
-                setIsProcessing(false);
-            }
-        });
+
+        if (!db) {
+          setMessage("Error: Database connection failed.");
+          setIsProcessing(false);
+          return;
+        }
+
+        try {
+          // Perform the update directly on the client with user's auth
+          const orderRef = doc(db, 'orders', orderId);
+          const orderDoc = await getDoc(orderRef);
+
+          if (orderDoc.exists() && orderDoc.data().paymentStatus !== 'Paid') {
+            const orderData = orderDoc.data() as Order;
+            const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
+            
+            await updateDoc(orderRef, {
+              paymentStatus: 'Paid',
+              status: 'Processing',
+              statusHistory: newHistory
+            });
+            
+            // Now that the status is updated, trigger server-side notifications
+            await sendOrderConfirmationNotifications(orderId);
+          }
+
+          // Redirect after everything is done.
+          const timer = setTimeout(() => {
+            router.replace(`/print/invoice/${orderId}`);
+          }, 1000);
+          return () => clearTimeout(timer);
+
+        } catch (error: any) {
+          setMessage(`Error: ${error.message || 'Failed to confirm order.'}`);
+          setIsProcessing(false);
+        }
+      };
+      
+      confirmPayment();
     } else {
-        // Not a successful payment, no processing needed.
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   }, [statusId, orderId, router]);
 

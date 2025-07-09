@@ -465,38 +465,19 @@ export async function cancelAwaitingPaymentOrderAction(orderId: string): Promise
     }
 }
 
-
-export async function confirmAndNotifyPaymentAction(orderId: string): Promise<{ success: boolean; message: string }> {
-    if (!db) {
-        return { success: false, message: "Database not configured." };
-    }
-    if (!orderId) {
-        return { success: false, message: "Order ID is missing." };
-    }
-
-    const orderRef = doc(db, 'orders', orderId);
+// This action is now only for sending notifications after a successful payment.
+// The status update is handled on the client-side in /payment/status.
+export async function sendOrderConfirmationNotifications(orderId: string): Promise<{ success: boolean; message: string }> {
+    if (!db) return { success: false, message: "Database not configured." };
+    if (!orderId) return { success: false, message: "Order ID is missing." };
 
     try {
+        const orderRef = doc(db, 'orders', orderId);
         const orderDoc = await getDoc(orderRef);
-        if (!orderDoc.exists()) {
-            return { success: false, message: "Order not found." };
-        }
-        
+        if (!orderDoc.exists()) throw new Error("Order not found.");
+
         const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
 
-        // Idempotency check: if already paid, do nothing.
-        if (orderData.paymentStatus === 'Paid') {
-            return { success: true, message: "Order already confirmed." };
-        }
-        
-        // Update order status
-        const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
-        await updateDoc(orderRef, {
-            paymentStatus: 'Paid',
-            status: 'Processing',
-            statusHistory: newHistory
-        });
-        
         // Send notifications
         const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = orderData;
         const testPhoneNumber = '60163864181';
@@ -514,9 +495,9 @@ export async function confirmAndNotifyPaymentAction(orderId: string): Promise<{ 
         revalidatePath('/dashboard');
         revalidatePath('/admin/dashboard');
 
-        return { success: true, message: "Order confirmed and notifications sent." };
+        return { success: true, message: "Notifications sent." };
     } catch (e: any) {
-        console.error("Error confirming payment:", e);
+        console.error("Error sending notifications:", e);
         return { success: false, message: e.message || "An unexpected error occurred." };
     }
 }
