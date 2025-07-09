@@ -42,7 +42,7 @@ export function StorefrontHeader() {
                 <span className="sr-only">Shopping Cart</span>
             </Link>
         </Button>
-        <LanguageSwitcher />
+        {isMounted && <LanguageSwitcher />}
         <Button asChild>
           <Link href="/login">Login / Sign Up</Link>
         </Button>

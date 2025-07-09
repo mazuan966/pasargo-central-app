@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -69,6 +70,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const pathname = usePathname();
   const { cartCount } = useCart();
+  const [isMounted, setIsMounted] = React.useState(false);
+  
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     if (auth) {
@@ -163,7 +169,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           
           <div className="w-full flex-1" />
           <div className="flex items-center gap-2">
-            <LanguageSwitcher />
+            {isMounted && <LanguageSwitcher />}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="icon" className="rounded-full">
