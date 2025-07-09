@@ -9,7 +9,6 @@ import { db } from '@/lib/firebase';
 import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
-import { format } from 'date-fns';
 import { createToyyibpayBill } from '@/lib/toyyibpay';
 import { redirect } from 'next/navigation';
 
@@ -130,17 +129,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
 
         // 5. Send notifications AFTER the transaction is successful, ONLY for COD
         if (paymentMethod === 'Cash on Delivery') {
-            const testPhoneNumber = '60163864181';
-            const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app/';
-
-            const invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}`;
-            const poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}`;
-            
-            const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
-            await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
-
-            const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${newOrderNumber!}\n` + `*From:* ${userData.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
-            await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+           await sendOrderConfirmationNotifications(newOrderRef.id);
         }
 
         // 6. Revalidate paths to update caches
@@ -460,8 +449,6 @@ export async function cancelAwaitingPaymentOrderAction(orderId: string): Promise
     }
 }
 
-// This action is now only for sending notifications after a successful payment.
-// The status update is handled on the client-side in /payment/status.
 export async function sendOrderConfirmationNotifications(orderId: string): Promise<{ success: boolean; message: string }> {
     if (!db) return { success: false, message: "Database not configured." };
     if (!orderId) return { success: false, message: "Order ID is missing." };
@@ -494,5 +481,50 @@ export async function sendOrderConfirmationNotifications(orderId: string): Promi
     } catch (e: any) {
         console.error("Error sending notifications:", e);
         return { success: false, message: e.message || "An unexpected error occurred." };
+    }
+}
+
+export async function confirmFpxPaymentAction(orderId: string): Promise<{ success: boolean; message: string }> {
+    if (!db) {
+        return { success: false, message: 'Database not configured.' };
+    }
+    if (!orderId) {
+        return { success: false, message: 'Order ID is required.' };
+    }
+
+    try {
+        const orderRef = doc(db, 'orders', orderId);
+        await runTransaction(db, async (transaction) => {
+            const orderDoc = await transaction.get(orderRef);
+            if (!orderDoc.exists()) {
+                throw new Error("Order not found during confirmation.");
+            }
+            const orderData = orderDoc.data() as Order;
+
+            if (orderData.paymentStatus === 'Paid') {
+                return; // Already processed, do nothing.
+            }
+
+            const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
+            transaction.update(orderRef, {
+                paymentStatus: 'Paid',
+                status: 'Processing',
+                statusHistory: newHistory
+            });
+        });
+
+        // Send notifications *after* the transaction is successful
+        await sendOrderConfirmationNotifications(orderId);
+
+        revalidatePath(`/orders/${orderId}`);
+        revalidatePath(`/admin/dashboard/orders/${orderId}`);
+        revalidatePath('/dashboard');
+        revalidatePath('/admin/dashboard');
+
+        return { success: true, message: "Payment confirmed and notifications sent." };
+
+    } catch(e: any) {
+        console.error("FPX Confirmation Action Failed: ", e);
+        return { success: false, message: e.message || "An error occurred while confirming payment." };
     }
 }
