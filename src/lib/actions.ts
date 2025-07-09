@@ -110,20 +110,27 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             const status: OrderStatus = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Order Created';
             const paymentStatus: Order['paymentStatus'] = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Pending Payment';
 
-            const newOrderData: Omit<Order, 'id'> = {
+            const newOrderData = {
                 orderNumber: newOrderNumber,
                 user: userData,
-                items: items.map(item => ({ 
-                    productId: item.id, 
-                    name: item.name, 
-                    name_ms: item.name_ms,
-                    name_th: item.name_th,
-                    quantity: item.quantity, 
-                    price: item.price, 
-                    unit: item.unit, 
-                    hasSst: !!item.hasSst, 
-                    amendmentStatus: 'original' 
-                })),
+                items: items.map(item => {
+                    const orderItem: Order['items'][0] = {
+                        productId: item.id,
+                        name: item.name,
+                        quantity: item.quantity,
+                        price: item.price,
+                        unit: item.unit,
+                        hasSst: !!item.hasSst,
+                        amendmentStatus: 'original' as const,
+                    };
+                    if (item.name_ms) {
+                        orderItem.name_ms = item.name_ms;
+                    }
+                    if (item.name_th) {
+                        orderItem.name_th = item.name_th;
+                    }
+                    return orderItem;
+                }),
                 subtotal, sst, total,
                 status,
                 paymentStatus,
@@ -131,6 +138,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
                 orderDate: new Date().toISOString(),
                 deliveryDate, deliveryTimeSlot,
                 statusHistory: [{ status, timestamp: new Date().toISOString() }],
+                isEditable: false,
             };
             
             // 4. Set the new order in the transaction
@@ -215,17 +223,18 @@ export async function amendOrderAction(payload: AmendOrderPayload): Promise<{ su
                 if (!originalItem) amendmentStatus = 'added';
                 else if (amendedItem.quantity !== originalItem.quantity) amendmentStatus = 'updated';
 
-                return {
+                const finalItem: Order['items'][0] = {
                     productId: amendedItem.id,
                     name: amendedItem.name,
-                    name_ms: amendedItem.name_ms,
-                    name_th: amendedItem.name_th,
                     quantity: amendedItem.quantity,
                     price: amendedItem.price,
                     unit: amendedItem.unit,
                     hasSst: !!amendedItem.hasSst,
                     amendmentStatus,
                 };
+                if (amendedItem.name_ms) finalItem.name_ms = amendedItem.name_ms;
+                if (amendedItem.name_th) finalItem.name_th = amendedItem.name_th;
+                return finalItem;
             });
 
             transaction.update(orderRef, { items: finalItemsWithStatus, subtotal: newSubtotal, sst: newSst, total: newTotal, isEditable: false });
