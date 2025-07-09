@@ -170,15 +170,31 @@ export default function AdminProductsPage() {
     
     const rows: string[][] = [];
     products.forEach(p => {
-      if (p.variants && Array.isArray(p.variants)) {
-        p.variants.forEach(v => {
+      const product = p as any; // Cast to any to access potential legacy properties
+      if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+        product.variants.forEach((v: any) => {
             rows.push([
-                p.id, p.name, p.description, p.category, p.imageUrl, String(p.hasSst || false),
+                product.id, product.name, product.description, product.category, product.imageUrl, String(product.hasSst || false),
                 v.id, v.name, String(v.price), v.unit, String(v.stock)
             ].map(escapeCsv));
         });
+      } else if (product.price !== undefined && product.stock !== undefined) {
+          // Handle legacy products without variants
+          rows.push([
+            product.id, product.name, product.description, product.category, product.imageUrl, String(product.hasSst || false),
+            '', // No variant ID
+            'Default', // Default variant name
+            String(product.price),
+            product.unit || 'item',
+            String(product.stock),
+          ].map(escapeCsv));
       }
     });
+
+    if (rows.length === 0) {
+        toast({ title: 'No Exportable Data', description: 'Could not find any products with valid variant or pricing information to export.' });
+        return;
+    }
 
     const csvContent = [
       headers.join(','),
