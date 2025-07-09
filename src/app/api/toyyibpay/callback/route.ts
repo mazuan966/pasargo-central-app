@@ -14,28 +14,14 @@ export async function POST(req: NextRequest) {
         const billcode = formData.get('billcode') as string;
         const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
         const order_id = formData.get('order_id') as string; // This is the billExternalReferenceNo, which we set to the Order Number
-        const signature = formData.get('signature') as string;
         
         console.log(`[Callback] Data received: order_id=${order_id}, status=${status}, billcode=${billcode}`);
 
-        if (!billcode || !status || !order_id || !signature) {
-             console.error('[Callback] Missing required parameters from Toyyibpay.');
+        if (!billcode || !status || !order_id) {
+             console.error('[Callback] Missing required parameters from Toyyibpay (billcode, status, or order_id).');
              return new Response('Missing required parameters from Toyyibpay callback', { status: 400 });
         }
         
-        const toyyibpaySecretKey = 'frfiveec-jeex-kegd-xgwu-ryuzyuvy9qsl';
-        
-        // As per Toyyibpay API documentation: sha256(secretkey + billcode + order_id + status)
-        const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
-        const ourSignature = crypto.SHA256(signatureString).toString();
-        
-        console.log('[Callback] Verifying signature...');
-        if (signature !== ourSignature) {
-            console.warn(`[Callback] Invalid signature received. Got: ${signature}, Expected: ${ourSignature}. String was: "${signatureString}"`);
-            return new Response('Invalid signature', { status: 400 });
-        }
-        console.log('[Callback] Signature verified successfully.');
-
         const ordersCollection = collection(db, 'orders');
         const q = query(ordersCollection, where('orderNumber', '==', order_id));
         console.log(`[Callback] Querying for orderNumber: ${order_id}`);
