@@ -4,6 +4,6 @@ import {config} from 'dotenv';
 config();
 
 export const ai = genkit({
-  plugins: [googleAI({apiKey: process.env.GOOGLE_API_KEY})],
+  plugins: [googleAI()], // No API key here, will use Application Default Credentials from the service account
   model: 'googleai/gemini-2.0-flash',
 });
