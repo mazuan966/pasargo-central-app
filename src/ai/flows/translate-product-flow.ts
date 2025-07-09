@@ -15,14 +15,17 @@ import {z} from 'genkit';
 const TranslateProductInputSchema = z.object({
   name: z.string().describe('The product name in English.'),
   description: z.string().describe('The product description in English.'),
+  category: z.string().describe('The product category in English.'),
 });
 export type TranslateProductInput = z.infer<typeof TranslateProductInputSchema>;
 
 const TranslateProductOutputSchema = z.object({
     name_ms: z.string().describe('The translated product name in Malay.'),
     description_ms: z.string().describe('The translated product description in Malay.'),
+    category_ms: z.string().describe('The translated product category in Malay.'),
     name_th: z.string().describe('The translated product name in Thai.'),
     description_th: z.string().describe('The translated product description in Thai.'),
+    category_th: z.string().describe('The translated product category in Thai.'),
 });
 export type TranslateProductOutput = z.infer<typeof TranslateProductOutputSchema>;
 
@@ -36,12 +39,13 @@ const prompt = ai.definePrompt({
   input: {schema: TranslateProductInputSchema},
   output: {schema: TranslateProductOutputSchema},
   prompt: `You are an expert translator for an e-commerce platform.
-    Translate the following product name and description from English into Malay and Thai.
+    Translate the following product name, description, and category from English into Malay and Thai.
     
     Return ONLY the JSON object with the translated fields.
 
     Product Name: {{{name}}}
     Product Description: {{{description}}}
+    Product Category: {{{category}}}
   `,
 });
 

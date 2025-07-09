@@ -24,8 +24,10 @@ export type Product = z.infer<typeof ProductSchema> & {
     id: string;
     name_ms?: string;
     description_ms?: string;
+    category_ms?: string;
     name_th?: string;
     description_th?: string;
+    category_th?: string;
 };
 
 
@@ -38,6 +40,9 @@ export interface CartItem {
   description?: string;
   description_ms?: string;
   description_th?: string;
+  category: string;
+  category_ms?: string;
+  category_th?: string;
 
   variantId: string;
   variantName: string;

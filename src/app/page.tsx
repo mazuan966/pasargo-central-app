@@ -73,7 +73,7 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  const categories = useMemo(() => {
+  const uniqueCategories = useMemo(() => {
     if (products.length === 0) return [];
     return ['All', ...Array.from(new Set(products.map(p => p.category)))];
   }, [products]);
@@ -105,18 +105,22 @@ export default function Home() {
                     className="pl-12 h-12 text-base"
                 />
             </div>
-             {categories.length > 1 && !isLoadingProducts && (
+             {uniqueCategories.length > 1 && !isLoadingProducts && (
                 <div className="flex flex-wrap gap-2">
-                    {categories.map(category => (
-                        <Button
-                            key={category}
-                            variant={selectedCategory === category ? 'default' : 'outline'}
-                            onClick={() => setSelectedCategory(category)}
-                            size="sm"
-                        >
-                            {category}
-                        </Button>
-                    ))}
+                    {uniqueCategories.map(category => {
+                        const sampleProduct = products.find(p => p.category === category);
+                        const displayText = category === 'All' ? t('categories.all') : (sampleProduct ? getTranslated(sampleProduct, 'category') : category);
+                        return (
+                          <Button
+                              key={category}
+                              variant={selectedCategory === category ? 'default' : 'outline'}
+                              onClick={() => setSelectedCategory(category)}
+                              size="sm"
+                          >
+                              {displayText}
+                          </Button>
+                        );
+                    })}
                 </div>
             )}
         </div>

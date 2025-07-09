@@ -137,7 +137,7 @@ export default function AdminProductsPage() {
     // After saving, trigger the AI translation
     try {
       toast({ title: 'Translating product...', description: 'AI is generating translations for Malay and Thai.' });
-      const translations = await translateProduct({ name: data.name, description: data.description });
+      const translations = await translateProduct({ name: data.name, description: data.description, category: data.category });
       await updateDoc(docRef, translations);
       toast({ title: 'Translation Successful', description: 'Product has been translated.' });
       // Refresh local data with translations

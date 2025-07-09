@@ -61,7 +61,7 @@ export default function DashboardPage() {
   
   const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.status === 'Order Created' || order.paymentStatus === 'Pending Payment' || order.status === 'Awaiting Payment');
   
-  const categories = useMemo(() => {
+  const uniqueCategories = useMemo(() => {
     if (products.length === 0) return [];
     return ['All', ...Array.from(new Set(products.map(p => p.category)))];
   }, [products]);
@@ -130,17 +130,21 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {categories.length > 1 && !isLoadingProducts && (
+            {uniqueCategories.length > 1 && !isLoadingProducts && (
                 <div className="flex flex-wrap gap-2 mb-6">
-                    {categories.map(category => (
-                        <Button
-                            key={category}
-                            variant={selectedCategory === category ? 'default' : 'outline'}
-                            onClick={() => setSelectedCategory(category)}
-                        >
-                            {category}
-                        </Button>
-                    ))}
+                    {uniqueCategories.map(category => {
+                        const sampleProduct = products.find(p => p.category === category);
+                        const displayText = category === 'All' ? t('categories.all') : (sampleProduct ? getTranslated(sampleProduct, 'category') : category);
+                        return (
+                            <Button
+                                key={category}
+                                variant={selectedCategory === category ? 'default' : 'outline'}
+                                onClick={() => setSelectedCategory(category)}
+                            >
+                                {displayText}
+                            </Button>
+                        );
+                    })}
                 </div>
             )}
 

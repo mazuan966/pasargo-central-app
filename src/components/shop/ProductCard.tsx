@@ -91,7 +91,7 @@ export default function ProductCard({ product }: { product: Product }) {
       <CardContent className="flex-grow p-4 pt-0 space-y-2">
         <div>
           <p className="text-xl font-semibold text-primary">{getPriceDisplay()}</p>
-          <p className="text-xs text-muted-foreground">{product.category}</p>
+          <p className="text-xs text-muted-foreground">{getTranslated(product, 'category')}</p>
         </div>
         {hasVariants && (
             <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>

@@ -135,6 +135,7 @@ const translations: Record<Language, Translations> = {
     'payment_status.pending_payment': 'Pending Payment',
     'payment_status.paid': 'Paid',
     'payment_status.failed': 'Failed',
+    'categories.all': 'All',
   },
   ms: {
     'header.login_signup': 'Log Masuk / Daftar',
@@ -265,6 +266,7 @@ const translations: Record<Language, Translations> = {
     'payment_status.pending_payment': 'Pembayaran Belum Selesai',
     'payment_status.paid': 'Dibayar',
     'payment_status.failed': 'Gagal',
+    'categories.all': 'Semua',
   },
   th: {
     'header.login_signup': 'เข้าสู่ระบบ / สมัครสมาชิก',
@@ -395,6 +397,7 @@ const translations: Record<Language, Translations> = {
     'payment_status.pending_payment': 'รอการชำระเงิน',
     'payment_status.paid': 'จ่ายแล้ว',
     'payment_status.failed': 'ล้มเหลว',
+    'categories.all': 'ทั้งหมด',
   },
 };
 
