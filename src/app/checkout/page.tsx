@@ -52,7 +52,7 @@ export default function CheckoutPage() {
   const [deliveryTime, setDeliveryTime] = useState<string>('');
   const [amendmentInfo, setAmendmentInfo] = useState<AmendmentInfo | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash on Delivery');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('FPX (Toyyibpay)');
   
   const { toast } = useToast();
   const router = useRouter();
@@ -115,15 +115,17 @@ export default function CheckoutPage() {
       paymentMethod: paymentMethod,
     });
 
-    if (result.success && result.orderId) {
+    if (result.success) {
       clearCart();
       localStorage.removeItem('amendmentInfo');
       
-      if (paymentMethod === 'FPX (Toyyibpay)') {
-        router.push(`/payment/${result.orderId}`);
+      if (result.paymentUrl) {
+        // Redirect to external Toyyibpay URL
+        window.location.href = result.paymentUrl;
       } else {
+        // Handle COD success
         toast({ title: 'Success!', description: result.message });
-        router.push(`/orders/${result.orderId}`);
+        router.push(result.orderId ? `/orders/${result.orderId}` : '/orders');
       }
     } else {
       toast({ variant: 'destructive', title: 'Order Failed', description: result.message });

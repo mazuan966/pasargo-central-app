@@ -10,7 +10,6 @@ import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc 
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 import { createToyyibpayBill } from '@/lib/toyyibpay';
-import { redirect } from 'next/navigation';
 import { format } from 'date-fns';
 
 const SST_RATE = 0.06;
@@ -70,7 +69,7 @@ type PlaceOrderPayload = {
     paymentMethod: PaymentMethod;
 };
 
-export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ success: boolean, message: string, orderId?: string }> {
+export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ success: boolean; message: string; orderId?: string; paymentUrl?: string; }> {
     if (!db) {
         return { success: false, message: 'Database not configured.' };
     }
@@ -130,44 +129,29 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
 
         const fullOrderData = await getDoc(newOrderRef).then(doc => ({ id: doc.id, ...doc.data() } as Order));
 
-        // 5. Send notifications AFTER the transaction is successful, ONLY for COD
-        if (paymentMethod === 'Cash on Delivery') {
-           await sendOrderConfirmationNotifications(newOrderRef.id);
-        } else if (paymentMethod === 'FPX (Toyyibpay)') {
-            // For FPX, we immediately call initiatePaymentAction to get the redirect URL
-            await initiatePaymentAction(fullOrderData);
-        }
-
-        // 6. Revalidate paths to update caches
         revalidatePath('/orders');
         revalidatePath('/dashboard');
         revalidatePath(`/orders/${newOrderRef.id}`);
 
-        const message = paymentMethod === 'Cash on Delivery'
-            ? 'Order created successfully! A confirmation has been sent via WhatsApp.'
-            : 'Order created. Please proceed to payment.';
-
-        return { success: true, message, orderId: newOrderRef.id };
+        if (paymentMethod === 'Cash on Delivery') {
+           await sendOrderConfirmationNotifications(newOrderRef.id);
+           return { success: true, message: 'Order created successfully! A confirmation has been sent via WhatsApp.', orderId: newOrderRef.id };
+        } 
+        
+        if (paymentMethod === 'FPX (Toyyibpay)') {
+            const { paymentUrl } = await createToyyibpayBill(fullOrderData, userData);
+            // Return the URL to the client to handle the redirect
+            return { success: true, message: 'Redirecting to payment...', orderId: newOrderRef.id, paymentUrl };
+        }
+        
+        // This should not be reached.
+        return { success: false, message: 'Invalid payment method.' };
 
     } catch (e: any) {
         console.error("Order failed: ", e);
         return { success: false, message: e.message || "Failed to process order." };
     }
 }
-
-
-export async function initiatePaymentAction(order: Order) {
-    if (!order.user) {
-        throw new Error("User data is missing from the order.");
-    }
-    
-    // Create Toyyibpay Bill
-    const { billCode, paymentUrl } = await createToyyibpayBill(order, order.user);
-
-    // Redirect to payment gateway
-    redirect(paymentUrl);
-}
-
 
 type AmendOrderPayload = {
   originalOrder: Order;
