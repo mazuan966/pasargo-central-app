@@ -170,12 +170,14 @@ export default function AdminProductsPage() {
     
     const rows: string[][] = [];
     products.forEach(p => {
+      if (p.variants && Array.isArray(p.variants)) {
         p.variants.forEach(v => {
             rows.push([
                 p.id, p.name, p.description, p.category, p.imageUrl, String(p.hasSst || false),
                 v.id, v.name, String(v.price), v.unit, String(v.stock)
             ].map(escapeCsv));
         });
+      }
     });
 
     const csvContent = [
