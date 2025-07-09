@@ -46,10 +46,10 @@ export function OrderDetails({ order }: { order: Order }) {
             <h3 className="font-semibold mb-2">{t('order_details.items_ordered')}</h3>
             <div className="space-y-2">
               {order.items.map((item, index) => (
-                <div key={`${item.productId}-${index}`} className="flex justify-between items-center">
+                <div key={`${item.productId}-${item.variantId}-${index}`} className="flex justify-between items-center">
                   <div>
                     <p className="flex items-center gap-2 font-medium">
-                      {getTranslated(item, 'name')}
+                      {getTranslated(item, 'name')} ({item.variantName})
                       {item.amendmentStatus === 'added' && <Badge className="bg-blue-200 text-blue-800 font-normal">Added</Badge>}
                       {item.amendmentStatus === 'updated' && <Badge className="bg-yellow-200 text-yellow-800 font-normal">Updated</Badge>}
                     </p>

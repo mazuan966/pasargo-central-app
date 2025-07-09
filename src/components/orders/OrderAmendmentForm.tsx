@@ -1,19 +1,18 @@
 
 'use client';
 
-import { useState, useEffect, useActionState } from 'react';
-import type { Order, Product, CartItem } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import type { Order, Product, CartItem, ProductVariant } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Loader2, XCircle } from 'lucide-react';
+import { PlusCircle, Loader2, XCircle, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useOrders } from '@/hooks/use-orders';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { amendOrderAction } from '@/lib/actions';
 import { useAuth } from '@/hooks/use-auth';
@@ -34,32 +33,83 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   const itemsJson = JSON.stringify(order.items);
 
   useEffect(() => {
-    setAmendedItems(order.items.map(item => ({ ...item, id: item.productId })));
+    const initialCartItems: CartItem[] = order.items.map(item => ({
+        id: `${item.productId}_${item.variantId}`,
+        productId: item.productId,
+        productName: item.name,
+        productName_ms: item.name_ms,
+        productName_th: item.name_th,
+        variantId: item.variantId,
+        variantName: item.variantName,
+        quantity: item.quantity,
+        price: item.price,
+        unit: item.unit,
+        stock: 0, // Placeholder, will be updated from product fetch
+        imageUrl: '', // Placeholder
+    }));
+    setAmendedItems(initialCartItems);
+
     const fetchProducts = async () => {
       if (!db) return;
       setIsLoadingProducts(true);
       const productsCollection = collection(db, 'products');
       const productSnapshot = await getDocs(productsCollection);
-      setProducts(productSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Product[]);
+      const fetchedProducts = productSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Product[];
+      setProducts(fetchedProducts);
+      
+      // Update stock and image url in amendedItems from fetched products
+      setAmendedItems(currentItems => currentItems.map(cartItem => {
+          const product = fetchedProducts.find(p => p.id === cartItem.productId);
+          if (product) {
+              const variant = product.variants.find(v => v.id === cartItem.variantId);
+              return {
+                  ...cartItem,
+                  stock: variant?.stock ?? 0,
+                  imageUrl: product.imageUrl,
+              };
+          }
+          return cartItem;
+      }));
       setIsLoadingProducts(false);
     };
     fetchProducts();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.id, itemsJson]);
 
-  const handleQuantityChange = (productId: string, newQuantityStr: string) => {
-    const originalItem = order.items.find(i => i.productId === productId);
-    const originalQuantity = originalItem ? originalItem.quantity : 1;
+  const handleQuantityChange = (cartItemId: string, newQuantityStr: string) => {
     let newQuantity = parseInt(newQuantityStr, 10);
-    if (isNaN(newQuantity) || newQuantity < originalQuantity) newQuantity = originalQuantity;
-    setAmendedItems(items => items.map(item => (item.id === productId ? { ...item, quantity: newQuantity } : item)));
+    if (isNaN(newQuantity) || newQuantity < 0) newQuantity = 0;
+    
+    setAmendedItems(items => items.map(item => 
+        item.id === cartItemId ? { ...item, quantity: newQuantity } : item
+    ).filter(item => item.quantity > 0)); // Remove if quantity is 0
   };
   
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = (product: Product, variant: ProductVariant) => {
     setAmendedItems(currentItems => {
-        const existingItem = currentItems.find(item => item.id === product.id);
-        if (existingItem) return currentItems.map(item => item.id === product.id ? {...item, quantity: item.quantity + 1} : item);
-        return [...currentItems, {...product, quantity: 1, productId: product.id}];
+        const cartItemId = `${product.id}_${variant.id}`;
+        const existingItem = currentItems.find(item => item.id === cartItemId);
+        if (existingItem) {
+            return currentItems.map(item => item.id === cartItemId ? {...item, quantity: item.quantity + 1} : item);
+        }
+        const newCartItem: CartItem = {
+            id: cartItemId,
+            productId: product.id,
+            productName: product.name,
+            productName_ms: product.name_ms,
+            productName_th: product.name_th,
+            description: product.description,
+            description_ms: product.description_ms,
+            description_th: product.description_th,
+            variantId: variant.id,
+            variantName: variant.name,
+            quantity: 1,
+            price: variant.price,
+            unit: variant.unit,
+            stock: variant.stock,
+            imageUrl: product.imageUrl,
+            hasSst: product.hasSst
+        };
+        return [...currentItems, newCartItem];
     });
     setPopoverOpen(false);
   };
@@ -96,7 +146,6 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
   const subtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const sst = amendedItems.reduce((sum, item) => item.hasSst ? sum + (item.price * item.quantity * 0.06) : sum, 0);
   const total = subtotal + sst;
-  const unlistedProducts = products.filter(p => !amendedItems.some(item => item.id === p.id));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -106,19 +155,18 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
                     <TableRow><TableHead>Product</TableHead><TableHead className="w-[120px]">Quantity</TableHead><TableHead className="text-right">Total</TableHead></TableRow>
                 </TableHeader>
                 <TableBody>
-                    {amendedItems.map(item => {
-                        const originalItem = order.items.find(i => i.productId === item.id);
-                        const minQuantity = originalItem ? originalItem.quantity : 1;
-                        return (
-                            <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.name}</TableCell>
-                                <TableCell>
-                                    <Input type="number" value={item.quantity} min={minQuantity} onChange={(e) => handleQuantityChange(item.id, e.target.value)} className="h-8 w-20 text-center" />
-                                </TableCell>
-                                <TableCell className="text-right">RM {(item.price * item.quantity).toFixed(2)}</TableCell>
-                            </TableRow>
-                        )
-                    })}
+                    {amendedItems.map(item => (
+                        <TableRow key={item.id}>
+                            <TableCell className="font-medium">
+                                {item.productName}
+                                <span className="text-muted-foreground text-sm block">{item.variantName}</span>
+                            </TableCell>
+                            <TableCell>
+                                <Input type="number" value={item.quantity} min={0} onChange={(e) => handleQuantityChange(item.id, e.target.value)} className="h-8 w-20 text-center" />
+                            </TableCell>
+                            <TableCell className="text-right">RM {(item.price * item.quantity).toFixed(2)}</TableCell>
+                        </TableRow>
+                    ))}
                      {amendedItems.length === 0 && (
                         <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground h-24">This order is empty. Add items to continue.</TableCell></TableRow>
                     )}
@@ -137,11 +185,13 @@ export function OrderAmendmentForm({ order }: { order: Order }) {
                     <CommandInput placeholder={t('order_amendment.search_placeholder')} />
                     <CommandList>
                         <CommandEmpty>{t('order_amendment.no_products_found')}</CommandEmpty>
-                        <CommandGroup>
-                        {unlistedProducts.map((product) => (
-                            <CommandItem key={product.id} value={product.name} onSelect={() => handleAddProduct(product)}>{product.name}</CommandItem>
+                        {products.map((product) => (
+                          <CommandGroup key={product.id} heading={product.name}>
+                            {product.variants.map((variant) => (
+                                <CommandItem key={variant.id} value={`${product.name} ${variant.name}`} onSelect={() => handleAddProduct(product, variant)}>{variant.name}</CommandItem>
+                            ))}
+                          </CommandGroup>
                         ))}
-                        </CommandGroup>
                     </CommandList>
                 </Command>
             </PopoverContent>

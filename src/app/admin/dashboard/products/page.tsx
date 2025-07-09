@@ -34,11 +34,11 @@ import { Badge } from '@/components/ui/badge';
 import { ProductForm } from '@/components/admin/ProductForm';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, FirestoreError } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, FirestoreError, DocumentData } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { StockManager } from '@/components/admin/StockManager';
 import { ProductImporter } from '@/components/admin/ProductImporter';
 import { translateProduct } from '@/ai/flows/translate-product-flow';
+import type { Product as ProductSchemaType } from '@/lib/types';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -107,7 +107,7 @@ export default function AdminProductsPage() {
     setProductToDelete(null);
   };
 
-  const handleFormSubmit = async (data: Product) => {
+  const handleFormSubmit = async (data: ProductSchemaType) => {
     if (!db) {
       toast({ title: 'Error', description: 'Database not configured. Please check your .env file.', variant: 'destructive' });
       setIsFormOpen(false);
@@ -115,12 +115,13 @@ export default function AdminProductsPage() {
     }
 
     let docRef;
+    const productData: DocumentData = data;
 
     if (selectedProduct) {
       // Edit
-      docRef = doc(db, 'products', data.id);
-      await updateDoc(docRef, { ...data });
-      setProducts(products.map((p) => (p.id === data.id ? data : p)));
+      docRef = doc(db, 'products', data.id!);
+      await updateDoc(docRef, productData);
+      setProducts(products.map((p) => (p.id === data.id ? data as Product : p)));
       toast({ title: 'Product Updated', description: `${data.name} has been updated.` });
     } else {
       // Add
@@ -147,38 +148,16 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleStockUpdate = async (productId: string, quantityToAdd: number) => {
-    if (!db) {
-        toast({ title: 'Error', description: 'Database not configured.', variant: 'destructive' });
-        return;
-    }
-    const productRef = doc(db, 'products', productId);
-    const productToUpdate = products.find(p => p.id === productId);
-
-    if (!productToUpdate) {
-        toast({ title: 'Error', description: 'Product not found.', variant: 'destructive' });
-        return;
-    }
-
-    const newStock = productToUpdate.stock + quantityToAdd;
-    
-    try {
-        await updateDoc(productRef, { stock: newStock });
-        setProducts(products.map(p => p.id === productId ? { ...p, stock: newStock } : p));
-        toast({ title: 'Stock Updated', description: `Stock for ${productToUpdate.name} is now ${newStock}.` });
-    } catch (error) {
-        console.error("Stock update error:", error);
-        toast({ title: 'Error', description: 'Failed to update stock.', variant: 'destructive' });
-    }
-  };
-
   const handleExportCSV = () => {
     if (products.length === 0) {
       toast({ title: 'No Products', description: 'There are no products to export.' });
       return;
     }
   
-    const headers = ['id', 'name', 'description', 'price', 'unit', 'category', 'stock', 'imageUrl', 'hasSst'];
+    const headers = [
+        'productId', 'productName', 'productDescription', 'category', 'imageUrl', 'hasSst',
+        'variantId', 'variantName', 'price', 'unit', 'stock'
+    ];
     
     const escapeCsv = (val: any) => {
       if (val === undefined || val === null) return '';
@@ -189,28 +168,26 @@ export default function AdminProductsPage() {
       return str;
     };
     
+    const rows: string[][] = [];
+    products.forEach(p => {
+        p.variants.forEach(v => {
+            rows.push([
+                p.id, p.name, p.description, p.category, p.imageUrl, String(p.hasSst || false),
+                v.id, v.name, String(v.price), v.unit, String(v.stock)
+            ].map(escapeCsv));
+        });
+    });
+
     const csvContent = [
       headers.join(','),
-      ...products.map(p => 
-        [
-          p.id,
-          p.name,
-          p.description,
-          p.price,
-          p.unit,
-          p.category,
-          p.stock,
-          p.imageUrl,
-          p.hasSst || false
-        ].map(escapeCsv).join(',')
-      )
+      ...rows.map(row => row.join(','))
     ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'products_export.csv');
+    link.setAttribute('download', 'products_with_variants_export.csv');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -253,7 +230,7 @@ export default function AdminProductsPage() {
         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <CardTitle className="font-headline text-2xl">Products</CardTitle>
-            <CardDescription>Add, edit, and manage your product inventory.</CardDescription>
+            <CardDescription>Add, edit, and manage your product inventory and its variants.</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsImportOpen(true)}>
@@ -281,9 +258,9 @@ export default function AdminProductsPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Stock</TableHead>
+                  <TableHead>Variants</TableHead>
+                  <TableHead>Price Range</TableHead>
+                  <TableHead>Total Stock</TableHead>
                   <TableHead>SST (6%)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -306,45 +283,56 @@ export default function AdminProductsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  products.map((product) => (
-                    <TableRow key={product.id} className="group">
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{product.category}</Badge>
-                      </TableCell>
-                      <TableCell>RM {product.price.toFixed(2)}</TableCell>
-                      <TableCell>{product.unit}</TableCell>
-                      <TableCell>
-                        <StockManager product={product} onStockUpdate={handleStockUpdate} />
-                      </TableCell>
-                      <TableCell>
-                        {product.hasSst && <CheckCircle className="h-5 w-5 text-green-600" />}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
-                              <EditIcon className="mr-2 h-4 w-4" />
-                              <span>Edit</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteClick(product)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash className="mr-2 h-4 w-4" />
-                              <span>Delete</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  products.map((product) => {
+                    const prices = product.variants?.map(v => v.price) || [0];
+                    const minPrice = Math.min(...prices);
+                    const maxPrice = Math.max(...prices);
+                    const totalStock = product.variants?.reduce((sum, v) => sum + v.stock, 0) || 0;
+
+                    return (
+                        <TableRow key={product.id} className="group">
+                          <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{product.category}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {product.variants?.length || 0}
+                          </TableCell>
+                          <TableCell>
+                            {prices.length > 1 ? `RM ${minPrice.toFixed(2)} - RM ${maxPrice.toFixed(2)}` : `RM ${minPrice.toFixed(2)}`}
+                          </TableCell>
+                          <TableCell>
+                            {totalStock}
+                          </TableCell>
+                          <TableCell>
+                            {product.hasSst && <CheckCircle className="h-5 w-5 text-green-600" />}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                                  <EditIcon className="mr-2 h-4 w-4" />
+                                  <span>Edit</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteClick(product)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  <span>Delete</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>

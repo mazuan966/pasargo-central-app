@@ -15,11 +15,9 @@ export default function CartItem({ item }: { item: CartItemType }) {
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuantity = parseInt(e.target.value, 10);
-    // Let useCart handle the logic, including validation
     if (!isNaN(newQuantity)) {
         updateQuantity(item.id, newQuantity);
     } else if (e.target.value === '') {
-        // Allow clearing the input, treat as 1 to avoid NaN issues.
         updateQuantity(item.id, 1);
     }
   }
@@ -27,11 +25,12 @@ export default function CartItem({ item }: { item: CartItemType }) {
   return (
     <div className="flex items-center gap-4 p-4">
       <div className="relative h-20 w-20 rounded-md overflow-hidden">
-        <Image src={item.imageUrl} alt={getTranslated(item, 'name')} fill className="object-cover" data-ai-hint={item['data-ai-hint']} />
+        <Image src={item.imageUrl} alt={getTranslated(item, 'productName')} fill className="object-cover" />
       </div>
       <div className="flex-grow">
-        <p className="font-semibold">{getTranslated(item, 'name')}</p>
-        <p className="text-sm text-muted-foreground">RM {item.price.toFixed(2)} / {item.unit}</p>
+        <p className="font-semibold">{getTranslated(item, 'productName')}</p>
+        <p className="text-sm text-muted-foreground">{item.variantName}</p>
+        <p className="text-sm text-muted-foreground">RM {item.price.toFixed(2)}</p>
       </div>
       <div className="flex items-center gap-2">
         <Input

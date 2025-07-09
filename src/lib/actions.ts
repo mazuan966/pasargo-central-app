@@ -3,7 +3,7 @@
 
 import { verifyDeliveryPhoto } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
-import { EInvoiceInputSchema, type Order, type CartItem, type User, type PaymentMethod, type OrderStatus } from '@/lib/types';
+import { EInvoiceInputSchema, type Order, type CartItem, type User, type PaymentMethod, type OrderStatus, type Product, type ProductVariant } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc } from 'firebase/firestore';
@@ -22,14 +22,14 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
         let statusTag = '';
         if (item.amendmentStatus === 'added') statusTag = ' [Added]';
         else if (item.amendmentStatus === 'updated') statusTag = ' [Updated]';
-        return `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})${statusTag}`;
+        return `- ${item.name} (${item.variantName}) - (${item.quantity} x RM ${item.price.toFixed(2)})${statusTag}`;
     }).join('\n');
 
     const adminItemsSummary = updatedOrder.items.map(item => {
         let statusTag = '';
         if (item.amendmentStatus === 'added') statusTag = ' [Added]';
         else if (item.amendmentStatus === 'updated') statusTag = ' [Updated]';
-        return `- ${item.name} (x${item.quantity})${statusTag}`;
+        return `- ${item.name} (${item.variantName}) (x${item.quantity})${statusTag}`;
     }).join('\n');
     
     const invoiceLink = `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}`;
@@ -43,7 +43,6 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     invoiceLink +
     `\n\nWe will process your updated order shortly.`;
     
-    // Send user notification to the test number
     await sendWhatsAppMessage(adminPhoneNumber, userMessage);
 
     const adminMessage = `*Order Amended*\n\n` +
@@ -55,8 +54,6 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
 
     await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
 };
-
-// --- Server Actions ---
 
 type PlaceOrderPayload = {
     items: CartItem[];
@@ -75,7 +72,6 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
     }
 
     const { items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, userData, paymentMethod } = payload;
-    const { id: userId, ...userToSave } = userData;
 
     if (items.length === 0) return { success: false, message: "Cannot place an order with an empty cart." };
     if (!deliveryDate || !deliveryTimeSlot) return { success: false, message: "Delivery date and time slot are required." };
@@ -85,14 +81,22 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         let newOrderNumber: string;
 
         await runTransaction(db, async (transaction) => {
-            // 1. Decrease stock for each item
+            // 1. Decrease stock for each item variant
             for (const item of items) {
-                const productRef = doc(db, 'products', item.id);
+                const productRef = doc(db, 'products', item.productId);
                 const productDoc = await transaction.get(productRef);
-                if (!productDoc.exists()) throw new Error(`Product "${item.name}" does not exist.`);
-                const currentStock = productDoc.data().stock;
-                if (currentStock < item.quantity) throw new Error(`Not enough stock for "${item.name}".`);
-                transaction.update(productRef, { stock: currentStock - item.quantity });
+                if (!productDoc.exists()) throw new Error(`Product "${item.productName}" does not exist.`);
+                
+                const productData = productDoc.data() as Product;
+                const variant = productData.variants.find(v => v.id === item.variantId);
+
+                if (!variant) throw new Error(`Variant "${item.variantName}" for product "${item.productName}" not found.`);
+                if (variant.stock < item.quantity) throw new Error(`Not enough stock for "${item.productName} - ${item.variantName}".`);
+                
+                const newVariants = productData.variants.map(v => 
+                    v.id === item.variantId ? { ...v, stock: v.stock - item.quantity } : v
+                );
+                transaction.update(productRef, { variants: newVariants });
             }
             
             // 2. Generate a new unique order number
@@ -110,27 +114,22 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             const status: OrderStatus = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Order Created';
             const paymentStatus: Order['paymentStatus'] = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Pending Payment';
 
-            const newOrderData = {
+            const newOrderData: Omit<Order, 'id'> = {
                 orderNumber: newOrderNumber,
                 user: userData,
-                items: items.map(item => {
-                    const orderItem: Order['items'][0] = {
-                        productId: item.id,
-                        name: item.name,
-                        quantity: item.quantity,
-                        price: item.price,
-                        unit: item.unit,
-                        hasSst: !!item.hasSst,
-                        amendmentStatus: 'original' as const,
-                    };
-                    if (item.name_ms) {
-                        orderItem.name_ms = item.name_ms;
-                    }
-                    if (item.name_th) {
-                        orderItem.name_th = item.name_th;
-                    }
-                    return orderItem;
-                }),
+                items: items.map(item => ({
+                    productId: item.productId,
+                    variantId: item.variantId,
+                    name: item.productName,
+                    name_ms: item.productName_ms,
+                    name_th: item.productName_th,
+                    variantName: item.variantName,
+                    quantity: item.quantity,
+                    price: item.price,
+                    unit: item.unit,
+                    hasSst: !!item.hasSst,
+                    amendmentStatus: 'original' as const,
+                })),
                 subtotal, sst, total,
                 status,
                 paymentStatus,
@@ -158,11 +157,9 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         
         if (paymentMethod === 'FPX (Toyyibpay)') {
             const { paymentUrl } = await createToyyibpayBill(fullOrderData, userData);
-            // Return the URL to the client to handle the redirect
             return { success: true, message: 'Redirecting to payment...', orderId: newOrderRef.id, paymentUrl };
         }
         
-        // This should not be reached.
         return { success: false, message: 'Invalid payment method.' };
 
     } catch (e: any) {
@@ -188,28 +185,47 @@ export async function amendOrderAction(payload: AmendOrderPayload): Promise<{ su
         let finalUpdatedOrder: Order | null = null;
         await runTransaction(db, async (transaction) => {
             const orderRef = doc(db, 'orders', originalOrder.id);
-            const stockAdjustments: Map<string, number> = new Map();
-            const allItemIds = new Set([...originalOrder.items.map(i => i.productId), ...amendedItems.map(i => i.id)]);
+            
+            const productRefsToUpdate = new Set(amendedItems.map(item => item.productId));
+            const productDocs = await Promise.all(
+                Array.from(productRefsToUpdate).map(id => transaction.get(doc(db, 'products', id)))
+            );
 
-            for (const itemId of allItemIds) {
-                const originalQty = originalOrder.items.find(i => i.productId === itemId)?.quantity || 0;
-                const amendedQty = amendedItems.find(i => i.id === itemId)?.quantity || 0;
-                const diff = originalQty - amendedQty;
-                if (diff !== 0) stockAdjustments.set(itemId, diff);
+            const productsData = new Map<string, Product>();
+            for (const doc of productDocs) {
+                if (!doc.exists()) throw new Error(`Product with ID ${doc.id} not found.`);
+                productsData.set(doc.id, doc.data() as Product);
             }
 
-            const productRefs = Array.from(stockAdjustments.keys()).map(id => doc(db, 'products', id));
-            const productDocs = productRefs.length > 0 ? await Promise.all(productRefs.map(ref => transaction.get(ref))) : [];
-            
-            for (let i = 0; i < productDocs.length; i++) {
-                const productDoc = productDocs[i];
-                if (!productDoc.exists()) throw new Error(`Product with ID ${productRefs[i].id} not found.`);
-                const adjustment = stockAdjustments.get(productRefs[i].id)!;
-                const currentStock = productDoc.data().stock;
-                if (adjustment < 0 && currentStock < Math.abs(adjustment)) {
-                    throw new Error(`Not enough stock for ${productDoc.data().name}. Only ${currentStock} available.`);
+            const stockAdjustments = new Map<string, { variantId: string, change: number }[]>();
+
+            amendedItems.forEach(amendedItem => {
+                const originalItem = originalOrder.items.find(i => i.productId === amendedItem.productId && i.variantId === amendedItem.variantId);
+                const originalQty = originalItem?.quantity || 0;
+                const change = originalQty - amendedItem.quantity; // positive if quantity decreased, negative if increased
+
+                if (change !== 0) {
+                    if (!stockAdjustments.has(amendedItem.productId)) {
+                        stockAdjustments.set(amendedItem.productId, []);
+                    }
+                    stockAdjustments.get(amendedItem.productId)!.push({ variantId: amendedItem.variantId, change });
                 }
-                transaction.update(productRefs[i], { stock: currentStock + adjustment });
+            });
+
+            for (const [productId, adjustments] of stockAdjustments.entries()) {
+                const product = productsData.get(productId);
+                if (!product) throw new Error(`Product data missing for ID ${productId}`);
+                
+                const newVariants = product.variants.map(variant => {
+                    const adjustment = adjustments.find(a => a.variantId === variant.id);
+                    if (adjustment) {
+                        const newStock = variant.stock + adjustment.change;
+                        if (newStock < 0) throw new Error(`Not enough stock for ${product.name} - ${variant.name}`);
+                        return { ...variant, stock: newStock };
+                    }
+                    return variant;
+                });
+                transaction.update(doc(db, 'products', productId), { variants: newVariants });
             }
 
             const newSubtotal = amendedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -217,24 +233,25 @@ export async function amendOrderAction(payload: AmendOrderPayload): Promise<{ su
             const newTotal = newSubtotal + newSst;
             
             const finalItemsWithStatus: Order['items'] = amendedItems.map(amendedItem => {
-                const originalItem = originalOrder.items.find(i => i.productId === amendedItem.id);
+                const originalItem = originalOrder.items.find(i => i.productId === amendedItem.productId && i.variantId === amendedItem.variantId);
                 let amendmentStatus: Order['items'][0]['amendmentStatus'] = 'original';
 
                 if (!originalItem) amendmentStatus = 'added';
                 else if (amendedItem.quantity !== originalItem.quantity) amendmentStatus = 'updated';
 
-                const finalItem: Order['items'][0] = {
-                    productId: amendedItem.id,
-                    name: amendedItem.name,
+                return {
+                    productId: amendedItem.productId,
+                    variantId: amendedItem.variantId,
+                    name: amendedItem.productName,
+                    name_ms: amendedItem.productName_ms,
+                    name_th: amendedItem.productName_th,
+                    variantName: amendedItem.variantName,
                     quantity: amendedItem.quantity,
                     price: amendedItem.price,
                     unit: amendedItem.unit,
                     hasSst: !!amendedItem.hasSst,
                     amendmentStatus,
                 };
-                if (amendedItem.name_ms) finalItem.name_ms = amendedItem.name_ms;
-                if (amendedItem.name_th) finalItem.name_th = amendedItem.name_th;
-                return finalItem;
             });
 
             transaction.update(orderRef, { items: finalItemsWithStatus, subtotal: newSubtotal, sst: newSst, total: newTotal, isEditable: false });
@@ -417,27 +434,29 @@ export async function cancelAwaitingPaymentOrderAction(orderId: string): Promise
             const orderRef = doc(db, 'orders', orderId);
             const orderDoc = await transaction.get(orderRef);
 
-            if (!orderDoc.exists()) {
-                throw new Error('Order not found.');
-            }
-
+            if (!orderDoc.exists()) throw new Error('Order not found.');
             const order = orderDoc.data() as Order;
+            if (order.status !== 'Awaiting Payment') throw new Error('This order cannot be cancelled as it is not awaiting payment.');
 
-            if (order.status !== 'Awaiting Payment') {
-                throw new Error('This order cannot be cancelled as it is not awaiting payment.');
+            const productRefsToUpdate = new Set(order.items.map(item => item.productId));
+            const productDocs = await Promise.all(
+                Array.from(productRefsToUpdate).map(id => transaction.get(doc(db, 'products', id)))
+            );
+            const productsData = new Map<string, Product>();
+            for (const doc of productDocs) {
+                if (doc.exists()) productsData.set(doc.id, doc.data() as Product);
             }
 
-            // Return stock for each item
             for (const item of order.items) {
-                const productRef = doc(db, 'products', item.productId);
-                const productDoc = await transaction.get(productRef);
-                if (productDoc.exists()) {
-                    const currentStock = productDoc.data().stock;
-                    transaction.update(productRef, { stock: currentStock + item.quantity });
+                const product = productsData.get(item.productId);
+                if (product) {
+                    const newVariants = product.variants.map(v => 
+                        v.id === item.variantId ? { ...v, stock: v.stock + item.quantity } : v
+                    );
+                    transaction.update(doc(db, 'products', item.productId), { variants: newVariants });
                 }
             }
 
-            // Update order status
             const newStatus: OrderStatus = 'Cancelled';
             const newHistory = [...order.statusHistory, { status: newStatus, timestamp: new Date().toISOString() }];
             
@@ -470,17 +489,16 @@ export async function sendOrderConfirmationNotifications(orderId: string): Promi
 
         const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
 
-        // Send notifications
         const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = orderData;
         const testPhoneNumber = '60163864181';
         const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
         let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
         let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
         
-        const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
+        const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.variantName}) (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
         await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
         
-        const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
+        const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (${item.variantName}) (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
         await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
 
         revalidatePath(`/orders/${orderId}`);

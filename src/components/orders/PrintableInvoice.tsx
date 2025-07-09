@@ -1,3 +1,4 @@
+
 import type { Order, BusinessDetails } from '@/lib/types';
 import { Logo } from '@/components/icons/logo';
 import { format } from 'date-fns';
@@ -50,10 +51,10 @@ export const PrintableInvoice = ({ order, businessDetails, t, getTranslated }: P
         </thead>
         <tbody>
           {order.items.map((item, index) => (
-            <tr key={`${item.productId}-${index}`} className="border-b">
-              <td className="p-2">{getTranslated(item, 'name')}</td>
+            <tr key={`${item.productId}-${item.variantId}-${index}`} className="border-b">
+              <td className="p-2">{getTranslated(item, 'name')} ({item.variantName})</td>
               <td className="p-2 text-right">{item.quantity}</td>
-              <td className="p-2 text-right">RM {item.price.toFixed(2)} / {item.unit || 'item'}</td>
+              <td className="p-2 text-right">RM {item.price.toFixed(2)}</td>
               <td className="p-2 text-right">RM {(item.quantity * item.price).toFixed(2)}</td>
             </tr>
           ))}

@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import type { CartItem, Product } from '@/lib/types';
+import type { CartItem, Product, ProductVariant } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from './LanguageProvider';
 
@@ -11,9 +11,9 @@ const CART_STORAGE_KEY = 'pasargo-cart';
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product, quantity: number, silent?: boolean) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  addToCart: (product: Product, selectedVariant: ProductVariant, quantity: number, silent?: boolean) => void;
+  removeFromCart: (cartItemId: string) => void;
+  updateQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
   cartCount: number;
   cartSubtotal: number;
@@ -28,7 +28,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { t, getTranslated } = useLanguage();
 
-  // Load cart from localStorage on initial client-side render.
   useEffect(() => {
     try {
       const storedCart = localStorage.getItem(CART_STORAGE_KEY);
@@ -41,7 +40,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Save cart to localStorage whenever it changes.
   useEffect(() => {
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
@@ -51,67 +49,86 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cartItems]);
 
 
-  const addToCart = (product: Product, quantity: number, silent: boolean = false) => {
-    const existingItem = cartItems.find(item => item.id === product.id);
+  const addToCart = (product: Product, selectedVariant: ProductVariant, quantity: number, silent: boolean = false) => {
+    const cartItemId = `${product.id}_${selectedVariant.id}`;
+    const existingItem = cartItems.find(item => item.id === cartItemId);
     const newQuantityInCart = (existingItem ? existingItem.quantity : 0) + quantity;
 
-    if (newQuantityInCart > product.stock) {
+    if (newQuantityInCart > selectedVariant.stock) {
         if (!silent) {
             toast({
                 variant: 'destructive',
                 title: t('toast.not_enough_stock_title'),
-                description: t('toast.not_enough_stock_description', { stock: product.stock, name: getTranslated(product, 'name') }),
+                description: t('toast.not_enough_stock_description', { stock: selectedVariant.stock, name: `${getTranslated(product, 'name')} (${selectedVariant.name})` }),
             });
         }
-        return; // Exit without changing state
+        return;
     }
     
     if (!silent) {
       toast({
         title: t('toast.added_to_cart_title'),
-        description: `${quantity} x ${getTranslated(product, 'name')}`,
+        description: `${quantity} x ${getTranslated(product, 'name')} (${selectedVariant.name})`,
       });
     }
 
     setCartItems(prevItems => {
-        const itemExists = prevItems.find(item => item.id === product.id);
+        const itemExists = prevItems.find(item => item.id === cartItemId);
         if (itemExists) {
             return prevItems.map(item =>
-                item.id === product.id
+                item.id === cartItemId
                     ? { ...item, quantity: item.quantity + quantity }
                     : item
             );
         } else {
-            return [...prevItems, { ...product, quantity }];
+            const newCartItem: CartItem = {
+              id: cartItemId,
+              productId: product.id,
+              productName: product.name,
+              productName_ms: product.name_ms,
+              productName_th: product.name_th,
+              description: product.description,
+              description_ms: product.description_ms,
+              description_th: product.description_th,
+              variantId: selectedVariant.id,
+              variantName: selectedVariant.name,
+              quantity,
+              price: selectedVariant.price,
+              unit: selectedVariant.unit,
+              stock: selectedVariant.stock,
+              imageUrl: product.imageUrl,
+              hasSst: product.hasSst,
+            };
+            return [...prevItems, newCartItem];
         }
     });
   };
 
-  const removeFromCart = (productId: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+  const removeFromCart = (cartItemId: string) => {
+    setCartItems(prevItems => prevItems.filter(item => item.id !== cartItemId));
     toast({
       title: t('toast.removed_from_cart_title'),
     });
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (cartItemId: string, quantity: number) => {
+    const itemToUpdate = cartItems.find(item => item.id === cartItemId);
+    if (!itemToUpdate) return;
+
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(cartItemId);
       return;
     }
 
-    const itemToUpdate = cartItems.find(item => item.id === productId);
-
-    if (itemToUpdate && quantity > itemToUpdate.stock) {
+    if (quantity > itemToUpdate.stock) {
         toast({
             variant: 'destructive',
             title: t('toast.not_enough_stock_title'),
-            description: t('toast.not_enough_stock_description', { stock: itemToUpdate.stock, name: getTranslated(itemToUpdate, 'name') }),
+            description: t('toast.not_enough_stock_description', { stock: itemToUpdate.stock, name: `${getTranslated(itemToUpdate, 'productName')} (${itemToUpdate.variantName})` }),
         });
-        // Revert quantity to max available stock
         setCartItems(prevItems =>
             prevItems.map(item =>
-                item.id === productId ? { ...item, quantity: itemToUpdate.stock } : item
+                item.id === cartItemId ? { ...item, quantity: itemToUpdate.stock } : item
             )
         );
         return;
@@ -119,7 +136,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     
     setCartItems(prevItems => 
         prevItems.map(item =>
-            item.id === productId ? { ...item, quantity } : item
+            item.id === cartItemId ? { ...item, quantity } : item
         )
     );
   };

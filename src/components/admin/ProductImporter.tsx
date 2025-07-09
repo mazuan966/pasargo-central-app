@@ -10,8 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, AlertTriangle } from 'lucide-react';
 import Papa from 'papaparse';
 import { db } from '@/lib/firebase';
-import { collection, writeBatch, doc, getDocs, updateDoc } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import { collection, writeBatch, doc, getDocs, updateDoc, addDoc, query, where } from 'firebase/firestore';
+import type { Product, ProductVariant } from '@/lib/types';
 import { translateProduct } from '@/ai/flows/translate-product-flow';
 
 interface ProductImporterProps {
@@ -57,49 +57,77 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
           const productsCollection = collection(db, 'products');
           const productsSnapshot = await getDocs(productsCollection);
           const existingProductsById = new Map(productsSnapshot.docs.map(doc => [doc.id, { ...doc.data(), id: doc.id } as Product]));
-          const existingProductsByName = new Map(productsSnapshot.docs.map(doc => [doc.data().name.toLowerCase(), { ...doc.data(), id: doc.id } as Product]));
-
+          
           const productsToTranslate: { docId: string; name: string; description: string }[] = [];
+          
+          const rowsByProductId = new Map<string, any[]>();
+          results.data.forEach((row: any) => {
+              const productId = row.productId || row.productName;
+              if (!rowsByProductId.has(productId)) {
+                  rowsByProductId.set(productId, []);
+              }
+              rowsByProductId.get(productId)!.push(row);
+          });
 
-          for (const row of results.data as any[]) {
+          for (const [productId, rows] of rowsByProductId.entries()) {
+            const firstRow = rows[0];
             const productData = {
-              name: row.name?.trim(),
-              description: row.description?.trim() || '',
-              price: parseFloat(row.price),
-              unit: ['item', 'kg'].includes(row.unit) ? row.unit : 'item',
-              category: row.category?.trim() || 'Uncategorized',
-              stock: parseInt(row.stock, 10),
-              imageUrl: row.imageUrl?.trim() || 'https://placehold.co/600x400.png',
-              hasSst: String(row.hasSst).toLowerCase() === 'true',
+                name: firstRow.productName?.trim(),
+                description: firstRow.productDescription?.trim() || '',
+                category: firstRow.category?.trim() || 'Uncategorized',
+                imageUrl: firstRow.imageUrl?.trim() || 'https://placehold.co/600x400.png',
+                hasSst: String(firstRow.hasSst).toLowerCase() === 'true',
             };
-            
-            if (!productData.name || isNaN(productData.price) || productData.price < 0 || isNaN(productData.stock)) {
-              console.warn("Skipping invalid row due to missing name or invalid number:", row);
-              continue;
+
+            if (!productData.name) {
+                console.warn("Skipping product due to missing name:", firstRow);
+                continue;
             }
 
-            let docId = row.id?.trim();
+            const variants: ProductVariant[] = rows.map(row => ({
+                id: row.variantId || crypto.randomUUID(),
+                name: row.variantName?.trim(),
+                price: parseFloat(row.price),
+                stock: parseInt(row.stock, 10),
+                unit: ['item', 'kg'].includes(row.unit) ? row.unit : 'item',
+            })).filter(v => v.name && !isNaN(v.price) && !isNaN(v.stock));
+
+            if (variants.length === 0) {
+                 console.warn("Skipping product due to no valid variants:", firstRow);
+                 continue;
+            }
+            
+            let docId = firstRow.productId?.trim();
             let docRef;
 
             if (docId && existingProductsById.has(docId)) {
+                // Update existing product by ID
                 docRef = doc(db, 'products', docId);
-                batch.update(docRef, productData);
-                updatedCount++;
-            } else if (existingProductsByName.has(productData.name.toLowerCase())) {
-                const existingProduct = existingProductsByName.get(productData.name.toLowerCase())!;
-                docId = existingProduct.id; // Get ID for translation reference
-                docRef = doc(db, 'products', docId);
-                batch.update(docRef, productData);
+                batch.update(docRef, { ...productData, variants });
                 updatedCount++;
             } else {
-                docRef = doc(collection(db, 'products'));
-                docId = docRef.id; // Get the new auto-generated ID
-                batch.set(docRef, productData);
-                createdCount++;
+                // Check by name if no ID match
+                const q = query(collection(db, 'products'), where("name", "==", productData.name));
+                const nameMatchSnapshot = await getDocs(q);
+                if (!nameMatchSnapshot.empty) {
+                    docId = nameMatchSnapshot.docs[0].id;
+                    docRef = doc(db, 'products', docId);
+                    batch.update(docRef, { ...productData, variants });
+                    updatedCount++;
+                } else {
+                    // Create new product
+                    docRef = doc(collection(db, 'products'));
+                    docId = docRef.id;
+                    batch.set(docRef, { ...productData, variants });
+                    createdCount++;
+                }
             }
             
-            productsToTranslate.push({ docId, name: productData.name, description: productData.description });
+            if (docId) {
+                productsToTranslate.push({ docId, name: productData.name, description: productData.description });
+            }
           }
+
 
           if (createdCount === 0 && updatedCount === 0 && results.data.length > 0) {
             setError("No valid products found to import. Please check CSV headers and data.");
@@ -117,7 +145,6 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
           setIsOpen(false);
           resetState();
 
-          // After import, trigger translations
           if (productsToTranslate.length > 0) {
             toast({
               title: `Translating ${productsToTranslate.length} products...`,
@@ -163,7 +190,7 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
         <DialogHeader>
           <DialogTitle>Import Products via CSV</DialogTitle>
           <DialogDescription>
-            Upload a CSV file to bulk add or edit products. The importer will update products by matching 'id', then 'name'. New products are created if no match is found.
+            Upload a CSV file with each product variant as a separate row. Include product-level details in each row for that variant. The importer will group by 'productId' or 'productName' to create or update products.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

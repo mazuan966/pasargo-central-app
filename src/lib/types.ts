@@ -1,25 +1,53 @@
 
 import { z } from 'zod';
 
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
+export const ProductVariantSchema = z.object({
+  id: z.string().min(1), // Unique ID for the variant
+  name: z.string().min(1, 'Variant name is required.'), // e.g., "5kg"
+  price: z.coerce.number().min(0, 'Price must be a positive number.'),
+  stock: z.coerce.number().int('Stock must be a whole number.'),
+  unit: z.enum(['item', 'kg']),
+});
+export type ProductVariant = z.infer<typeof ProductVariantSchema>;
+
+export const ProductSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Product name is required.'),
+  description: z.string().min(1, 'Description is required.'),
+  category: z.string().min(1, 'Category is required.'),
+  imageUrl: z.string().url('Must be a valid URL.'),
+  "data-ai-hint": z.string().optional(),
+  hasSst: z.boolean().default(false).optional(),
+  variants: z.array(ProductVariantSchema).min(1, "Product must have at least one variant."),
+});
+export type Product = z.infer<typeof ProductSchema> & {
+    id: string;
+    name_ms?: string;
+    description_ms?: string;
+    name_th?: string;
+    description_th?: string;
+};
+
+
+export interface CartItem {
+  id: string; // Composite ID: productId_variantId
+  productId: string;
+  productName: string;
+  productName_ms?: string;
+  productName_th?: string;
+  description?: string;
+  description_ms?: string;
+  description_th?: string;
+
+  variantId: string;
+  variantName: string;
+  
+  quantity: number;
   price: number;
   unit: 'item' | 'kg';
+  stock: number; // variant stock
   imageUrl: string;
-  category: string;
-  stock: number;
-  "data-ai-hint"?: string;
   hasSst?: boolean;
-  name_ms?: string;
-  description_ms?: string;
-  name_th?: string;
-  description_th?: string;
-}
-
-export interface CartItem extends Product {
-  quantity: number;
 }
 
 export type OrderStatus = 'Awaiting Payment' | 'Order Created' | 'Processing' | 'Pick Up' | 'Delivered' | 'Completed' | 'Cancelled';
@@ -85,9 +113,11 @@ export interface Order {
   user: User;
   items: {
     productId: string;
-    name: string;
+    variantId: string;
+    name: string; // Product name
     name_ms?: string;
     name_th?: string;
+    variantName: string; // Variant name e.g., "5kg"
     quantity: number;
     price: number;
     unit: 'item' | 'kg';
