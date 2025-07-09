@@ -6,7 +6,7 @@ import type { Order, User } from '@/lib/types';
 const TOYYIBPAY_SECRET_KEY = 'dev-08d4hwdk-97w7-g29f-z7bd-c87z6yhdve0f';
 const TOYYIBPAY_CATEGORY_CODE = 'nqbwnp0t';
 const APP_URL = 'https://studio--pasargo-central.us-central1.hosted.app';
-const TOYYIBPAY_API_URL = 'https://dev.toyyibpay.com';
+const TOYYIBPAY_API_URL = 'https://toyyibpay.com';
 
 export async function createToyyibpayBill(order: Order, user: User): Promise<{ billCode: string; paymentUrl: string }> {
 

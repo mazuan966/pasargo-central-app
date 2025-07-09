@@ -16,11 +16,16 @@ function PaymentStatusContent() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (orderId) {
-      // Redirect to the specific order details page after a delay
+    if (orderId && statusId === '1') {
+      // Redirect to the specific order details page after a delay on success
       timer = setTimeout(() => {
         router.replace(`/orders/${orderId}`);
       }, 5000); 
+    } else if (orderId && (statusId === '2' || statusId === '3')) {
+        // Redirect back to the payment page for pending or failed payments
+        timer = setTimeout(() => {
+            router.replace(`/payment/${orderId}`);
+        }, 5000);
     } else {
         // Fallback if no orderId is present
         timer = setTimeout(() => {
@@ -28,27 +33,35 @@ function PaymentStatusContent() {
         }, 5000);
     }
     return () => clearTimeout(timer);
-  }, [orderId, router]);
+  }, [orderId, statusId, router]);
 
-  let title, description, icon;
+  let title, description, icon, buttonText, buttonLink;
   
   if (statusId === '1') {
     title = 'Payment Successful!';
     description = "Your payment has been confirmed. You will be redirected to your order shortly.";
     icon = <CheckCircle className="h-16 w-16 text-green-500" />;
+    buttonText = 'Go to Order Details Now';
+    buttonLink = `/orders/${orderId}`;
   } else if (statusId === '2') {
     title = 'Payment Pending';
     description = "Your payment is still pending. We will update the order status once confirmed. Redirecting...";
     icon = <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />;
+    buttonText = 'Try Again';
+    buttonLink = `/payment/${orderId}`;
   } else if (statusId === '3') {
     title = 'Payment Failed';
     description = "There was a problem with your payment. Please try again or contact support. Redirecting...";
     icon = <XCircle className="h-16 w-16 text-destructive" />;
+    buttonText = 'Try Payment Again';
+    buttonLink = `/payment/${orderId}`;
   } else {
     // Fallback for when status_id is not present or invalid
     title = 'Processing Payment Status';
     description = "We are confirming your payment status. You will be redirected shortly.";
     icon = <Loader2 className="h-16 w-16 animate-spin text-primary" />;
+    buttonText = 'Go to Dashboard';
+    buttonLink = '/dashboard';
   }
 
   return (
@@ -61,11 +74,7 @@ function PaymentStatusContent() {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            {orderId ? (
-                <Link href={`/orders/${orderId}`}>Go to Order Details Now</Link>
-            ) : (
-                <Link href="/dashboard">Go to Dashboard</Link>
-            )}
+            <Link href={buttonLink || '/dashboard'}>{buttonText}</Link>
           </Button>
         </CardContent>
       </Card>

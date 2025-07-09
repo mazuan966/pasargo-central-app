@@ -1,7 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
@@ -12,18 +12,15 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         
         const billcode = formData.get('billcode') as string;
-        // The callback from Toyyibpay uses `status`, not `status_id`. This is a critical change.
         const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
-        const order_id = formData.get('order_id') as string; // This is our orderNumber
-        const msg = formData.get('msg') as string;
-        const transaction_id = formData.get('transaction_id') as string;
+        const order_id = formData.get('order_id') as string; // This is the Firestore document ID
         const signature = formData.get('signature') as string;
         
-        if (!billcode || !status || !order_id) {
+        if (!billcode || !status || !order_id || !signature) {
              return new Response('Missing required parameters', { status: 400 });
         }
         
-        const toyyibpaySecretKey = process.env.TOYYIBPAY_SECRET_KEY;
+        const toyyibpaySecretKey = process.env.TOYYIBPAY_SECRET_KEY || 'dev-08d4hwdk-97w7-g29f-z7bd-c87z6yhdve0f';
         if (!toyyibpaySecretKey) {
             console.error('Toyyibpay secret key is not configured.');
             return new Response('Server configuration error', { status: 500 });
@@ -34,23 +31,20 @@ export async function POST(req: NextRequest) {
         const ourSignature = crypto.SHA256(signatureString).toString();
         
         if (signature !== ourSignature) {
-            console.warn(`Invalid signature received from Toyyibpay callback. Got: ${signature}, Expected: ${ourSignature}. String was: "${signatureString}"`);
+            console.warn(`Invalid signature received. Got: ${signature}, Expected: ${ourSignature}. String was: "${signatureString}"`);
             return new Response('Invalid signature', { status: 400 });
         }
 
-        const ordersRef = collection(db, 'orders');
-        const q = query(ordersRef, where('orderNumber', '==', order_id));
-        const querySnapshot = await getDocs(q);
+        const orderRef = doc(db, 'orders', order_id);
+        const orderDoc = await getDoc(orderRef);
         
-        if (querySnapshot.empty) {
-            console.warn(`Order not found for orderNumber: ${order_id}`);
+        if (!orderDoc.exists()) {
+            console.warn(`Order not found for ID: ${order_id}`);
             return new Response('Order not found', { status: 404 });
         }
 
-        const orderDoc = querySnapshot.docs[0];
         const orderData = orderDoc.data() as Order;
-        const orderRef = doc(db, 'orders', orderDoc.id);
-
+        
         if (status === '1') { // Payment success
             if (orderData.paymentStatus !== 'Paid') {
                 const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
@@ -59,7 +53,7 @@ export async function POST(req: NextRequest) {
                     status: 'Processing',
                     statusHistory: newHistory
                 });
-                console.log(`Order ${order_id} marked as Paid.`);
+                console.log(`Order ${orderData.orderNumber} marked as Paid.`);
 
                 // Send notifications now that payment is confirmed
                 const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = { ...orderData, id: orderDoc.id };
@@ -77,7 +71,7 @@ export async function POST(req: NextRequest) {
                 paymentStatus: 'Failed',
                 status: 'Cancelled',
              });
-            console.log(`Received non-successful payment status '${status}' for order ${order_id}. Marked as Failed/Cancelled.`);
+            console.log(`Received non-successful payment status '${status}' for order ${orderData.orderNumber}. Marked as Failed/Cancelled.`);
         }
         
         return new Response('OK', { status: 200 });
