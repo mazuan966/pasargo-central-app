@@ -1,102 +1,57 @@
 
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, Suspense, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { sendOrderConfirmationNotifications } from '@/lib/actions';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
 
 function PaymentStatusContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const statusId = searchParams.get('status_id');
   const orderId = searchParams.get('order_id'); // This is the Firestore doc ID
-  const [isProcessing, setIsProcessing] = useState(true);
-  const [message, setMessage] = useState('Processing your payment...');
 
   useEffect(() => {
-    if (statusId === '1' && orderId) {
-      const confirmPayment = async () => {
-        setIsProcessing(true);
-        setMessage("Payment successful! Finalizing your order... Do not close this page.");
-
-        if (!db) {
-          setMessage("Error: Database connection failed.");
-          setIsProcessing(false);
-          return;
-        }
-
-        try {
-          // Perform the update directly on the client with user's auth
-          const orderRef = doc(db, 'orders', orderId);
-          const orderDoc = await getDoc(orderRef);
-
-          if (orderDoc.exists() && orderDoc.data().paymentStatus !== 'Paid') {
-            const orderData = orderDoc.data() as Order;
-            const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
-            
-            await updateDoc(orderRef, {
-              paymentStatus: 'Paid',
-              status: 'Processing',
-              statusHistory: newHistory
-            });
-            
-            // Now that the status is updated, trigger server-side notifications
-            await sendOrderConfirmationNotifications(orderId);
-          }
-
-          // Redirect after everything is done.
-          const timer = setTimeout(() => {
-            router.replace(`/print/invoice/${orderId}`);
-          }, 1000);
-          return () => clearTimeout(timer);
-
-        } catch (error: any) {
-          setMessage(`Error: ${error.message || 'Failed to confirm order.'}`);
-          setIsProcessing(false);
-        }
-      };
-      
-      confirmPayment();
-    } else {
-      setIsProcessing(false);
+    let timer: NodeJS.Timeout;
+    if (orderId) {
+      // Redirect to the printable invoice after a short delay
+      timer = setTimeout(() => {
+        router.replace(`/print/invoice/${orderId}`);
+      }, 3000);
     }
-  }, [statusId, orderId, router]);
+    return () => clearTimeout(timer);
+  }, [orderId, router]);
 
-  let title, description, icon, buttonText, buttonLink;
+  const handleRedirect = () => {
+    if (orderId) {
+      router.replace(`/orders/${orderId}`);
+    } else {
+      router.replace('/dashboard');
+    }
+  };
+
+  let title, description, icon;
   
   if (statusId === '1') {
     title = 'Payment Successful!';
-    description = message;
-    icon = <Loader2 className="h-16 w-16 animate-spin text-green-500" />;
-    buttonText = 'View Invoice Now';
-    buttonLink = `/print/invoice/${orderId}`;
+    description = "Your payment has been received. You will be redirected to your invoice shortly. The confirmation has been sent via the backend callback.";
+    icon = <CheckCircle className="h-16 w-16 text-green-500" />;
   } else if (statusId === '2') {
     title = 'Payment Pending';
-    description = "Your payment is still pending. We will update the order status once confirmed.";
+    description = "Your payment is still pending. We will update the order status once confirmed. Redirecting...";
     icon = <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />;
-    buttonText = 'Go to Orders';
-    buttonLink = `/orders/${orderId}`;
   } else if (statusId === '3') {
     title = 'Payment Failed';
-    description = "There was a problem with your payment. Please try again or contact support.";
+    description = "There was a problem with your payment. Please try again. Redirecting...";
     icon = <XCircle className="h-16 w-16 text-destructive" />;
-    buttonText = 'Try Payment Again';
-    buttonLink = `/payment/${orderId}`;
   } else {
-    // Fallback for when status_id is not present or invalid
-    title = 'Processing Payment Status';
-    description = "We are confirming your payment status. You will be redirected shortly.";
+    // This fallback is for when the page is accessed without the correct parameters.
+    title = 'Invalid Payment Status';
+    description = "Could not determine payment status. Please check your orders page or contact support.";
     icon = <Loader2 className="h-16 w-16 animate-spin text-primary" />;
-    buttonText = 'Go to Dashboard';
-    buttonLink = '/dashboard';
   }
 
   return (
@@ -107,16 +62,11 @@ function PaymentStatusContent() {
           <CardTitle className="text-2xl">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-           {statusId === '1' && isProcessing && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Do Not Close This Page</AlertTitle>
-              <AlertDescription>You will be redirected automatically once your order is confirmed.</AlertDescription>
-            </Alert>
-          )}
+        <CardContent>
           <Button asChild>
-            <Link href={buttonLink || '/dashboard'}>{buttonText}</Link>
+            <Link href={orderId ? `/orders/${orderId}` : '/dashboard'}>
+              View Your Order
+            </Link>
           </Button>
         </CardContent>
       </Card>

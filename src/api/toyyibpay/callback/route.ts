@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
-// Notifications are now sent via a client-triggered server action, not this callback.
+import { sendOrderConfirmationNotifications } from '@/lib/actions';
 
 export async function POST(req: NextRequest) {
     try {
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
             return new Response('Server configuration error', { status: 500 });
         }
         
+        // As per Toyyibpay API documentation: sha256(secretkey + billcode + order_id + status)
         const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
         const ourSignature = crypto.SHA256(signatureString).toString();
         
@@ -43,10 +44,8 @@ export async function POST(req: NextRequest) {
 
         const orderData = orderDoc.data() as Order;
         
-        // This callback now acts as a silent backup. It updates the status but does not send notifications.
-        // Notifications are triggered by the client-side redirect to /payment/status.
-        
         if (status === '1') { // Payment success
+            // Prevent duplicate processing if callback is sent multiple times
             if (orderData.paymentStatus !== 'Paid') {
                 const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
                 await updateDoc(orderRef, {
@@ -55,6 +54,10 @@ export async function POST(req: NextRequest) {
                     statusHistory: newHistory
                 });
                 console.log(`[Callback] Order ${orderData.orderNumber} marked as Paid.`);
+
+                // Trigger notifications now that the order is confirmed and paid.
+                await sendOrderConfirmationNotifications(order_id);
+                console.log(`[Callback] Notifications sent for order ${orderData.orderNumber}.`);
             }
         } else if (status === '3') { // Payment fail
              const newHistory = [...orderData.statusHistory, { status: 'Cancelled', timestamp: new Date().toISOString() }];
@@ -66,7 +69,7 @@ export async function POST(req: NextRequest) {
             console.log(`[Callback] Received failed payment status for order ${orderData.orderNumber}. Marked as Failed/Cancelled.`);
         }
         
-        // Always return OK to Toyyibpay
+        // Always return OK to Toyyibpay to acknowledge receipt of the callback.
         return new Response('OK', { status: 200 });
 
     } catch (error) {

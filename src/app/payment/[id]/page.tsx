@@ -37,7 +37,7 @@ function PaymentButton({ orderId, total }: { orderId: string, total: number }) {
   );
 }
 
-// This is a Server Component
+
 export default function PaymentPage() {
     const params = useParams<{ id: string }>();
     const [order, setOrder] = useState<Order | null>(null);
@@ -60,7 +60,13 @@ export default function PaymentPage() {
                 ]);
 
                 if (orderDocSnap.exists()) {
-                    setOrder({ id: orderDocSnap.id, ...orderDocSnap.data() } as Order);
+                    const orderData = { id: orderDocSnap.id, ...orderDocSnap.data() } as Order;
+                    setOrder(orderData);
+                     if (orderData.paymentStatus === 'Paid') {
+                        // If order is already paid, no need to show the payment button again.
+                        // Can redirect or show a success message.
+                        setError("This order has already been paid.");
+                    }
                 } else {
                     notFound();
                     return;
@@ -87,18 +93,6 @@ export default function PaymentPage() {
         return (
             <div className="flex w-full justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    if (error) {
-         return (
-            <div className="flex h-screen w-full items-center justify-center text-center p-4">
-                <Alert variant="destructive" className="max-w-md">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Configuration Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                </Alert>
             </div>
         );
     }
@@ -129,9 +123,9 @@ export default function PaymentPage() {
                     )}
                 </CardContent>
                 <CardFooter className="flex-col items-end gap-4 border-t pt-6">
-                    {order.paymentStatus === 'Paid' ? (
+                    {error || order.paymentStatus === 'Paid' ? (
                         <Alert className="bg-green-50 border-green-200 text-green-800">
-                           <AlertTriangle className="h-4 w-4 !text-green-800" />
+                           <CheckCircle className="h-4 w-4 !text-green-800" />
                             <AlertTitle>Payment Complete</AlertTitle>
                             <AlertDescription>
                                 This order has already been paid.
