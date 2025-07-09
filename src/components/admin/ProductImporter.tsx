@@ -163,7 +163,7 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
         <DialogHeader>
           <DialogTitle>Import Products via CSV</DialogTitle>
           <DialogDescription>
-            Upload a CSV file to bulk add or edit products. To update an existing product, make sure the 'name' in your CSV matches the product name in the system. The 'id' field is optional.
+            Upload a CSV file to bulk add or edit products. The importer will update products by matching 'id', then 'name'. New products are created if no match is found.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
