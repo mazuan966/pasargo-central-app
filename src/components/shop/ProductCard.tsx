@@ -19,11 +19,11 @@ export default function ProductCard({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
   
-  const hasVariants = product.variants.length > 1;
-  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(product.variants[0]?.id);
+  const hasVariants = (product.variants?.length || 0) > 1;
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(product.variants?.[0]?.id);
 
   const selectedVariant = useMemo(() => {
-    return product.variants.find(v => v.id === selectedVariantId);
+    return product.variants?.find(v => v.id === selectedVariantId);
   }, [selectedVariantId, product.variants]);
 
   const itemInCart = useMemo(() => {
@@ -97,7 +97,7 @@ export default function ProductCard({ product }: { product: Product }) {
             <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
                 <SelectTrigger><SelectValue placeholder="Select an option" /></SelectTrigger>
                 <SelectContent>
-                    {product.variants.map(variant => (
+                    {product.variants?.map(variant => (
                         <SelectItem key={variant.id} value={variant.id}>
                             {variant.name} - RM {variant.price.toFixed(2)}
                         </SelectItem>
