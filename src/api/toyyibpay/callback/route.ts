@@ -1,7 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
         
         const billcode = formData.get('billcode') as string;
         const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
-        const order_id = formData.get('order_id') as string; // This is the orderNumber
+        const order_id = formData.get('order_id') as string; // This is the order's Firestore Document ID
         const signature = formData.get('signature') as string;
         
         if (!billcode || !status || !order_id || !signature) {
@@ -35,19 +35,16 @@ export async function POST(req: NextRequest) {
             return new Response('Invalid signature', { status: 400 });
         }
 
-        // Find the order using the orderNumber (sent as order_id from callback)
-        const ordersCollection = collection(db, 'orders');
-        const q = query(ordersCollection, where('orderNumber', '==', order_id));
-        const querySnapshot = await getDocs(q);
+        // Find the order using the document ID (sent as order_id from callback)
+        const orderRef = doc(db, 'orders', order_id);
+        const orderDoc = await getDoc(orderRef);
         
-        if (querySnapshot.empty) {
-            console.warn(`Order not found for orderNumber: ${order_id}`);
+        if (!orderDoc.exists()) {
+            console.warn(`Order not found for document ID: ${order_id}`);
             return new Response('Order not found', { status: 404 });
         }
 
-        const orderDoc = querySnapshot.docs[0];
-        const orderRef = doc(db, 'orders', orderDoc.id);
-        const orderData = orderDoc.data() as Order;
+        const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
         
         if (status === '1') { // Payment success
             if (orderData.paymentStatus !== 'Paid') {
@@ -60,7 +57,7 @@ export async function POST(req: NextRequest) {
                 console.log(`Order ${orderData.orderNumber} marked as Paid.`);
 
                 // Send notifications now that payment is confirmed
-                const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = { ...orderData, id: orderDoc.id };
+                const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = orderData;
                 const testPhoneNumber = '60163864181';
                 const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
                 let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
