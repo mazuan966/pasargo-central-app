@@ -10,8 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, AlertTriangle } from 'lucide-react';
 import Papa from 'papaparse';
 import { db } from '@/lib/firebase';
-import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, updateDoc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
+import { translateProduct } from '@/ai/flows/translate-product-flow';
 
 interface ProductImporterProps {
   isOpen: boolean;
@@ -58,6 +59,8 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
           const existingProductsById = new Map(productsSnapshot.docs.map(doc => [doc.id, { ...doc.data(), id: doc.id } as Product]));
           const existingProductsByName = new Map(productsSnapshot.docs.map(doc => [doc.data().name.toLowerCase(), { ...doc.data(), id: doc.id } as Product]));
 
+          const productsToTranslate: { docId: string; name: string; description: string }[] = [];
+
           for (const row of results.data as any[]) {
             const productData = {
               name: row.name?.trim(),
@@ -84,14 +87,18 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
                 updatedCount++;
             } else if (existingProductsByName.has(productData.name.toLowerCase())) {
                 const existingProduct = existingProductsByName.get(productData.name.toLowerCase())!;
-                docRef = doc(db, 'products', existingProduct.id);
+                docId = existingProduct.id; // Get ID for translation reference
+                docRef = doc(db, 'products', docId);
                 batch.update(docRef, productData);
                 updatedCount++;
             } else {
                 docRef = doc(collection(db, 'products'));
+                docId = docRef.id; // Get the new auto-generated ID
                 batch.set(docRef, productData);
                 createdCount++;
             }
+            
+            productsToTranslate.push({ docId, name: productData.name, description: productData.description });
           }
 
           if (createdCount === 0 && updatedCount === 0 && results.data.length > 0) {
@@ -107,9 +114,35 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
             description: `${createdCount} products created, ${updatedCount} products updated.`,
           });
 
-          onImportSuccess();
           setIsOpen(false);
           resetState();
+
+          // After import, trigger translations
+          if (productsToTranslate.length > 0) {
+            toast({
+              title: `Translating ${productsToTranslate.length} products...`,
+              description: 'AI is generating translations. This may take a moment.',
+            });
+
+            const translationPromises = productsToTranslate.map(async (product) => {
+              try {
+                const translations = await translateProduct({ name: product.name, description: product.description });
+                const productRefToUpdate = doc(db, 'products', product.docId);
+                await updateDoc(productRefToUpdate, translations);
+              } catch (e) {
+                console.error(`Failed to translate product ${product.name} (ID: ${product.docId})`, e);
+              }
+            });
+
+            await Promise.all(translationPromises);
+
+            toast({
+              title: 'Translation Complete',
+              description: `Finished translating ${productsToTranslate.length} products.`,
+            });
+          }
+
+          onImportSuccess();
 
         } catch (err: any) {
           setError(`An error occurred during import: ${err.message}`);
