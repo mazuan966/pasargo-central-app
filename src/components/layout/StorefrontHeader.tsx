@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -7,6 +8,7 @@ import { ShoppingCart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/hooks/use-cart';
 import React from 'react';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 export function StorefrontHeader() {
   const { cartCount } = useCart();
@@ -40,6 +42,7 @@ export function StorefrontHeader() {
                 <span className="sr-only">Shopping Cart</span>
             </Link>
         </Button>
+        <LanguageSwitcher />
         <Button asChild>
           <Link href="/login">Login / Sign Up</Link>
         </Button>

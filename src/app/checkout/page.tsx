@@ -20,6 +20,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { placeOrderAction } from '@/lib/actions';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { PaymentMethod } from '@/lib/types';
+import { useLanguage } from '@/context/LanguageProvider';
 
 interface AmendmentInfo {
     originalOrderId: string;
@@ -45,6 +46,7 @@ const timeSlots = [
 
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
+  const { getTranslated } = useLanguage();
   const { userData, loading: isAuthLoading } = useAuth();
   
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
@@ -166,7 +168,7 @@ export default function CheckoutPage() {
                   {cartItems.map(item => (
                     <div key={item.id} className="flex justify-between items-center">
                       <div>
-                        <p className="font-medium">{item.name}</p>
+                        <p className="font-medium">{getTranslated(item, 'name')}</p>
                         <p className="text-sm text-muted-foreground">{item.quantity} x RM {item.price.toFixed(2)}</p>
                       </div>
                       <p>RM {(item.quantity * item.price).toFixed(2)}</p>

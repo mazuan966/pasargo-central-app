@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -9,9 +10,11 @@ import { ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart, cartItems } = useCart();
+  const { getTranslated } = useLanguage();
   const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
 
@@ -32,7 +35,7 @@ export default function ProductCard({ product }: { product: Product }) {
       toast({
         variant: 'destructive',
         title: 'Not enough stock!',
-        description: `You can only add ${availableStock} more of ${product.name}.`,
+        description: `You can only add ${availableStock} more of ${getTranslated(product, 'name')}.`,
       });
       return;
     }
@@ -45,15 +48,15 @@ export default function ProductCard({ product }: { product: Product }) {
         <div className="aspect-video relative">
           <Image
             src={product.imageUrl}
-            alt={product.name}
+            alt={getTranslated(product, 'name')}
             fill
             className="object-cover"
             data-ai-hint={product['data-ai-hint']}
           />
         </div>
         <div className="p-4">
-          <CardTitle className="text-lg font-headline">{product.name}</CardTitle>
-          <CardDescription className="mt-1 text-sm h-10">{product.description}</CardDescription>
+          <CardTitle className="text-lg font-headline">{getTranslated(product, 'name')}</CardTitle>
+          <CardDescription className="mt-1 text-sm h-10">{getTranslated(product, 'description')}</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-4 pt-0">

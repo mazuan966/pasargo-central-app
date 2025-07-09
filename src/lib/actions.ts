@@ -113,7 +113,17 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             const newOrderData: Omit<Order, 'id'> = {
                 orderNumber: newOrderNumber,
                 user: userData,
-                items: items.map(item => ({ productId: item.id, name: item.name, quantity: item.quantity, price: item.price, unit: item.unit, hasSst: !!item.hasSst, amendmentStatus: 'original' })),
+                items: items.map(item => ({ 
+                    productId: item.id, 
+                    name: item.name, 
+                    name_ms: item.name_ms,
+                    name_th: item.name_th,
+                    quantity: item.quantity, 
+                    price: item.price, 
+                    unit: item.unit, 
+                    hasSst: !!item.hasSst, 
+                    amendmentStatus: 'original' 
+                })),
                 subtotal, sst, total,
                 status,
                 paymentStatus,
@@ -205,7 +215,17 @@ export async function amendOrderAction(payload: AmendOrderPayload): Promise<{ su
                 if (!originalItem) amendmentStatus = 'added';
                 else if (amendedItem.quantity !== originalItem.quantity) amendmentStatus = 'updated';
 
-                return { ...amendedItem, productId: amendedItem.id, amendmentStatus };
+                return {
+                    productId: amendedItem.id,
+                    name: amendedItem.name,
+                    name_ms: amendedItem.name_ms,
+                    name_th: amendedItem.name_th,
+                    quantity: amendedItem.quantity,
+                    price: amendedItem.price,
+                    unit: amendedItem.unit,
+                    hasSst: !!amendedItem.hasSst,
+                    amendmentStatus,
+                };
             });
 
             transaction.update(orderRef, { items: finalItemsWithStatus, subtotal: newSubtotal, sst: newSst, total: newTotal, isEditable: false });

@@ -86,6 +86,8 @@ export interface Order {
   items: {
     productId: string;
     name: string;
+    name_ms?: string;
+    name_th?: string;
     quantity: number;
     price: number;
     unit: 'item' | 'kg';

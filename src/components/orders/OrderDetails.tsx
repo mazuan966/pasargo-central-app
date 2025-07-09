@@ -1,3 +1,4 @@
+
 import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -5,9 +6,11 @@ import { Package, Calendar, Truck, CheckCircle, Clock, CheckCheck } from 'lucide
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export function OrderDetails({ order }: { order: Order }) {
   const [isMounted, setIsMounted] = useState(false);
+  const { getTranslated } = useLanguage();
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -46,7 +49,7 @@ export function OrderDetails({ order }: { order: Order }) {
                 <div key={`${item.productId}-${index}`} className="flex justify-between items-center">
                   <div>
                     <p className="flex items-center gap-2 font-medium">
-                      {item.name}
+                      {getTranslated(item, 'name')}
                       {item.amendmentStatus === 'added' && <Badge className="bg-blue-200 text-blue-800 font-normal">Added</Badge>}
                       {item.amendmentStatus === 'updated' && <Badge className="bg-yellow-200 text-yellow-800 font-normal">Updated</Badge>}
                     </p>

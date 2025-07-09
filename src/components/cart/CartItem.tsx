@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -6,9 +7,11 @@ import { useCart } from '@/hooks/use-cart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2 } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageProvider';
 
 export default function CartItem({ item }: { item: CartItemType }) {
   const { updateQuantity, removeFromCart } = useCart();
+  const { getTranslated } = useLanguage();
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newQuantity = parseInt(e.target.value, 10);
@@ -24,10 +27,10 @@ export default function CartItem({ item }: { item: CartItemType }) {
   return (
     <div className="flex items-center gap-4 p-4">
       <div className="relative h-20 w-20 rounded-md overflow-hidden">
-        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" data-ai-hint={item['data-ai-hint']} />
+        <Image src={item.imageUrl} alt={getTranslated(item, 'name')} fill className="object-cover" data-ai-hint={item['data-ai-hint']} />
       </div>
       <div className="flex-grow">
-        <p className="font-semibold">{item.name}</p>
+        <p className="font-semibold">{getTranslated(item, 'name')}</p>
         <p className="text-sm text-muted-foreground">RM {item.price.toFixed(2)} / {item.unit}</p>
       </div>
       <div className="flex items-center gap-2">
