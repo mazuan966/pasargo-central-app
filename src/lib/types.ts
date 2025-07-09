@@ -1,5 +1,6 @@
 
 import { z } from 'zod';
+import type { Language } from '@/context/LanguageProvider';
 
 export const ProductVariantSchema = z.object({
   id: z.string().min(1), // Unique ID for the variant
@@ -19,15 +20,15 @@ export const ProductSchema = z.object({
   "data-ai-hint": z.string().optional(),
   hasSst: z.boolean().default(false).optional(),
   variants: z.array(ProductVariantSchema).min(1, "Product must have at least one variant."),
+  name_ms: z.string().optional(),
+  description_ms: z.string().optional(),
+  category_ms: z.string().optional(),
+  name_th: z.string().optional(),
+  description_th: z.string().optional(),
+  category_th: z.string().optional(),
 });
 export type Product = z.infer<typeof ProductSchema> & {
     id: string;
-    name_ms?: string;
-    description_ms?: string;
-    category_ms?: string;
-    name_th?: string;
-    description_th?: string;
-    category_th?: string;
 };
 
 
@@ -141,6 +142,7 @@ export interface Order {
   toyyibpayBillCode?: string;
   deliveryPhotoUrl?: string;
   paymentProofUrl?: string;
+  language?: Language;
   deliveryVerification?: {
     isOrderCompleted: boolean;
     confidence: number;

@@ -11,18 +11,21 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 import { createToyyibpayBill } from '@/lib/toyyibpay';
 import { format } from 'date-fns';
+import type { Language } from '@/context/LanguageProvider';
+import { getTranslation, getTranslatedItemField } from '@/lib/translations';
 
 const SST_RATE = 0.06;
 
 async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     const adminPhoneNumber = '60163864181'; // Hardcoded admin number
     const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app/';
+    const lang = updatedOrder.language || 'en';
 
     const itemsSummary = updatedOrder.items.map(item => {
         let statusTag = '';
-        if (item.amendmentStatus === 'added') statusTag = ' [Added]';
-        else if (item.amendmentStatus === 'updated') statusTag = ' [Updated]';
-        return `- ${item.name} (${item.variantName}) - (${item.quantity} x RM ${item.price.toFixed(2)})${statusTag}`;
+        if (item.amendmentStatus === 'added') statusTag = ` [${getTranslation(lang, 'whatsapp.item_added')}]`;
+        else if (item.amendmentStatus === 'updated') statusTag = ` [${getTranslation(lang, 'whatsapp.item_updated')}]`;
+        return `- ${getTranslatedItemField(item, 'name', lang)} (${item.variantName}) - (${item.quantity} x RM ${item.price.toFixed(2)})${statusTag}`;
     }).join('\n');
 
     const adminItemsSummary = updatedOrder.items.map(item => {
@@ -32,18 +35,20 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
         return `- ${item.name} (${item.variantName}) (x${item.quantity})${statusTag}`;
     }).join('\n');
     
-    const invoiceLink = `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}`;
-    const poLink = `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}`;
+    const invoiceLink = appUrl ? `\n\n${getTranslation(lang, 'whatsapp.view_invoice_prompt')}\n${appUrl}/print/invoice/${updatedOrder.id}` : '';
+    const poLink = appUrl ? `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}` : '';
 
-    const userMessage = `Hi ${user.restaurantName}!\n\nYour Order #${updatedOrder.orderNumber} has been successfully *UPDATED*.\n\n` +
-    `*Delivery remains scheduled for:* ${format(new Date(updatedOrder.deliveryDate), 'dd/MM/yyyy')} at ${updatedOrder.deliveryTimeSlot}\n\n` +
-    `*Updated Items:*\n` +
+    const userMessage = `${getTranslation(lang, 'whatsapp.greeting', { name: user.restaurantName })}\n\n` +
+    `${getTranslation(lang, 'whatsapp.order_updated')}\n\n` +
+    `*${getTranslation(lang, 'whatsapp.delivery_remains')}:* ${format(new Date(updatedOrder.deliveryDate), 'dd/MM/yyyy')} at ${updatedOrder.deliveryTimeSlot}\n\n` +
+    `*${getTranslation(lang, 'whatsapp.updated_items')}:*\n` +
     itemsSummary +
-    `\n\nSubtotal: RM ${updatedOrder.subtotal.toFixed(2)}\nSST (6%): RM ${updatedOrder.sst.toFixed(2)}\n*New Total: RM ${updatedOrder.total.toFixed(2)}*` +
+    `\n\n${getTranslation(lang, 'cart.subtotal')}: RM ${updatedOrder.subtotal.toFixed(2)}\n${getTranslation(lang, 'cart.sst')}: RM ${updatedOrder.sst.toFixed(2)}\n*${getTranslation(lang, 'whatsapp.new_total')}: RM ${updatedOrder.total.toFixed(2)}*` +
     invoiceLink +
-    `\n\nWe will process your updated order shortly.`;
+    `\n\n${getTranslation(lang, 'whatsapp.outro')}`;
     
     if (user.phoneNumber) {
+        console.log(`Attempting to send AMENDMENT notification to user ${user.phoneNumber}`);
         await sendWhatsAppMessage(user.phoneNumber, userMessage);
     }
 
@@ -54,6 +59,7 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     adminItemsSummary +
     poLink;
 
+    console.log(`Attempting to send AMENDMENT notification to admin ${adminPhoneNumber}`);
     await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
 };
 
@@ -66,6 +72,7 @@ type PlaceOrderPayload = {
     deliveryTimeSlot: string;
     userData: User;
     paymentMethod: PaymentMethod;
+    language: Language;
 };
 
 export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ success: boolean; message: string; orderId?: string; paymentUrl?: string; }> {
@@ -73,7 +80,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         return { success: false, message: 'Database not configured.' };
     }
 
-    const { items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, userData, paymentMethod } = payload;
+    const { items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, userData, paymentMethod, language } = payload;
 
     if (items.length === 0) return { success: false, message: "Cannot place an order with an empty cart." };
     if (!deliveryDate || !deliveryTimeSlot) return { success: false, message: "Delivery date and time slot are required." };
@@ -136,6 +143,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
                 status,
                 paymentStatus,
                 paymentMethod,
+                language,
                 orderDate: new Date().toISOString(),
                 deliveryDate, deliveryTimeSlot,
                 statusHistory: [{ status, timestamp: new Date().toISOString() }],
@@ -491,25 +499,43 @@ export async function sendOrderConfirmationNotifications(orderId: string): Promi
 
         const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
 
-        const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = orderData;
+        const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId, language } = orderData;
+        const lang = language || 'en';
         const adminPhoneNumber = '60163864181';
         const userPhoneNumber = user.phoneNumber;
         const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
         
-        let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
-        let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
+        const invoiceMessageSection = appUrl ? `\n\n${getTranslation(lang, 'whatsapp.view_invoice_prompt')}\n${appUrl}/print/invoice/${orderDocId}` : '';
+        const poMessageSection = appUrl ? `\n\nView the Purchase Order here:\n${appUrl}/admin/print/po/${orderDocId}` : '';
         
         // Send to User
         if (userPhoneNumber) {
-            const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.variantName}) (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
-            await sendWhatsAppMessage(userPhoneNumber, userInvoiceMessage);
+            console.log(`Attempting to send user confirmation to ${userPhoneNumber} for order ${orderNumber}`);
+            const userInvoiceMessage = 
+                `${getTranslation(lang, 'whatsapp.greeting', { name: user.restaurantName })}\n\n` +
+                `${getTranslation(lang, 'whatsapp.order_confirmation')}\n\n` +
+                `*${getTranslation(lang, 'whatsapp.invoice_title', { orderNumber })}*\n\n` +
+                `*${getTranslation(lang, 'whatsapp.delivery_date')}:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` +
+                `*${getTranslation(lang, 'whatsapp.delivery_time')}:* ${deliveryTimeSlot}\n\n` +
+                items.map(item => `- ${getTranslatedItemField(item, 'name', lang)} (${item.variantName}) (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') +
+                `\n\n${getTranslation(lang, 'cart.subtotal')}: RM ${subtotal.toFixed(2)}\n` +
+                `${getTranslation(lang, 'cart.sst')}: RM ${sst.toFixed(2)}\n` +
+                `*${getTranslation(lang, 'cart.total')}: RM ${total.toFixed(2)}*` +
+                `${invoiceMessageSection}\n\n` +
+                `${getTranslation(lang, 'whatsapp.outro')}`;
+            
+            const result = await sendWhatsAppMessage(userPhoneNumber, userInvoiceMessage);
+            console.log(`WhatsApp user notification result for order ${orderNumber}:`, result);
         } else {
              console.warn(`User ${user.restaurantName} (ID: ${user.id}) does not have a phone number. Skipping user notification.`);
         }
         
         // Send to Admin
+        console.log(`Attempting to send admin notification to ${adminPhoneNumber} for order ${orderNumber}`);
         const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (${item.variantName}) (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
-        await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+        const adminResult = await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+        console.log(`WhatsApp admin notification result for order ${orderNumber}:`, adminResult);
+
 
         revalidatePath(`/orders/${orderId}`);
         revalidatePath('/dashboard');

@@ -136,6 +136,19 @@ const translations: Record<Language, Translations> = {
     'payment_status.paid': 'Paid',
     'payment_status.failed': 'Failed',
     'categories.all': 'All',
+    'whatsapp.greeting': 'Hi {name}!',
+    'whatsapp.order_confirmation': 'Thank you for your order!',
+    'whatsapp.order_updated': 'Your Order has been successfully *UPDATED*.',
+    'whatsapp.invoice_title': 'Invoice for Order #{orderNumber}',
+    'whatsapp.delivery_date': 'Delivery Date',
+    'whatsapp.delivery_time': 'Delivery Time',
+    'whatsapp.delivery_remains': 'Delivery remains scheduled for',
+    'whatsapp.updated_items': 'Updated Items',
+    'whatsapp.new_total': 'New Total',
+    'whatsapp.item_added': 'Added',
+    'whatsapp.item_updated': 'Updated',
+    'whatsapp.view_invoice_prompt': 'Here is the unique link to view your invoice:',
+    'whatsapp.outro': 'We will process your order shortly.',
   },
   ms: {
     'header.login_signup': 'Log Masuk / Daftar',
@@ -267,6 +280,19 @@ const translations: Record<Language, Translations> = {
     'payment_status.paid': 'Dibayar',
     'payment_status.failed': 'Gagal',
     'categories.all': 'Semua',
+    'whatsapp.greeting': 'Hai {name}!',
+    'whatsapp.order_confirmation': 'Terima kasih atas pesanan anda!',
+    'whatsapp.order_updated': 'Pesanan anda telah berjaya *DIKEMASKINI*.',
+    'whatsapp.invoice_title': 'Invois untuk Pesanan #{orderNumber}',
+    'whatsapp.delivery_date': 'Tarikh Penghantaran',
+    'whatsapp.delivery_time': 'Masa Penghantaran',
+    'whatsapp.delivery_remains': 'Penghantaran kekal dijadualkan untuk',
+    'whatsapp.updated_items': 'Item yang Dikemas kini',
+    'whatsapp.new_total': 'Jumlah Baharu',
+    'whatsapp.item_added': 'Ditambah',
+    'whatsapp.item_updated': 'Dikemas kini',
+    'whatsapp.view_invoice_prompt': 'Berikut adalah pautan unik untuk melihat invois anda:',
+    'whatsapp.outro': 'Kami akan memproses pesanan anda sebentar lagi.',
   },
   th: {
     'header.login_signup': 'เข้าสู่ระบบ / สมัครสมาชิก',
@@ -398,7 +424,40 @@ const translations: Record<Language, Translations> = {
     'payment_status.paid': 'จ่ายแล้ว',
     'payment_status.failed': 'ล้มเหลว',
     'categories.all': 'ทั้งหมด',
+    'whatsapp.greeting': 'สวัสดี {name}!',
+    'whatsapp.order_confirmation': 'ขอบคุณสำหรับคำสั่งซื้อของคุณ!',
+    'whatsapp.order_updated': 'คำสั่งซื้อของคุณได้รับการ *อัปเดต* เรียบร้อยแล้ว',
+    'whatsapp.invoice_title': 'ใบแจ้งหนี้สำหรับคำสั่งซื้อ #{orderNumber}',
+    'whatsapp.delivery_date': 'วันที่จัดส่ง',
+    'whatsapp.delivery_time': 'เวลาจัดส่ง',
+    'whatsapp.delivery_remains': 'การจัดส่งยังคงกำหนดไว้สำหรับ',
+    'whatsapp.updated_items': 'รายการที่อัปเดต',
+    'whatsapp.new_total': 'ยอดรวมใหม่',
+    'whatsapp.item_added': 'เพิ่มแล้ว',
+    'whatsapp.item_updated': 'อัปเดตแล้ว',
+    'whatsapp.view_invoice_prompt': 'นี่คือลิงก์เฉพาะสำหรับดูใบแจ้งหนี้ของคุณ:',
+    'whatsapp.outro': 'เราจะดำเนินการตามคำสั่งซื้อของคุณในไม่ช้า',
   },
 };
 
 export default translations;
+
+export const getTranslation = (lang: Language, key: string, replacements?: Record<string, string | number>): string => {
+    let translation = translations[lang]?.[key] || translations['en'][key] || key;
+    if (replacements) {
+        Object.keys(replacements).forEach(replaceKey => {
+            translation = translation.replace(`{${replaceKey}}`, String(replacements[replaceKey]));
+        });
+    }
+    return translation;
+};
+
+export const getTranslatedItemField = (item: any, field: string, lang: Language): string => {
+    if (!item) return '';
+    const baseField = item[field]; // e.g., item['name']
+    if (lang === 'en') {
+      return baseField || '';
+    }
+    const translatedField = item[`${field}_${lang}`]; // e.g., item['name_th']
+    return translatedField || baseField || '';
+};

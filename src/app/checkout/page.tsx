@@ -46,7 +46,7 @@ const timeSlots = [
 
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
-  const { getTranslated, t } = useLanguage();
+  const { getTranslated, t, language } = useLanguage();
   const { userData, loading: isAuthLoading } = useAuth();
   
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
@@ -115,6 +115,7 @@ export default function CheckoutPage() {
       deliveryTimeSlot: deliveryTime,
       userData: userData,
       paymentMethod: paymentMethod,
+      language: language,
     });
 
     if (result.success) {
