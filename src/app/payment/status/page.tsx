@@ -12,18 +12,18 @@ function PaymentStatusContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const statusId = searchParams.get('status_id');
-  const orderId = searchParams.get('order_id'); // This is the Firestore doc ID
+  const orderId = searchParams.get('order_id'); // This is now the Firestore doc ID
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (orderId) {
+    if (orderId && statusId === '1') {
       // Redirect to the printable invoice after a short delay
       timer = setTimeout(() => {
         router.replace(`/print/invoice/${orderId}`);
       }, 3000);
     }
     return () => clearTimeout(timer);
-  }, [orderId, router]);
+  }, [orderId, statusId, router]);
 
   const handleRedirect = () => {
     if (orderId) {
@@ -37,15 +37,15 @@ function PaymentStatusContent() {
   
   if (statusId === '1') {
     title = 'Payment Successful!';
-    description = "Your payment has been received. You will be redirected to your invoice shortly. The confirmation has been sent via the backend callback.";
+    description = "Your payment has been received and is being processed. You will be redirected to your invoice shortly. A confirmation has been sent via the backend callback.";
     icon = <CheckCircle className="h-16 w-16 text-green-500" />;
   } else if (statusId === '2') {
     title = 'Payment Pending';
-    description = "Your payment is still pending. We will update the order status once confirmed. Redirecting...";
+    description = "Your payment is still pending. We will update the order status once confirmed. You can close this window.";
     icon = <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />;
   } else if (statusId === '3') {
     title = 'Payment Failed';
-    description = "There was a problem with your payment. Please try again. Redirecting...";
+    description = "There was a problem with your payment. Please try again.";
     icon = <XCircle className="h-16 w-16 text-destructive" />;
   } else {
     // This fallback is for when the page is accessed without the correct parameters.
