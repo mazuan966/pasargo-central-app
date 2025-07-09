@@ -10,7 +10,7 @@ import { useLanguage } from '@/context/LanguageProvider';
 
 export function OrderDetails({ order }: { order: Order }) {
   const [isMounted, setIsMounted] = useState(false);
-  const { getTranslated } = useLanguage();
+  const { getTranslated, t } = useLanguage();
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -37,13 +37,13 @@ export function OrderDetails({ order }: { order: Order }) {
       <div className="md:col-span-2">
         <Card>
           <CardHeader>
-            <CardTitle>Order #{order.orderNumber}</CardTitle>
+            <CardTitle>{t('invoice.number')} {order.orderNumber}</CardTitle>
             <CardDescription>
-              Placed on {isMounted ? format(new Date(order.orderDate), 'dd/MM/yyyy HH:mm') : ''}
+              {t('order_details.placed_on')} {isMounted ? format(new Date(order.orderDate), 'dd/MM/yyyy HH:mm') : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <h3 className="font-semibold mb-2">Items Ordered</h3>
+            <h3 className="font-semibold mb-2">{t('order_details.items_ordered')}</h3>
             <div className="space-y-2">
               {order.items.map((item, index) => (
                 <div key={`${item.productId}-${index}`} className="flex justify-between items-center">
@@ -67,11 +67,11 @@ export function OrderDetails({ order }: { order: Order }) {
                 <Separator className="my-4" />
                 <div className="space-y-1">
                     <div className="flex justify-between">
-                        <p>Subtotal</p>
+                        <p>{t('cart.subtotal')}</p>
                         <p>RM {order.subtotal.toFixed(2)}</p>
                     </div>
                     <div className="flex justify-between">
-                        <p>SST (6%)</p>
+                        <p>{t('cart.sst')}</p>
                         <p>RM {order.sst.toFixed(2)}</p>
                     </div>
                 </div>
@@ -80,20 +80,20 @@ export function OrderDetails({ order }: { order: Order }) {
 
             <Separator className="my-4" />
             <div className="flex justify-between font-bold text-lg">
-              <p>Total</p>
+              <p>{t('cart.total')}</p>
               <p>RM {order.total.toFixed(2)}</p>
             </div>
              <Separator className="my-4" />
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <h4 className="font-semibold mb-2">Delivery Details</h4>
-                    <p className="text-sm"><span className="text-muted-foreground">Date:</span> {isMounted ? format(new Date(order.deliveryDate), 'dd/MM/yyyy') : ''}</p>
-                    <p className="text-sm"><span className="text-muted-foreground">Time Slot:</span> {order.deliveryTimeSlot}</p>
+                    <h4 className="font-semibold mb-2">{t('order_details.delivery_details')}</h4>
+                    <p className="text-sm"><span className="text-muted-foreground">{t('checkout.delivery_date')}:</span> {isMounted ? format(new Date(order.deliveryDate), 'dd/MM/yyyy') : ''}</p>
+                    <p className="text-sm"><span className="text-muted-foreground">{t('checkout.delivery_time')}:</span> {order.deliveryTimeSlot}</p>
                 </div>
                 <div>
-                    <h4 className="font-semibold mb-2">Payment Information</h4>
-                    <p className="text-sm"><span className="text-muted-foreground">Method:</span> {order.paymentMethod}</p>
-                    <p className="text-sm"><span className="text-muted-foreground">Status:</span> {order.paymentStatus}</p>
+                    <h4 className="font-semibold mb-2">{t('order_details.payment_info')}</h4>
+                    <p className="text-sm"><span className="text-muted-foreground">{t('checkout.payment_method_title')}:</span> {order.paymentMethod}</p>
+                    <p className="text-sm"><span className="text-muted-foreground">{t('order_details.payment_status')}:</span> {t(`payment_status.${order.paymentStatus.toLowerCase().replace(/ /g, '_')}`)}</p>
                 </div>
              </div>
           </CardContent>
@@ -103,7 +103,7 @@ export function OrderDetails({ order }: { order: Order }) {
       <div>
         <Card>
           <CardHeader>
-            <CardTitle>Order Status</CardTitle>
+            <CardTitle>{t('order_details.order_status')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
@@ -118,7 +118,7 @@ export function OrderDetails({ order }: { order: Order }) {
                     )}
                   </div>
                   <div>
-                    <p className="font-semibold">{history.status}</p>
+                    <p className="font-semibold">{t(`status.${history.status.toLowerCase().replace(/ /g, '_')}`)}</p>
                     <p className="text-sm text-muted-foreground">
                       {isMounted ? format(new Date(history.timestamp), 'dd/MM/yyyy HH:mm') : ''}
                     </p>

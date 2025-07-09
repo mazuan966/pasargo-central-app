@@ -20,6 +20,7 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { cancelAwaitingPaymentOrderAction } from '@/lib/actions';
+import { useLanguage } from '@/context/LanguageProvider';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -44,21 +45,23 @@ const statusBadgeVariants = cva(
 export function OrderListItem({ order }: { order: Order }) {
   const [isCancelling, setIsCancelling] = useState(false);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const handleCancelOrder = async () => {
     setIsCancelling(true);
     const result = await cancelAwaitingPaymentOrderAction(order.id);
     if (result.success) {
-        toast({ title: 'Order Cancelled', description: result.message });
+        toast({ title: t('toast.order_cancelled_title'), description: result.message });
     } else {
-        toast({ variant: 'destructive', title: 'Cancellation Failed', description: result.message });
-        setIsCancelling(false);
+        toast({ variant: 'destructive', title: t('toast.cancellation_failed_title'), description: result.message });
     }
+    setIsCancelling(false); // Should be outside if/else to always stop loading
   };
 
   const isAwaitingPayment = order.status === 'Awaiting Payment';
-  const buttonLink = isAwaitingPayment ? `/payment/${order.id}` : `/orders/${order.id}`;
-  const buttonText = isAwaitingPayment ? 'Complete Payment' : 'View Details';
+  const buttonLink = `/orders/${order.id}`;
+  const buttonText = isAwaitingPayment ? t('orders.complete_payment') : t('orders.view_details');
+  const statusKey = `status.${order.status.toLowerCase().replace(/ /g, '_')}`;
 
   return (
     <div className="py-4 px-2 hover:bg-muted/50 rounded-lg transition-colors">
@@ -86,7 +89,7 @@ export function OrderListItem({ order }: { order: Order }) {
 
         <div>
           <Badge variant="outline" className={statusBadgeVariants({ status: order.status })}>
-            {order.status}
+            {t(statusKey)}
           </Badge>
         </div>
 
@@ -96,25 +99,25 @@ export function OrderListItem({ order }: { order: Order }) {
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm" disabled={isCancelling}>
-                                Cancel Order
+                                {t('orders.cancel_order')}
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
+                                <AlertDialogTitle>{t('orders.cancel_dialog_title')}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This will cancel your order #{order.orderNumber} and return the items to stock. This action cannot be undone.
+                                    {t('orders.cancel_dialog_description', {orderNumber: order.orderNumber})}
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Go Back</AlertDialogCancel>
+                                <AlertDialogCancel>{t('orders.cancel_dialog_cancel')}</AlertDialogCancel>
                                 <AlertDialogAction
                                     onClick={handleCancelOrder}
                                     disabled={isCancelling}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                     {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Yes, Cancel
+                                    {t('orders.cancel_dialog_confirm')}
                                 </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
