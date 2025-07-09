@@ -29,13 +29,16 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
         else if (item.amendmentStatus === 'updated') statusTag = ' [Updated]';
         return `- ${item.name} (x${item.quantity})${statusTag}`;
     }).join('\n');
+    
+    const invoiceLink = `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}`;
+    const poLink = `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}`;
 
     const userMessage = `Hi ${user.restaurantName}!\n\nYour Order #${updatedOrder.orderNumber} has been successfully *UPDATED*.\n\n` +
     `*Delivery remains scheduled for:* ${new Date(updatedOrder.deliveryDate).toLocaleDateString()} at ${updatedOrder.deliveryTimeSlot}\n\n` +
     `*Updated Items:*\n` +
     itemsSummary +
     `\n\nSubtotal: RM ${updatedOrder.subtotal.toFixed(2)}\nSST (6%): RM ${updatedOrder.sst.toFixed(2)}\n*New Total: RM ${updatedOrder.total.toFixed(2)}*` +
-    (appUrl ? `\n\nHere is the unique link to view your updated invoice:\n${appUrl}/print/invoice/${updatedOrder.id}` : '') +
+    invoiceLink +
     `\n\nWe will process your updated order shortly.`;
     
     // Send user notification to the test number
@@ -46,7 +49,7 @@ async function sendAmendmentNotifications(updatedOrder: Order, user: User) {
     `*New Total: RM ${updatedOrder.total.toFixed(2)}*\n\n` +
     `*Updated Items:*\n` +
     adminItemsSummary +
-    (appUrl ? `\n\nView the updated Purchase Order here:\n${appUrl}/admin/print/po/${updatedOrder.id}` : '');
+    poLink;
 
     await sendWhatsAppMessage(adminPhoneNumber, `[ADMIN PO UPDATE] ${adminMessage}`);
 };
@@ -124,8 +127,8 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             const testPhoneNumber = '60163864181';
             const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
 
-            let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}` : '';
-            let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}` : '';
+            const invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}`;
+            const poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}`;
             
             const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${new Date(deliveryDate).toLocaleDateString()}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
             const userResult = await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
