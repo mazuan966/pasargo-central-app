@@ -11,6 +11,7 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 import { createToyyibpayBill } from '@/lib/toyyibpay';
 import { redirect } from 'next/navigation';
+import { format } from 'date-fns';
 
 const SST_RATE = 0.06;
 
@@ -494,26 +495,24 @@ export async function confirmFpxPaymentAction(orderId: string): Promise<{ succes
 
     try {
         const orderRef = doc(db, 'orders', orderId);
-        await runTransaction(db, async (transaction) => {
-            const orderDoc = await transaction.get(orderRef);
-            if (!orderDoc.exists()) {
-                throw new Error("Order not found during confirmation.");
-            }
-            const orderData = orderDoc.data() as Order;
+        const orderDoc = await getDoc(orderRef);
 
-            if (orderData.paymentStatus === 'Paid') {
-                return; // Already processed, do nothing.
-            }
+        if (!orderDoc.exists()) {
+            throw new Error("Order not found during confirmation.");
+        }
+        
+        const orderData = orderDoc.data() as Order;
 
-            const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
-            transaction.update(orderRef, {
+        if (orderData.paymentStatus !== 'Paid') {
+            const newHistory = [...orderData.statusHistory, { status: 'Processing' as const, timestamp: new Date().toISOString() }];
+            await updateDoc(orderRef, {
                 paymentStatus: 'Paid',
                 status: 'Processing',
                 statusHistory: newHistory
             });
-        });
-
-        // Send notifications *after* the transaction is successful
+        }
+        
+        // This is the critical fix: we MUST await the notifications.
         await sendOrderConfirmationNotifications(orderId);
 
         revalidatePath(`/orders/${orderId}`);
@@ -528,3 +527,5 @@ export async function confirmFpxPaymentAction(orderId: string): Promise<{ succes
         return { success: false, message: e.message || "An error occurred while confirming payment." };
     }
 }
+
+    
