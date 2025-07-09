@@ -3,9 +3,23 @@ import Link from 'next/link';
 import type { Order, OrderStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Calendar, Hash, Package, DollarSign } from 'lucide-react';
+import { ArrowRight, Calendar, Hash, Package, DollarSign, Loader2 } from 'lucide-react';
 import { cva } from 'class-variance-authority';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { cancelAwaitingPaymentOrderAction } from '@/lib/actions';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -28,6 +42,20 @@ const statusBadgeVariants = cva(
 )
 
 export function OrderListItem({ order }: { order: Order }) {
+  const [isCancelling, setIsCancelling] = useState(false);
+  const { toast } = useToast();
+
+  const handleCancelOrder = async () => {
+    setIsCancelling(true);
+    const result = await cancelAwaitingPaymentOrderAction(order.id);
+    if (result.success) {
+        toast({ title: 'Order Cancelled', description: result.message });
+    } else {
+        toast({ variant: 'destructive', title: 'Cancellation Failed', description: result.message });
+        setIsCancelling(false);
+    }
+  };
+
   const isAwaitingPayment = order.status === 'Awaiting Payment';
   const buttonLink = isAwaitingPayment ? `/payment/${order.id}` : `/orders/${order.id}`;
   const buttonText = isAwaitingPayment ? 'Complete Payment' : 'View Details';
@@ -62,12 +90,51 @@ export function OrderListItem({ order }: { order: Order }) {
           </Badge>
         </div>
 
-        <Button asChild variant="outline" size="sm">
-          <Link href={buttonLink}>
-            {buttonText}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            {isAwaitingPayment ? (
+                <>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={isCancelling}>
+                                Cancel Order
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will cancel your order #{order.orderNumber} and return the items to stock. This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Go Back</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleCancelOrder}
+                                    disabled={isCancelling}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                    {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Yes, Cancel
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <Button asChild variant="default" size="sm">
+                        <Link href={buttonLink}>
+                            {buttonText}
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                </>
+            ) : (
+                <Button asChild variant="outline" size="sm">
+                    <Link href={buttonLink}>
+                        {buttonText}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            )}
+        </div>
       </div>
     </div>
   );

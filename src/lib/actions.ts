@@ -409,3 +409,58 @@ export async function generateEInvoiceAction(
         };
     }
 }
+
+export async function cancelAwaitingPaymentOrderAction(orderId: string): Promise<{ success: boolean; message: string }> {
+    if (!db) {
+        return { success: false, message: 'Database not configured.' };
+    }
+    if (!orderId) {
+        return { success: false, message: 'Order ID is required.' };
+    }
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const orderRef = doc(db, 'orders', orderId);
+            const orderDoc = await transaction.get(orderRef);
+
+            if (!orderDoc.exists()) {
+                throw new Error('Order not found.');
+            }
+
+            const order = orderDoc.data() as Order;
+
+            if (order.status !== 'Awaiting Payment') {
+                throw new Error('This order cannot be cancelled as it is not awaiting payment.');
+            }
+
+            // Return stock for each item
+            for (const item of order.items) {
+                const productRef = doc(db, 'products', item.productId);
+                const productDoc = await transaction.get(productRef);
+                if (productDoc.exists()) {
+                    const currentStock = productDoc.data().stock;
+                    transaction.update(productRef, { stock: currentStock + item.quantity });
+                }
+            }
+
+            // Update order status
+            const newStatus: OrderStatus = 'Cancelled';
+            const newHistory = [...order.statusHistory, { status: newStatus, timestamp: new Date().toISOString() }];
+            
+            transaction.update(orderRef, { 
+                status: newStatus, 
+                paymentStatus: 'Failed',
+                statusHistory: newHistory 
+            });
+        });
+
+        revalidatePath('/orders');
+        revalidatePath('/dashboard');
+        
+        return { success: true, message: 'Order has been successfully cancelled.' };
+
+    } catch (e: any) {
+        console.error("Cancel order failed: ", e);
+        return { success: false, message: e.message || "Failed to cancel the order." };
+    }
+}

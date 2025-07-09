@@ -54,10 +54,10 @@ export default function DashboardPage() {
   }, []);
 
   const userOrders = orders
-    .filter(o => o.user.id === currentUser?.uid && o.status !== 'Awaiting Payment')
+    .filter(o => o.user.id === currentUser?.uid)
     .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
   
-  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.status === 'Order Created' || order.paymentStatus === 'Pending Payment');
+  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.status === 'Order Created' || order.paymentStatus === 'Pending Payment' || order.status === 'Awaiting Payment');
   
   const categories = useMemo(() => {
     if (products.length === 0) return [];
