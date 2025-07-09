@@ -464,3 +464,59 @@ export async function cancelAwaitingPaymentOrderAction(orderId: string): Promise
         return { success: false, message: e.message || "Failed to cancel the order." };
     }
 }
+
+
+export async function confirmAndNotifyPaymentAction(orderId: string): Promise<{ success: boolean; message: string }> {
+    if (!db) {
+        return { success: false, message: "Database not configured." };
+    }
+    if (!orderId) {
+        return { success: false, message: "Order ID is missing." };
+    }
+
+    const orderRef = doc(db, 'orders', orderId);
+
+    try {
+        const orderDoc = await getDoc(orderRef);
+        if (!orderDoc.exists()) {
+            return { success: false, message: "Order not found." };
+        }
+        
+        const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
+
+        // Idempotency check: if already paid, do nothing.
+        if (orderData.paymentStatus === 'Paid') {
+            return { success: true, message: "Order already confirmed." };
+        }
+        
+        // Update order status
+        const newHistory = [...orderData.statusHistory, { status: 'Processing', timestamp: new Date().toISOString() }];
+        await updateDoc(orderRef, {
+            paymentStatus: 'Paid',
+            status: 'Processing',
+            statusHistory: newHistory
+        });
+        
+        // Send notifications
+        const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = orderData;
+        const testPhoneNumber = '60163864181';
+        const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
+        let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
+        let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
+        
+        const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
+        await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+        
+        const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
+        await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
+
+        revalidatePath(`/orders/${orderId}`);
+        revalidatePath('/dashboard');
+        revalidatePath('/admin/dashboard');
+
+        return { success: true, message: "Order confirmed and notifications sent." };
+    } catch (e: any) {
+        console.error("Error confirming payment:", e);
+        return { success: false, message: e.message || "An unexpected error occurred." };
+    }
+}

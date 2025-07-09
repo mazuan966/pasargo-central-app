@@ -2,61 +2,71 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { confirmAndNotifyPaymentAction } from '@/lib/actions';
 
 function PaymentStatusContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const statusId = searchParams.get('status_id');
   const orderId = searchParams.get('order_id'); // This is the Firestore doc ID
+  const [isProcessing, setIsProcessing] = useState(true);
+  const [message, setMessage] = useState('Processing your payment...');
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (orderId && statusId === '1') {
-      // Redirect to the printable invoice page after 5 seconds on success
-      timer = setTimeout(() => {
-        router.replace(`/print/invoice/${orderId}`);
-      }, 5000); 
-    } else if (orderId && (statusId === '2' || statusId === '3')) {
-        // Redirect back to the payment page for pending or failed payments
-        timer = setTimeout(() => {
-            router.replace(`/payment/${orderId}`);
-        }, 5000);
-    } else {
-        // Fallback if no orderId is present
-        timer = setTimeout(() => {
-            router.replace('/dashboard');
-        }, 5000);
-    }
-    return () => clearTimeout(timer);
-  }, [orderId, statusId, router]);
+    // This effect runs only once on mount when status_id is '1'
+    if (statusId === '1' && orderId) {
+        setIsProcessing(true);
+        setMessage("Payment successful! Finalizing your order... Do not close this page.");
+        
+        confirmAndNotifyPaymentAction(orderId).then(result => {
+            if (!result.success) {
+                // If the action fails, show an error.
+                setMessage(`Error: ${result.message}`);
+                setIsProcessing(false);
+            }
+            // The redirection will happen regardless of the action's success,
+            // as the payment itself was successful. The callback will be the final backup.
+        });
 
-  let title, description, icon, buttonText, buttonLink, warning;
+        const timer = setTimeout(() => {
+            router.replace(`/print/invoice/${orderId}`);
+        }, 1000); // Redirect after 1 second as requested.
+
+        return () => clearTimeout(timer);
+    } else {
+        setIsProcessing(false); // Not a successful payment, no processing needed.
+    }
+  }, [statusId, orderId, router]);
+
+  let title, description, icon, buttonText, buttonLink, variant;
   
   if (statusId === '1') {
     title = 'Payment Successful!';
-    description = "Your payment has been confirmed. You will be redirected to your invoice shortly.";
-    icon = <CheckCircle className="h-16 w-16 text-green-500" />;
+    description = message;
+    icon = <Loader2 className="h-16 w-16 animate-spin text-green-500" />;
     buttonText = 'View Invoice Now';
     buttonLink = `/print/invoice/${orderId}`;
-    warning = "Important: Please do not close this window. You will be redirected automatically.";
+    variant = 'default';
   } else if (statusId === '2') {
     title = 'Payment Pending';
-    description = "Your payment is still pending. We will update the order status once confirmed. Redirecting...";
+    description = "Your payment is still pending. We will update the order status once confirmed.";
     icon = <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />;
-    buttonText = 'Try Again';
-    buttonLink = `/payment/${orderId}`;
+    buttonText = 'Go to Orders';
+    buttonLink = `/orders/${orderId}`;
+    variant = 'default';
   } else if (statusId === '3') {
     title = 'Payment Failed';
-    description = "There was a problem with your payment. Please try again or contact support. Redirecting...";
+    description = "There was a problem with your payment. Please try again or contact support.";
     icon = <XCircle className="h-16 w-16 text-destructive" />;
     buttonText = 'Try Payment Again';
     buttonLink = `/payment/${orderId}`;
+    variant = 'destructive';
   } else {
     // Fallback for when status_id is not present or invalid
     title = 'Processing Payment Status';
@@ -64,6 +74,7 @@ function PaymentStatusContent() {
     icon = <Loader2 className="h-16 w-16 animate-spin text-primary" />;
     buttonText = 'Go to Dashboard';
     buttonLink = '/dashboard';
+    variant = 'default';
   }
 
   return (
@@ -75,11 +86,11 @@ function PaymentStatusContent() {
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-           {warning && (
+           {statusId === '1' && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Do Not Close This Page</AlertTitle>
-              <AlertDescription>{warning}</AlertDescription>
+              <AlertDescription>You will be redirected automatically.</AlertDescription>
             </Alert>
           )}
           <Button asChild>
@@ -90,7 +101,6 @@ function PaymentStatusContent() {
     </main>
   );
 }
-
 
 export default function PaymentStatusPage() {
     return (
