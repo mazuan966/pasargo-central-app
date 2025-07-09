@@ -133,13 +133,8 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             const testPhoneNumber = '60163864181';
             const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app/';
 
-            let invoiceMessageSection = '';
-            let poMessageSection = '';
-
-            if (appUrl) {
-                invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${appUrl}print/invoice/${newOrderRef.id}`;
-                poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}admin/print/po/${newOrderRef.id}`;
-            }
+            const invoiceMessageSection = `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${newOrderRef.id}`;
+            const poMessageSection = `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${newOrderRef.id}`;
             
             const userInvoiceMessage = `Hi ${userData.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${newOrderNumber!}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
             await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
