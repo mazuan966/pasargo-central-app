@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Calendar, Hash, Package, DollarSign } from 'lucide-react';
 import { cva } from 'class-variance-authority';
+import { format } from 'date-fns';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -36,7 +37,7 @@ export function OrderListItem({ order }: { order: Order }) {
           </p>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {new Date(order.orderDate).toLocaleDateString()}
+            {format(new Date(order.orderDate), 'dd/MM/yyyy')}
           </p>
         </div>
 

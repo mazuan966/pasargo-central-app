@@ -4,6 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { Package, Calendar, Truck, CheckCircle, Clock, CheckCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 export function OrderDetails({ order }: { order: Order }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -35,7 +36,7 @@ export function OrderDetails({ order }: { order: Order }) {
           <CardHeader>
             <CardTitle>Order #{order.orderNumber}</CardTitle>
             <CardDescription>
-              Placed on {isMounted ? new Date(order.orderDate).toLocaleString() : ''}
+              Placed on {isMounted ? format(new Date(order.orderDate), 'dd/MM/yyyy HH:mm') : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -83,7 +84,7 @@ export function OrderDetails({ order }: { order: Order }) {
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <h4 className="font-semibold mb-2">Delivery Details</h4>
-                    <p className="text-sm"><span className="text-muted-foreground">Date:</span> {isMounted ? new Date(order.deliveryDate).toLocaleDateString() : ''}</p>
+                    <p className="text-sm"><span className="text-muted-foreground">Date:</span> {isMounted ? format(new Date(order.deliveryDate), 'dd/MM/yyyy') : ''}</p>
                     <p className="text-sm"><span className="text-muted-foreground">Time Slot:</span> {order.deliveryTimeSlot}</p>
                 </div>
                 <div>
@@ -116,7 +117,7 @@ export function OrderDetails({ order }: { order: Order }) {
                   <div>
                     <p className="font-semibold">{history.status}</p>
                     <p className="text-sm text-muted-foreground">
-                      {isMounted ? new Date(history.timestamp).toLocaleString() : ''}
+                      {isMounted ? format(new Date(history.timestamp), 'dd/MM/yyyy HH:mm') : ''}
                     </p>
                   </div>
                 </li>

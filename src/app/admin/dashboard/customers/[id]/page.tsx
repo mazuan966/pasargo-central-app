@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 export default function CustomerDetailsPage() {
     const params = useParams<{ id: string }>();
@@ -165,7 +166,7 @@ export default function CustomerDetailsPage() {
                                         orders.map(order => (
                                             <TableRow key={order.id}>
                                                 <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                                                <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
+                                                <TableCell>{format(new Date(order.orderDate), 'dd/MM/yyyy')}</TableCell>
                                                 <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
                                                 <TableCell className="text-right">RM {order.total.toFixed(2)}</TableCell>
                                                 <TableCell className="text-right">

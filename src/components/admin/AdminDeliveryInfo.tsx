@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle, XCircle, FileImage, Sparkles, CameraOff } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 
 export function AdminDeliveryInfo({ order }: { order: Order }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -48,7 +49,7 @@ export function AdminDeliveryInfo({ order }: { order: Order }) {
                             <p><strong>Status:</strong> {order.deliveryVerification.isOrderCompleted ? "Order Completed" : "Verification Failed"}</p>
                             <p><strong>Confidence:</strong> {(order.deliveryVerification.confidence * 100).toFixed(0)}%</p>
                             {order.deliveryVerification.notes && <p><strong>Notes:</strong> {order.deliveryVerification.notes}</p>}
-                            <p className="text-xs text-muted-foreground pt-1">Verified at: {isMounted ? new Date(order.deliveryVerification.verifiedAt).toLocaleString() : ''}</p>
+                            <p className="text-xs text-muted-foreground pt-1">Verified at: {isMounted ? format(new Date(order.deliveryVerification.verifiedAt), 'dd/MM/yyyy HH:mm') : ''}</p>
                         </div>
                     </AlertDescription>
                 </Alert>

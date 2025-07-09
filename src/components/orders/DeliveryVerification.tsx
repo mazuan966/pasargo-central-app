@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Upload, CheckCircle, XCircle, FileImage, Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import { format } from 'date-fns';
 
 type VerifyFormState = {
     success: boolean;
@@ -40,7 +41,7 @@ function VerificationResult({ verification }: { verification: NonNullable<Order[
                     <p><strong>Status:</strong> {isOrderCompleted ? "Order Completed" : "Verification Failed"}</p>
                     <p><strong>Confidence:</strong> {(confidence * 100).toFixed(0)}%</p>
                     {notes && <p><strong>Notes:</strong> {notes}</p>}
-                    <p className="text-xs text-muted-foreground pt-1">Verified at: {isMounted ? new Date(verifiedAt).toLocaleString() : ''}</p>
+                    <p className="text-xs text-muted-foreground pt-1">Verified at: {isMounted ? format(new Date(verifiedAt), 'dd/MM/yyyy HH:mm') : ''}</p>
                 </div>
             </AlertDescription>
         </Alert>

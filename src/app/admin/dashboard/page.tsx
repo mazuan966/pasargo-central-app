@@ -32,6 +32,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
+import { format } from 'date-fns';
 
 const statusBadgeVariants = cva(
   "border-transparent",
@@ -324,7 +325,7 @@ export default function AdminDashboardPage() {
                         </TableCell>
                         <TableCell className="font-medium">{order.orderNumber}</TableCell>
                         <TableCell>{order.user.restaurantName}</TableCell>
-                        <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{format(new Date(order.orderDate), 'dd/MM/yyyy')}</TableCell>
                         <TableCell>
                             <Badge variant="outline" className={statusBadgeVariants({ status: order.status })}>{order.status}</Badge>
                         </TableCell>

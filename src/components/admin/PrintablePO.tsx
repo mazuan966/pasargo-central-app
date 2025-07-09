@@ -1,5 +1,6 @@
 import type { Order, BusinessDetails } from '@/lib/types';
 import { Logo } from '@/components/icons/logo';
+import { format } from 'date-fns';
 
 export const PrintablePO = ({ order, businessDetails }: { order: Order, businessDetails: BusinessDetails }) => {
   return (
@@ -14,7 +15,7 @@ export const PrintablePO = ({ order, businessDetails }: { order: Order, business
         <div className="text-right">
           <h2 className="text-4xl font-bold uppercase text-gray-700">Purchase Order</h2>
           <p className="text-sm mt-2">PO #: {order.orderNumber}</p>
-          <p className="text-sm">Date: {new Date(order.orderDate).toLocaleDateString()}</p>
+          <p className="text-sm">Date: {format(new Date(order.orderDate), 'dd/MM/yyyy')}</p>
         </div>
       </div>
 
@@ -30,7 +31,7 @@ export const PrintablePO = ({ order, businessDetails }: { order: Order, business
             <p className="font-semibold">{order.user.restaurantName}</p>
             <p className="text-sm">{order.user.address}</p>
             <div className="mt-2 pt-2 border-t">
-              <p className="text-sm"><span className="font-semibold">Delivery Date:</span> {new Date(order.deliveryDate).toLocaleDateString()}</p>
+              <p className="text-sm"><span className="font-semibold">Delivery Date:</span> {format(new Date(order.deliveryDate), 'dd/MM/yyyy')}</p>
               <p className="text-sm"><span className="font-semibold">Time Slot:</span> {order.deliveryTimeSlot}</p>
             </div>
         </div>
