@@ -10,6 +10,8 @@ import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc 
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
 import { format } from 'date-fns';
+import { createToyyibpayBill } from '@/lib/toyyibpay';
+import { redirect } from 'next/navigation';
 
 const SST_RATE = 0.06;
 
@@ -107,7 +109,7 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
 
             // 3. Create the new order object
             const status: OrderStatus = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Order Created';
-            const paymentStatus: Order['paymentStatus'] = 'Pending Payment';
+            const paymentStatus: Order['paymentStatus'] = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Pending Payment';
 
             const newOrderData: Omit<Order, 'id'> = {
                 orderNumber: newOrderNumber,
@@ -161,6 +163,28 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
         console.error("Order failed: ", e);
         return { success: false, message: e.message || "Failed to process order." };
     }
+}
+
+
+export async function initiatePaymentAction(orderId: string) {
+    if (!db) throw new Error("Database not configured.");
+    
+    const orderRef = doc(db, 'orders', orderId);
+    const orderDoc = await getDoc(orderRef);
+
+    if (!orderDoc.exists()) {
+        throw new Error("Order not found.");
+    }
+    const order = { id: orderDoc.id, ...orderDoc.data() } as Order;
+    
+    // Create Toyyibpay Bill
+    const { billCode, paymentUrl } = await createToyyibpayBill(order, order.user);
+
+    // Update order with bill code
+    await updateDoc(orderRef, { toyyibpayBillCode: billCode });
+
+    // Redirect to payment gateway
+    redirect(paymentUrl);
 }
 
 

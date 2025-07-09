@@ -97,6 +97,7 @@ export interface Order {
   deliveryTimeSlot: string;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  toyyibpayBillCode?: string;
   deliveryPhotoUrl?: string;
   paymentProofUrl?: string;
   deliveryVerification?: {

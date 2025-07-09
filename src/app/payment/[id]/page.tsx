@@ -1,56 +1,111 @@
 
-import { notFound } from 'next/navigation';
+'use client';
+
+import { notFound, useParams } from 'next/navigation';
 import { PrintableInvoice } from '@/components/orders/PrintableInvoice';
 import type { Order, BusinessDetails } from '@/lib/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, AlertTriangle } from 'lucide-react';
+import { CreditCard, AlertTriangle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { initiatePaymentAction } from '@/lib/actions';
+import { useEffect, useState, useTransition } from 'react';
 
+function PaymentButton({ orderId, total }: { orderId: string, total: number }) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    startTransition(() => {
+      initiatePaymentAction(orderId);
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Button size="lg" type="submit" disabled={isPending}>
+        {isPending ? (
+          <Loader2 className="mr-2 animate-spin" />
+        ) : (
+          <CreditCard className="mr-2" />
+        )}
+        {isPending ? 'Redirecting...' : `Pay Now (RM ${total.toFixed(2)})`}
+      </Button>
+    </form>
+  );
+}
 
 // This is a Server Component
-export default async function PaymentPage({ params }: { params: { id: string } }) {
-    if (!params.id || !db) {
-        notFound();
-    }
-
-    let order: Order | null = null;
-    let businessDetails: BusinessDetails | null = null;
-
-    try {
-        const [orderDocSnap, businessDocSnap] = await Promise.all([
-            getDoc(doc(db, 'orders', params.id as string)),
-            getDoc(doc(db, 'settings', 'business'))
-        ]);
-
-        if (orderDocSnap.exists()) {
-            order = { id: orderDocSnap.id, ...orderDocSnap.data() } as Order;
+export default function PaymentPage() {
+    const params = useParams<{ id: string }>();
+    const [order, setOrder] = useState<Order | null>(null);
+    const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    
+    useEffect(() => {
+        if (!params.id || !db) {
+            setError("Invalid request.");
+            setLoading(false);
+            return;
         }
 
-        if (businessDocSnap.exists()) {
-            businessDetails = businessDocSnap.data() as BusinessDetails;
-        }
-    } catch (error) {
-        console.error("Error fetching payment page data on server:", error);
-        notFound();
-    }
+        const fetchData = async () => {
+            try {
+                const [orderDocSnap, businessDocSnap] = await Promise.all([
+                    getDoc(doc(db, 'orders', params.id as string)),
+                    getDoc(doc(db, 'settings', 'business'))
+                ]);
 
-    if (!businessDetails) {
+                if (orderDocSnap.exists()) {
+                    setOrder({ id: orderDocSnap.id, ...orderDocSnap.data() } as Order);
+                } else {
+                    notFound();
+                    return;
+                }
+
+                if (businessDocSnap.exists()) {
+                    setBusinessDetails(businessDocSnap.data() as BusinessDetails);
+                } else {
+                     setError("Business details are not set up. An administrator must save settings before payments can be processed.");
+                }
+            } catch (err) {
+                console.error("Error fetching payment page data:", err);
+                setError("Could not fetch order details.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [params.id]);
+
+
+    if (loading) {
         return (
+            <div className="flex w-full justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (error) {
+         return (
             <div className="flex h-screen w-full items-center justify-center text-center p-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-destructive mb-2">Configuration Error</h1>
-                    <p className="text-muted-foreground">Business details are not set up.</p>
-                    <p className="text-muted-foreground mt-1">An administrator must save the business settings in the admin dashboard before payments can be processed.</p>
-                </div>
+                <Alert variant="destructive" className="max-w-md">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Configuration Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
             </div>
         );
     }
     
     if (!order) {
         notFound();
+        return null;
     }
 
     return (
@@ -63,20 +118,28 @@ export default async function PaymentPage({ params }: { params: { id: string } }
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <PrintableInvoice order={order} businessDetails={businessDetails} />
+                    {businessDetails ? (
+                        <PrintableInvoice order={order} businessDetails={businessDetails} />
+                    ) : (
+                         <Alert variant="destructive">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Cannot Display Invoice</AlertTitle>
+                            <AlertDescription>Business details are missing. Please contact support.</AlertDescription>
+                        </Alert>
+                    )}
                 </CardContent>
                 <CardFooter className="flex-col items-end gap-4 border-t pt-6">
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Action Required</AlertTitle>
-                        <AlertDescription>
-                            This is a placeholder. The "Pay Now" button is not functional yet.
-                        </AlertDescription>
-                    </Alert>
-                    <Button size="lg" disabled>
-                        <CreditCard className="mr-2" />
-                        Pay Now (RM {order.total.toFixed(2)})
-                    </Button>
+                    {order.paymentStatus === 'Paid' ? (
+                        <Alert className="bg-green-50 border-green-200 text-green-800">
+                           <AlertTriangle className="h-4 w-4 !text-green-800" />
+                            <AlertTitle>Payment Complete</AlertTitle>
+                            <AlertDescription>
+                                This order has already been paid.
+                            </AlertDescription>
+                        </Alert>
+                    ) : (
+                       <PaymentButton orderId={order.id} total={order.total} />
+                    )}
                 </CardFooter>
             </Card>
         </div>
