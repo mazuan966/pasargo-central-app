@@ -3,7 +3,7 @@
 
 import { verifyDeliveryPhoto } from '@/ai/flows/verify-delivery-photo';
 import { generateEInvoice } from '@/ai/flows/generate-e-invoice';
-import { EInvoiceInputSchema, type Order, type CartItem, type User, type BusinessDetails, type PaymentMethod, type OrderStatus } from '@/lib/types';
+import { EInvoiceInputSchema, type Order, type CartItem, type User, type PaymentMethod, type OrderStatus } from '@/lib/types';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc } from 'firebase/firestore';

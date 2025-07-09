@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 function PaymentStatusContent() {
   const searchParams = useSearchParams();
@@ -17,9 +18,9 @@ function PaymentStatusContent() {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (orderId && statusId === '1') {
-      // Redirect to the specific order details page after a delay on success
+      // Redirect to the printable invoice page after 5 seconds on success
       timer = setTimeout(() => {
-        router.replace(`/orders/${orderId}`);
+        router.replace(`/print/invoice/${orderId}`);
       }, 5000); 
     } else if (orderId && (statusId === '2' || statusId === '3')) {
         // Redirect back to the payment page for pending or failed payments
@@ -35,14 +36,15 @@ function PaymentStatusContent() {
     return () => clearTimeout(timer);
   }, [orderId, statusId, router]);
 
-  let title, description, icon, buttonText, buttonLink;
+  let title, description, icon, buttonText, buttonLink, warning;
   
   if (statusId === '1') {
     title = 'Payment Successful!';
-    description = "Your payment has been confirmed. You will be redirected to your order shortly.";
+    description = "Your payment has been confirmed. You will be redirected to your invoice shortly.";
     icon = <CheckCircle className="h-16 w-16 text-green-500" />;
-    buttonText = 'Go to Order Details Now';
-    buttonLink = `/orders/${orderId}`;
+    buttonText = 'View Invoice Now';
+    buttonLink = `/print/invoice/${orderId}`;
+    warning = "Important: Please do not close this window. You will be redirected automatically.";
   } else if (statusId === '2') {
     title = 'Payment Pending';
     description = "Your payment is still pending. We will update the order status once confirmed. Redirecting...";
@@ -72,7 +74,14 @@ function PaymentStatusContent() {
           <CardTitle className="text-2xl">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+           {warning && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Do Not Close This Page</AlertTitle>
+              <AlertDescription>{warning}</AlertDescription>
+            </Alert>
+          )}
           <Button asChild>
             <Link href={buttonLink || '/dashboard'}>{buttonText}</Link>
           </Button>

@@ -1,7 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
         
         const billcode = formData.get('billcode') as string;
         const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
-        const order_id = formData.get('order_id') as string; // This is the billExternalReferenceNo, which we set to the Order Number
+        const order_id = formData.get('order_id') as string; // This is the billExternalReferenceNo, which we set to the Firestore document ID
         const signature = formData.get('signature') as string;
         
         if (!billcode || !status || !order_id || !signature) {
@@ -34,17 +34,15 @@ export async function POST(req: NextRequest) {
             return new Response('Invalid signature', { status: 400 });
         }
 
-        const ordersQuery = query(collection(db, 'orders'), where('orderNumber', '==', order_id));
-        const querySnapshot = await getDocs(ordersQuery);
+        const orderRef = doc(db, 'orders', order_id);
+        const orderDoc = await getDoc(orderRef);
         
-        if (querySnapshot.empty) {
-            console.warn(`Order not found for orderNumber: ${order_id}`);
+        if (!orderDoc.exists()) {
+            console.warn(`Order not found for orderId: ${order_id}`);
             return new Response('Order not found', { status: 404 });
         }
 
-        const orderDoc = querySnapshot.docs[0];
         const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
-        const orderRef = doc(db, 'orders', orderDoc.id);
         
         if (status === '1') { // Payment success
             if (orderData.paymentStatus !== 'Paid') {
