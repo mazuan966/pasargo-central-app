@@ -26,7 +26,7 @@ export async function createToyyibpayBill(order: Order, user: User): Promise<{ b
         'billAmount': String(billAmount),
         'billReturnUrl': `${APP_URL}/payment/status`,
         'billCallbackUrl': `${APP_URL}/api/toyyibpay/callback`,
-        'billExternalReferenceNo': order.id, // Use Order's Document ID for guaranteed unique lookup
+        'billExternalReferenceNo': order.orderNumber, // Use Order Number for lookup
         'billTo': user.personInCharge || user.restaurantName,
         'billEmail': user.email,
         'billPhone': user.phoneNumber || '0123456789'

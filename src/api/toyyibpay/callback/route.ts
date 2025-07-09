@@ -1,7 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import crypto from 'crypto-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
         
         const billcode = formData.get('billcode') as string;
         const status = formData.get('status') as string; // 1 = success, 2 = pending, 3 = fail
-        const order_id = formData.get('order_id') as string; // This is the order's Firestore Document ID
+        const order_id = formData.get('order_id') as string; // This is the billExternalReferenceNo, which we set to the Order Number
         const signature = formData.get('signature') as string;
         
         if (!billcode || !status || !order_id || !signature) {
@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
             return new Response('Server configuration error', { status: 500 });
         }
         
-        // Toyyibpay signature for callback is sha256(secretkey + billcode + order_id + status)
         const signatureString = `${toyyibpaySecretKey}${billcode}${order_id}${status}`;
         const ourSignature = crypto.SHA256(signatureString).toString();
         
@@ -35,16 +34,17 @@ export async function POST(req: NextRequest) {
             return new Response('Invalid signature', { status: 400 });
         }
 
-        // Find the order using the document ID (sent as order_id from callback)
-        const orderRef = doc(db, 'orders', order_id);
-        const orderDoc = await getDoc(orderRef);
+        const ordersQuery = query(collection(db, 'orders'), where('orderNumber', '==', order_id));
+        const querySnapshot = await getDocs(ordersQuery);
         
-        if (!orderDoc.exists()) {
-            console.warn(`Order not found for document ID: ${order_id}`);
+        if (querySnapshot.empty) {
+            console.warn(`Order not found for orderNumber: ${order_id}`);
             return new Response('Order not found', { status: 404 });
         }
 
+        const orderDoc = querySnapshot.docs[0];
         const orderData = { id: orderDoc.id, ...orderDoc.data() } as Order;
+        const orderRef = doc(db, 'orders', orderDoc.id);
         
         if (status === '1') { // Payment success
             if (orderData.paymentStatus !== 'Paid') {
@@ -56,21 +56,24 @@ export async function POST(req: NextRequest) {
                 });
                 console.log(`Order ${orderData.orderNumber} marked as Paid.`);
 
-                // Send notifications now that payment is confirmed
                 const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = orderData;
                 const testPhoneNumber = '60163864181';
                 const appUrl = 'https://studio--pasargo-central.us-central1.hosted.app';
                 let invoiceMessageSection = appUrl ? `\n\nHere is the unique link to view your invoice:\n${appUrl}/print/invoice/${orderDocId}` : '';
                 let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
+                
                 const userInvoiceMessage = `Hi ${user.restaurantName}!\n\nThank you for your order!\n\n*Invoice for Order #${orderNumber}*\n\n` + `*Delivery Date:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')}\n` + `*Delivery Time:* ${deliveryTimeSlot}\n\n` + items.map(item => `- ${item.name} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n') + `\n\nSubtotal: RM ${subtotal.toFixed(2)}\nSST (6%): RM ${sst.toFixed(2)}\n*Total: RM ${total.toFixed(2)}*` + `${invoiceMessageSection}\n\n`+ `We will process your order shortly.`;
                 await sendWhatsAppMessage(testPhoneNumber, userInvoiceMessage);
+                
                 const adminPOMessage = `*New Purchase Order Received*\n\n` + `*Order ID:* ${orderNumber}\n` + `*From:* ${user.restaurantName}\n` + `*Total:* RM ${total.toFixed(2)}*\n\n` + `*Delivery:* ${format(new Date(deliveryDate), 'dd/MM/yyyy')} (${deliveryTimeSlot})\n\n` + `*Items:*\n` + items.map(item => `- ${item.name} (x${item.quantity})`).join('\n') + `${poMessageSection}\n\n` + `Please process the order in the admin dashboard.`;
                 await sendWhatsAppMessage(testPhoneNumber, `[ADMIN PO] ${adminPOMessage}`);
             }
         } else {
+             const newHistory = [...orderData.statusHistory, { status: 'Cancelled', timestamp: new Date().toISOString() }];
              await updateDoc(orderRef, {
                 paymentStatus: 'Failed',
                 status: 'Cancelled',
+                statusHistory: newHistory
              });
             console.log(`Received non-successful payment status '${status}' for order ${orderData.orderNumber}. Marked as Failed/Cancelled.`);
         }
