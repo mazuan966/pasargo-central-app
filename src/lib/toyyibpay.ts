@@ -6,6 +6,7 @@ import type { Order, User } from '@/lib/types';
 const TOYYIBPAY_SECRET_KEY = 'dev-08d4hwdk-97w7-g29f-z7bd-c87z6yhdve0f';
 const TOYYIBPAY_CATEGORY_CODE = 'nqbwnp0t';
 const APP_URL = 'https://studio--pasargo-central.us-central1.hosted.app';
+const TOYYIBPAY_API_URL = 'https://dev.toyyibpay.com';
 
 export async function createToyyibpayBill(order: Order, user: User): Promise<{ billCode: string; paymentUrl: string }> {
 
@@ -32,7 +33,7 @@ export async function createToyyibpayBill(order: Order, user: User): Promise<{ b
     });
     
     try {
-        const response = await fetch('https://toyyibpay.com/index.php/api/createBill', {
+        const response = await fetch(`${TOYYIBPAY_API_URL}/index.php/api/createBill`, {
             method: 'POST',
             body: billParams,
         });
@@ -43,7 +44,7 @@ export async function createToyyibpayBill(order: Order, user: User): Promise<{ b
             const billCode = result[0].BillCode;
             return {
                 billCode,
-                paymentUrl: `https://toyyibpay.com/${billCode}`
+                paymentUrl: `${TOYYIBPAY_API_URL}/${billCode}`
             };
         } else {
             throw new Error(`Toyyibpay API Error: ${JSON.stringify(result)}`);
