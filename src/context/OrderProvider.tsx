@@ -19,17 +19,21 @@ export const OrderContext = createContext<OrderContextType | undefined>(undefine
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!db) {
-        console.warn("Firestore not initialized. Skipping order listener.");
+    // Wait until authentication is no longer loading and db is available
+    if (authLoading || !db) {
+        if (!db) {
+            console.warn("Firestore not initialized. Skipping order listener.");
+        }
         setOrders([]);
         return;
     }
 
     const isUser = !!currentUser;
     const ordersCollection = collection(db, 'orders');
+    // The query now correctly determines whether to filter by user or fetch all for admin roles.
     const q = isUser && currentUser?.uid
         ? query(ordersCollection, where("user.id", "==", currentUser.uid))
         : query(ordersCollection, orderBy('orderDate', 'desc'));
@@ -40,6 +44,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         ...doc.data()
       })) as Order[];
       
+      // Client-side sort for user-specific queries to avoid composite indexes
       if (isUser) {
         ordersList.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
       }
@@ -55,8 +60,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       setOrders([]);
     });
 
+    // Cleanup the listener when the component unmounts or dependencies change
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [currentUser, authLoading]); // Re-run when authentication state changes
 
   const updateOrder = useCallback(async (updatedOrder: Order) => {
     if (!db) {
