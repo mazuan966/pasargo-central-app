@@ -9,7 +9,6 @@ import { db } from '@/lib/firebase';
 import { doc, runTransaction, getCountFromServer, collection, getDoc, updateDoc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { revalidatePath } from 'next/cache';
-import { createToyyibpayBill } from '@/lib/toyyibpay';
 import { format } from 'date-fns';
 import type { Language } from '@/context/LanguageProvider';
 import { getTranslation, getTranslatedItemField } from '@/lib/translations';
@@ -120,8 +119,8 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             newOrderNumber = `PA${numberPart}${datePart}`;
 
             // 3. Create the new order object
-            const status: OrderStatus = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Order Created';
-            const paymentStatus: Order['paymentStatus'] = paymentMethod === 'FPX (Toyyibpay)' ? 'Awaiting Payment' : 'Pending Payment';
+            const status: OrderStatus = 'Order Created';
+            const paymentStatus: Order['paymentStatus'] = 'Pending Payment';
 
             const newOrderData: Omit<Order, 'id'> = {
                 orderNumber: newOrderNumber,
@@ -154,23 +153,12 @@ export async function placeOrderAction(payload: PlaceOrderPayload): Promise<{ su
             transaction.set(newOrderRef, newOrderData);
         });
 
-        const fullOrderData = await getDoc(newOrderRef).then(doc => ({ id: doc.id, ...doc.data() } as Order));
-
         revalidatePath('/orders');
         revalidatePath('/dashboard');
         revalidatePath(`/orders/${newOrderRef.id}`);
 
-        if (paymentMethod === 'Cash on Delivery') {
-           await sendOrderConfirmationNotifications(newOrderRef.id);
-           return { success: true, message: 'Order created successfully! A confirmation has been sent via WhatsApp.', orderId: newOrderRef.id };
-        } 
-        
-        if (paymentMethod === 'FPX (Toyyibpay)') {
-            const { paymentUrl } = await createToyyibpayBill(fullOrderData, userData);
-            return { success: true, message: 'Redirecting to payment...', orderId: newOrderRef.id, paymentUrl };
-        }
-        
-        return { success: false, message: 'Invalid payment method.' };
+        await sendOrderConfirmationNotifications(newOrderRef.id);
+        return { success: true, message: 'Order created successfully! A confirmation has been sent via WhatsApp.', orderId: newOrderRef.id };
 
     } catch (e: any) {
         console.error("Order failed: ", e);

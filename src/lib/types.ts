@@ -56,9 +56,9 @@ export interface CartItem {
   hasSst?: boolean;
 }
 
-export type OrderStatus = 'Awaiting Payment' | 'Order Created' | 'Processing' | 'Pick Up' | 'Delivered' | 'Completed' | 'Cancelled';
-export type PaymentMethod = 'Cash on Delivery' | 'FPX (Toyyibpay)';
-export type PaymentStatus = 'Awaiting Payment' | 'Pending Payment' | 'Paid' | 'Failed';
+export type OrderStatus = 'Order Created' | 'Processing' | 'Pick Up' | 'Delivered' | 'Completed' | 'Cancelled' | 'Awaiting Payment';
+export type PaymentMethod = 'Cash on Delivery';
+export type PaymentStatus = 'Pending Payment' | 'Paid' | 'Failed' | 'Awaiting Payment';
 
 export const EInvoiceInputSchema = z.object({
   orderId: z.string(),

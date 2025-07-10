@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Calendar as CalendarIcon, Info, CreditCard, Truck } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Info, Truck } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,6 @@ import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { placeOrderAction } from '@/lib/actions';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { PaymentMethod } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageProvider';
 
@@ -54,7 +53,7 @@ export default function CheckoutPage() {
   const [deliveryTime, setDeliveryTime] = useState<string>('');
   const [amendmentInfo, setAmendmentInfo] = useState<AmendmentInfo | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('FPX (Toyyibpay)');
+  const paymentMethod: PaymentMethod = 'Cash on Delivery';
   
   const { toast } = useToast();
   const router = useRouter();
@@ -122,14 +121,8 @@ export default function CheckoutPage() {
       clearCart();
       localStorage.removeItem('amendmentInfo');
       
-      if (result.paymentUrl) {
-        // Redirect to external Toyyibpay URL
-        window.location.href = result.paymentUrl;
-      } else {
-        // Handle COD success
-        toast({ title: t('checkout.toast.success_title'), description: result.message });
-        router.push(result.orderId ? `/orders/${result.orderId}` : '/orders');
-      }
+      toast({ title: t('checkout.toast.success_title'), description: result.message });
+      router.push(result.orderId ? `/orders/${result.orderId}` : '/orders');
     } else {
       toast({ variant: 'destructive', title: t('checkout.toast.failed_title'), description: result.message });
       setIsPlacingOrder(false);
@@ -224,28 +217,13 @@ export default function CheckoutPage() {
                     <CardDescription>{t('checkout.payment_method_desc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <RadioGroup 
-                        value={paymentMethod}
-                        className="space-y-4"
-                        onValueChange={(value: PaymentMethod) => setPaymentMethod(value)}
-                    >
-                        <Label htmlFor="cod" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
-                            <RadioGroupItem value="Cash on Delivery" id="cod" />
-                            <Truck className="h-6 w-6" />
-                            <div>
-                                <p className="font-semibold">{t('checkout.cod_title')}</p>
-                                <p className="text-sm text-muted-foreground">{t('checkout.cod_desc')}</p>
-                            </div>
-                        </Label>
-                        <Label htmlFor="fpx" className="flex items-center gap-4 border rounded-md p-4 hover:bg-muted/50 cursor-pointer has-[[data-state=checked]]:bg-muted has-[[data-state=checked]]:border-primary">
-                            <RadioGroupItem value="FPX (Toyyibpay)" id="fpx" />
-                            <CreditCard className="h-6 w-6" />
-                            <div>
-                                <p className="font-semibold">{t('checkout.fpx_title')}</p>
-                                <p className="text-sm text-muted-foreground">{t('checkout.fpx_desc')}</p>
-                            </div>
-                        </Label>
-                    </RadioGroup>
+                    <div className="flex items-center gap-4 border rounded-md p-4 bg-muted border-primary">
+                        <Truck className="h-6 w-6" />
+                        <div>
+                            <p className="font-semibold">{t('checkout.cod_title')}</p>
+                            <p className="text-sm text-muted-foreground">{t('checkout.cod_desc')}</p>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
              <Button onClick={handlePlaceOrder} disabled={isPlacingOrder || !deliveryDate || !deliveryTime || isAuthLoading} className="w-full mt-6">
