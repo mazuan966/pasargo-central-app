@@ -3,11 +3,13 @@ import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
+// Hardcoding the config is the most reliable way to ensure it's available
+// in all environments (client, server, edge) for this specific setup.
 const firebaseConfig = {
   apiKey: "AIzaSyC9mZlFclntOb_vF4msMjZcduSOETlRY6I",
   authDomain: "pasargo-central.firebaseapp.com",
   projectId: "pasargo-central",
-  storageBucket: "pasargo-central.firebasestorage.app",
+  storageBucket: "pasargo-central.appspot.com",
   messagingSenderId: "909679104927",
   appId: "1:909679104927:web:632c43341dc54c1ac6a3aa"
 };
