@@ -86,11 +86,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
-  if (loading || (!auth && !db)) {
+  if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+  
+  // If firebase is not configured, don't render the app to prevent errors.
+  if (!auth || !db) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center text-center p-4">
+            <div>
+                <h1 className="text-2xl font-bold text-destructive mb-2">Configuration Error</h1>
+                <p className="text-muted-foreground">Firebase is not configured correctly.</p>
+                <p className="text-muted-foreground mt-1">Please ensure your Firebase environment variables are set up.</p>
+            </div>
+        </div>
     );
   }
 
