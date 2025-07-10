@@ -12,17 +12,10 @@ const firebaseConfig = {
   appId: "1:909679104927:web:632c43341dc54c1ac6a3aa"
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+// This is the standard and robust way to initialize Firebase in a Next.js app.
+const app: FirebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
-}
-
-auth = getAuth(app);
-db = getFirestore(app);
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
 
 export { app, auth, db };

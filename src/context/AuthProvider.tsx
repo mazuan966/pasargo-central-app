@@ -66,6 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
+    // Do not run route protection logic if firebase is not configured
+    if (!auth || !db) return;
+
     const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup');
     const isAdminAuthPage = pathname.startsWith('/admin/login');
     const isPrintPage = pathname.startsWith('/print/') || pathname.startsWith('/admin/print/');
@@ -83,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
-  if (loading) {
+  if (loading || (!auth && !db)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
