@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyC9mZlFclntOb_vF4msMjZcduSOETlRY6I",
   authDomain: "pasargo-central.firebaseapp.com",
   projectId: "pasargo-central",
-  storageBucket: "pasargo-central.appspot.com",
+  storageBucket: "pasargo-central.firebasestorage.app",
   messagingSenderId: "909679104927",
   appId: "1:909679104927:web:632c43341dc54c1ac6a3aa"
 };
