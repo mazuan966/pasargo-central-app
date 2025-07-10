@@ -39,11 +39,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const ordersCollection = collection(db, 'orders');
 
     if (isUserAdmin) {
-      // Admin sees all orders
+      // Admin sees all orders, sorted by date. This index is built-in.
       q = query(ordersCollection, orderBy('orderDate', 'desc'));
     } else if (currentUser) {
-      // Regular user sees only their orders
-      q = query(ordersCollection, where("user.id", "==", currentUser.uid), orderBy('orderDate', 'desc'));
+      // Regular user sees only their orders.
+      // We remove the `orderBy` clause to prevent the missing index error.
+      // Sorting will be handled on the client after fetching.
+      q = query(ordersCollection, where("user.id", "==", currentUser.uid));
     } else {
       // No user, no orders
       setOrders([]);
@@ -55,6 +57,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         id: doc.id,
         ...doc.data(),
       })) as Order[];
+      
+      // Sort on the client-side to ensure chronological order for all users
+      ordersData.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+
       setOrders(ordersData);
     }, (error: FirestoreError) => {
       console.error(`Error fetching orders: ${error.message}`);
