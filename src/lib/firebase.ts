@@ -11,29 +11,17 @@ const firebaseConfig = {
   appId: "1:909679104927:web:632c43341dc54c1ac6a3aa"
 };
 
-let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
-let db: Firestore | undefined;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
 
-// Only initialize Firebase if all required config values are present.
-// This prevents errors when the config is incomplete.
-if (firebaseConfig.apiKey && firebaseConfig.projectId) {
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
-  } else {
-    app = getApps()[0];
-  }
-
-  auth = getAuth(app);
-  db = getFirestore(app);
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
 } else {
-  // This warning will be shown in the server console during development
-  // if the Firebase credentials are not provided.
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn(
-      'Firebase config is missing or incomplete. Firebase services will be disabled.'
-    );
-  }
+  app = getApps()[0];
 }
+
+auth = getAuth(app);
+db = getFirestore(app);
 
 export { app, auth, db };
