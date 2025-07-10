@@ -23,10 +23,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Only run this on the client
-    if (typeof window === "undefined" || !auth || !db) {
+    if (typeof window === "undefined") {
         setLoading(false);
         return;
     };
+    
+    // Also check if db is available which signals Firebase is configured
+    if (!auth || !db) {
+        console.error("Firebase not configured in AuthProvider. Disabling auth features.");
+        setLoading(false);
+        return;
+    }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {

@@ -17,23 +17,14 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
-try {
-    console.log('[DIAGNOSTIC] firebase.ts: Attempting to initialize Firebase...');
-    if (!getApps().length) {
-        app = initializeApp(firebaseConfig);
-        console.log('[DIAGNOSTIC] firebase.ts: Firebase initialized successfully.');
-    } else {
-        app = getApp();
-        console.log('[DIAGNOSTIC] firebase.ts: Firebase app already exists, getting app.');
-    }
-
-    auth = getAuth(app);
-    db = getFirestore(app);
-    console.log('[DIAGNOSTIC] firebase.ts: Auth and DB services retrieved. DB object is:', db ? 'Defined' : 'Undefined');
-
-} catch (error) {
-    console.error('[DIAGNOSTIC] firebase.ts: Critical error during Firebase initialization.', error);
+// This pattern ensures that Firebase is initialized only once.
+if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+} else {
+    app = getApp();
 }
 
+auth = getAuth(app);
+db = getFirestore(app);
 
 export { app, auth, db };

@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, FirestoreError, getCountFromServer, writeBatch, runTransaction } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
-import { useLanguage, getTranslation, getTranslatedItemField } from '@/lib/translations';
+import { getTranslation, getTranslatedItemField } from '@/lib/translations';
 
 interface OrderContextType {
   orders: Order[];
@@ -31,7 +31,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }, [currentUser]);
 
   useEffect(() => {
-    if (authLoading || !db) {
+    if (authLoading) {
+      return;
+    }
+
+    if (!db) {
+      console.warn("OrderProvider: Firestore is not available, skipping order fetch.");
       return;
     }
 
