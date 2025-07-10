@@ -8,7 +8,7 @@ export default function AdminSettingsPage() {
       <CardHeader>
         <CardTitle>Business Settings</CardTitle>
         <CardDescription>
-          Firebase has been removed. This form is not functional.
+          Manage your business details for use in invoices and purchase orders.
         </CardDescription>
       </CardHeader>
       <CardContent>

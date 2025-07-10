@@ -12,6 +12,8 @@ import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 export default function CustomerDetailsPage() {
     const params = useParams<{ id: string }>();
@@ -20,21 +22,35 @@ export default function CustomerDetailsPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Simulate fetching data
-        setIsLoading(true);
-        setTimeout(() => {
-            const demoUser: User = {
-                id: params.id,
-                restaurantName: 'Demo Cafe',
-                personInCharge: 'Demo User',
-                email: 'demo@example.com',
-                phoneNumber: '+60123456789',
-                address: '123 Jalan Demo, 50000 Kuala Lumpur',
-                tin: 'TIN-DEMO-456'
-            };
-            setUser(demoUser);
-            setIsLoading(false);
-        }, 500);
+        if (!params.id || !db) return;
+
+        const fetchCustomerData = async () => {
+            setIsLoading(true);
+            try {
+                const userDocRef = doc(db, 'users', params.id as string);
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists()) {
+                    setUser({ id: userDoc.id, ...userDoc.data() } as User);
+
+                    const ordersCollection = collection(db, 'orders');
+                    const q = query(ordersCollection, where('user.id', '==', params.id), orderBy('orderDate', 'desc'));
+                    const ordersSnapshot = await getDocs(q);
+                    const userOrders = ordersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Order[];
+                    setOrders(userOrders);
+
+                } else {
+                    notFound();
+                }
+            } catch (error) {
+                console.error("Error fetching customer details:", error);
+                notFound();
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchCustomerData();
     }, [params.id]);
 
     const getInitials = (name?: string) => {
@@ -132,9 +148,27 @@ export default function CustomerDetailsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center">No orders found (Firebase removed).</TableCell>
-                                    </TableRow>
+                                    {orders.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-24 text-center">No orders found for this customer.</TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        orders.map(order => (
+                                            <TableRow key={order.id}>
+                                                <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                                                <TableCell>{format(new Date(order.orderDate), 'dd/MM/yyyy')}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">{order.status}</Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">RM {order.total.toFixed(2)}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button asChild variant="ghost" size="sm">
+                                                        <Link href={`/admin/dashboard/orders/${order.id}`}>View</Link>
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>

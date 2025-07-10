@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { PaymentMethod } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageProvider';
+import { placeOrderAction } from '@/lib/actions';
+import { useAuth } from '@/hooks/use-auth';
 
 interface AmendmentInfo {
     originalOrderId: string;
@@ -44,6 +46,7 @@ const timeSlots = [
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
   const { getTranslated, t, language } = useLanguage();
+  const { userData } = useAuth();
   
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
   const [minDate, setMinDate] = useState<Date>(new Date());
@@ -94,26 +97,43 @@ export default function CheckoutPage() {
       toast({ variant: 'destructive', title: t('checkout.toast.missing_info_title'), description: t('checkout.toast.missing_info_description') });
       return;
     }
+    
+    if (!userData) {
+      toast({ variant: 'destructive', title: t('checkout.toast.error_title'), description: t('checkout.toast.error_description') });
+      return;
+    }
 
     setIsPlacingOrder(true);
     
-    // Placeholder logic since Firebase is removed
-    console.log("Placing order with:", {
-        items: cartItems,
-        total: cartTotal,
-        deliveryDate,
-        deliveryTime
-    });
+    try {
+        const result = await placeOrderAction({
+            cartItems,
+            userData,
+            deliveryDate: deliveryDate.toISOString(),
+            deliveryTimeSlot: deliveryTime,
+            language,
+            originalOrderId: amendmentInfo?.originalOrderId,
+        });
 
-    setTimeout(() => {
+        if (!result.success) {
+            throw new Error(result.message);
+        }
+
         clearCart();
         localStorage.removeItem('amendmentInfo');
-        toast({ title: t('checkout.toast.success_title'), description: "Order placed for processing (simulation)." });
-        router.push('/orders');
-        setIsPlacingOrder(false);
-    }, 1000);
-  };
+        
+        const successTitle = amendmentInfo ? 'Amendment Confirmed!' : 'Order Placed!';
+        toast({ title: successTitle, description: result.message });
+        
+        const redirectUrl = amendmentInfo ? `/orders/${amendmentInfo.originalOrderId}` : '/orders';
+        router.push(redirectUrl);
 
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: t('checkout.toast.failed_title'), description: error.message });
+    } finally {
+        setIsPlacingOrder(false);
+    }
+  };
 
   if (cartItems.length === 0) {
     return (

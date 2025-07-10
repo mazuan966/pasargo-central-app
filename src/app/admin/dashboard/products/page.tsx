@@ -37,6 +37,8 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { ProductImporter } from '@/components/admin/ProductImporter';
 import { translateProduct } from '@/ai/flows/translate-product-flow';
 import type { Product as ProductSchemaType } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,15 +48,37 @@ export default function AdminProductsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [dbError, setDbError] = useState<string | null>("Firebase has been removed. Product data is unavailable.");
+  const [dbError, setDbError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchProducts = async () => {
-    setIsLoading(false);
+  const fetchProducts = () => {
+    if (!db) {
+        setDbError("Firebase is not configured. Cannot fetch products.");
+        setIsLoading(false);
+        return;
+    }
+
+    setIsLoading(true);
+    const productsCollection = collection(db, "products");
+    const q = query(productsCollection, orderBy("name"));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const productsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+        setProducts(productsList);
+        setDbError(null);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching products:", error);
+        setDbError("Failed to fetch products from the database.");
+        setIsLoading(false);
+    });
+
+    return unsubscribe;
   };
 
   useEffect(() => {
-    fetchProducts();
+    const unsubscribe = fetchProducts();
+    return () => unsubscribe?.();
   }, []);
 
   const handleAddProduct = () => {
@@ -73,19 +97,91 @@ export default function AdminProductsPage() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!productToDelete) return;
-    toast({ title: 'Product Deleted (Simulation)', description: `${productToDelete.name} would be removed.` });
+    if (!productToDelete || !productToDelete.id || !db) return;
+    try {
+        await deleteDoc(doc(db, 'products', productToDelete.id));
+        toast({ title: 'Product Deleted', description: `${productToDelete.name} has been removed.` });
+    } catch(error: any) {
+        toast({ variant: 'destructive', title: 'Error Deleting Product', description: error.message });
+    }
     setIsDeleteDialogOpen(false);
     setProductToDelete(null);
   };
 
   const handleFormSubmit = async (data: ProductSchemaType) => {
-    toast({ title: 'Product Saved (Simulation)', description: `${data.name} would be saved.` });
-    setIsFormOpen(false);
+    if (!db) return;
+    try {
+      let translations = {};
+      try {
+        translations = await translateProduct({ 
+          name: data.name, 
+          description: data.description, 
+          category: data.category 
+        });
+      } catch (aiError) {
+        console.warn("AI translation failed, saving product without translations.", aiError);
+        toast({ variant: "destructive", title: "AI Translation Failed", description: "Could not generate translations, but the product was saved in English." });
+      }
+
+      const productData = { ...data, ...translations };
+
+      if (selectedProduct && selectedProduct.id) {
+        const productRef = doc(db, 'products', selectedProduct.id);
+        await updateDoc(productRef, productData);
+        toast({ title: 'Product Updated', description: `${data.name} has been successfully updated.` });
+      } else {
+        await addDoc(collection(db, 'products'), productData);
+        toast({ title: 'Product Added', description: `${data.name} has been successfully added.` });
+      }
+      setIsFormOpen(false);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error Saving Product', description: error.message });
+    }
   };
 
   const handleExportCSV = () => {
-    toast({ title: 'Export (Simulation)', description: 'This would export products as a CSV.' });
+      if (products.length === 0) {
+        toast({ title: 'No Products to Export', description: 'There are no products to export.' });
+        return;
+      }
+      
+      const headers = [
+        'productId', 'productName', 'productDescription', 'category', 'imageUrl', 'hasSst',
+        'variantId', 'variantName', 'price', 'stock', 'unit'
+      ];
+      
+      const rows = products.flatMap(p => 
+        p.variants.map(v => [
+          p.id, p.name, p.description, p.category, p.imageUrl, String(p.hasSst),
+          v.id, v.name, v.price, v.stock, v.unit
+        ])
+      );
+
+      const escapeCsv = (val: any) => {
+        if (val === undefined || val === null) return '';
+        let str = String(val);
+        if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+            str = `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(escapeCsv).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      const date = new Date().toISOString().split('T')[0];
+      link.setAttribute("download", `products_export_${date}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: 'Export Successful', description: 'Products have been exported to CSV.' });
   };
   
 

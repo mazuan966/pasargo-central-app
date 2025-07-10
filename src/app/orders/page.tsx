@@ -7,13 +7,14 @@ import { useOrders } from '@/hooks/use-orders';
 import { useAuth } from '@/hooks/use-auth';
 import type { Order } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageProvider';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function OrdersPage() {
   const { orders } = useOrders();
-  const { currentUser } = useAuth();
+  const { loading: authLoading } = useAuth();
   const { t } = useLanguage();
   
-  const userOrders = orders;
+  const isLoading = authLoading || !orders;
 
   return (
     <Card>
@@ -23,8 +24,10 @@ export default function OrdersPage() {
       </CardHeader>
       <CardContent>
         <div className="divide-y">
-            {userOrders.length > 0 ? (
-                userOrders.map((order: Order) => (
+            {isLoading ? (
+                [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full my-2" />)
+            ) : orders.length > 0 ? (
+                orders.map((order: Order) => (
                     <OrderListItem key={order.id} order={order} />
                 ))
             ) : (

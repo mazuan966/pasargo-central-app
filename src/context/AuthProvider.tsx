@@ -1,24 +1,59 @@
 
 'use client';
 
-import { createContext, ReactNode, useMemo } from 'react';
+import { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import type { User as AppUser } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-
-// This is a placeholder AuthProvider now that Firebase has been removed.
-// It will allow the app to render without authentication.
+import { usePathname, useRouter } from 'next/navigation';
 
 interface AuthContextType {
-  currentUser: null;
-  userData: null;
+  currentUser: FirebaseUser | null;
+  userData: AppUser | null;
   loading: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const loading = false; // App is never in a loading state.
-  
-  const value = useMemo(() => ({ currentUser: null, userData: null, loading }), []);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [userData, setUserData] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // Only run this on the client
+    if (typeof window === "undefined") return;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUser(user);
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            setUserData({ id: userDoc.id, ...userDoc.data() } as AppUser);
+          } else {
+             // Handle case where user exists in Auth but not Firestore
+             console.warn("User document not found in Firestore for UID:", user.uid);
+             setUserData(null);
+          }
+        } catch (error) {
+           console.error("Error fetching user data from Firestore:", error);
+           setUserData(null);
+        }
+      } else {
+        setCurrentUser(null);
+        setUserData(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   if (loading) {
     return (
@@ -27,6 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
+
+  const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
   return (
     <AuthContext.Provider value={value}>

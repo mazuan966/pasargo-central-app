@@ -27,6 +27,9 @@ import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/hooks/use-cart';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { useAuth } from '@/hooks/use-auth';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
 
 const NavLink = ({ href, children, icon: Icon }: { href: string, children: React.ReactNode, icon: React.ElementType }) => {
   const pathname = usePathname();
@@ -67,17 +70,21 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const { cartCount } = useCart();
   const [isMounted, setIsMounted] = React.useState(false);
+  const { userData } = useAuth();
   
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
 
   const handleLogout = async () => {
+    if (auth) {
+        await signOut(auth);
+    }
     router.push('/login');
   };
   
   const getInitials = (name?: string) => {
-    if (!name) return 'D';
+    if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
@@ -168,13 +175,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 <Button variant="secondary" size="icon" className="rounded-full">
                   <Avatar>
                     <AvatarImage src="https://placehold.co/40x40.png" alt="User avatar" />
-                    <AvatarFallback>{getInitials('Demo User')}</AvatarFallback>
+                    <AvatarFallback>{getInitials(userData?.restaurantName)}</AvatarFallback>
                   </Avatar>
                   <span className="sr-only">Toggle user menu</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Demo User</DropdownMenuLabel>
+                <DropdownMenuLabel>{userData?.restaurantName || 'My Account'}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="flex items-center w-full cursor-pointer">

@@ -12,45 +12,41 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/context/LanguageProvider';
-
-// Placeholder data since Firebase is removed
-const placeholderProducts: Product[] = [
-    {
-        id: '1',
-        name: 'Fresh Oranges',
-        description: 'Juicy and sweet oranges, perfect for juice.',
-        category: 'Fruits',
-        imageUrl: 'https://placehold.co/600x400.png',
-        "data-ai-hint": "orange fruit",
-        hasSst: false,
-        variants: [{ id: 'v1', name: '1kg Bag', price: 5.99, stock: 50, unit: 'kg' }],
-    },
-    {
-        id: '2',
-        name: 'Whole Wheat Bread',
-        description: 'Healthy and delicious whole wheat bread.',
-        category: 'Bakery',
-        imageUrl: 'https://placehold.co/600x400.png',
-        "data-ai-hint": "bread loaf",
-        hasSst: true,
-        variants: [{ id: 'v2', name: 'Loaf', price: 4.50, stock: 30, unit: 'item' }],
-    }
-];
+import { db } from '@/lib/firebase';
+import { collection, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { useOrders } from '@/hooks/use-orders';
 
 export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [dbError, setDbError] = useState<string | null>("Firebase has been removed. Displaying placeholder data.");
+  const [dbError, setDbError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { getTranslated, t } = useLanguage();
+  const { orders } = useOrders();
 
   useEffect(() => {
-    // Simulate fetching data
-    setTimeout(() => {
-      setProducts(placeholderProducts);
+    if (!db) {
+      setDbError("Firebase is not configured. Cannot fetch products.");
       setIsLoadingProducts(false);
-    }, 500);
+      return;
+    }
+
+    const productsCollection = collection(db, 'products');
+    const q = query(productsCollection, orderBy("name"));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+      setProducts(productsData);
+      setIsLoadingProducts(false);
+      setDbError(null);
+    }, (error) => {
+      console.error("Error fetching products:", error);
+      setDbError("Could not fetch products from the database.");
+      setIsLoadingProducts(false);
+    });
+
+    return () => unsubscribe();
   }, []);
   
   const uniqueCategories = useMemo(() => {
@@ -65,6 +61,10 @@ export default function DashboardPage() {
       return matchesCategory && matchesSearch;
     });
   }, [products, searchTerm, selectedCategory, getTranslated]);
+  
+  const actionRequiredOrders = useMemo(() => {
+      return orders.filter(o => ['Processing', 'Awaiting Payment'].includes(o.status));
+  }, [orders]);
 
   return (
     <div className="space-y-8">
@@ -75,7 +75,7 @@ export default function DashboardPage() {
         {dbError && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Database Disconnected</AlertTitle>
+            <AlertTitle>Database Error</AlertTitle>
             <AlertDescription>
               {dbError}
             </AlertDescription>
@@ -96,7 +96,21 @@ export default function DashboardPage() {
                 </Button>
             </CardHeader>
             <CardContent>
+              {actionRequiredOrders.length > 0 ? (
+                <div className="space-y-2">
+                  {actionRequiredOrders.map(order => (
+                    <div key={order.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                        <p>Order #{order.orderNumber}</p>
+                        <p>{order.status}</p>
+                        <Button asChild size="sm" variant="ghost">
+                            <Link href={`/orders/${order.id}`}>View</Link>
+                        </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
                 <p className="text-muted-foreground text-center py-8">{t('dashboard.no_actions')}</p>
+              )}
             </CardContent>
         </Card>
 

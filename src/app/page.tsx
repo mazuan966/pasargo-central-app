@@ -13,51 +13,9 @@ import { StorefrontFooter } from '@/components/layout/StorefrontFooter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageProvider';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
-
-// Placeholder data since Firebase is removed
-const placeholderProducts: Product[] = [
-    {
-        id: '1',
-        name: 'Fresh Oranges',
-        description: 'Juicy and sweet oranges, perfect for juice.',
-        category: 'Fruits',
-        imageUrl: 'https://placehold.co/600x400.png',
-        "data-ai-hint": "orange fruit",
-        hasSst: false,
-        variants: [{ id: 'v1', name: '1kg Bag', price: 5.99, stock: 50, unit: 'kg' }],
-    },
-    {
-        id: '2',
-        name: 'Whole Wheat Bread',
-        description: 'Healthy and delicious whole wheat bread.',
-        category: 'Bakery',
-        imageUrl: 'https://placehold.co/600x400.png',
-        "data-ai-hint": "bread loaf",
-        hasSst: true,
-        variants: [{ id: 'v2', name: 'Loaf', price: 4.50, stock: 30, unit: 'item' }],
-    },
-     {
-        id: '3',
-        name: 'Milk',
-        description: 'Fresh full-cream milk.',
-        category: 'Dairy',
-        imageUrl: 'https://placehold.co/600x400.png',
-        "data-ai-hint": "milk carton",
-        hasSst: false,
-        variants: [{ id: 'v3', name: '1L Carton', price: 7.00, stock: 100, unit: 'item' }],
-    },
-    {
-        id: '4',
-        name: 'Eggs',
-        description: 'Farm-fresh organic eggs.',
-        category: 'Dairy',
-        imageUrl: 'https://placehold.co/600x400.png',
-        "data-ai-hint": "egg carton",
-        hasSst: false,
-        variants: [{ id: 'v4', name: 'Dozen', price: 12.00, stock: 80, unit: 'item' }],
-    }
-];
 
 function ProductGridSkeleton() {
   return (
@@ -84,17 +42,33 @@ function ProductGridSkeleton() {
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [dbError, setDbError] = useState<string | null>("Firebase has been removed. Displaying placeholder data.");
+  const [dbError, setDbError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { getTranslated, t } = useLanguage();
 
   useEffect(() => {
-    // Simulate fetching products since Firebase is removed
-    setTimeout(() => {
-        setProducts(placeholderProducts);
+    if (!db) {
+        setDbError("Firebase is not configured. Cannot fetch products.");
         setIsLoadingProducts(false);
-    }, 500);
+        return;
+    }
+
+    const productsCollection = collection(db, 'products');
+    const q = query(productsCollection, orderBy("name"));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+        setProducts(productsData);
+        setIsLoadingProducts(false);
+        setDbError(null);
+    }, (error) => {
+        console.error("Error fetching products:", error);
+        setDbError("Could not fetch products from the database.");
+        setIsLoadingProducts(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const uniqueCategories = useMemo(() => {
@@ -153,7 +127,7 @@ export default function Home() {
         {dbError && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Database Disconnected</AlertTitle>
+            <AlertTitle>Database Error</AlertTitle>
             <AlertDescription>
               {dbError}
             </AlertDescription>

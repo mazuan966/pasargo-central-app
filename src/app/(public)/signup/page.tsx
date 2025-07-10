@@ -12,7 +12,7 @@ export default function UserSignupPage() {
           <Logo className="h-10 w-10 text-primary" />
         </div>
         <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
-        <CardDescription>Firebase has been removed. This form is not functional.</CardDescription>
+        <CardDescription>Join Pasargo Central to easily order supplies for your business.</CardDescription>
       </CardHeader>
       <CardContent>
         <UserSignupForm />

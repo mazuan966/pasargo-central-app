@@ -14,7 +14,7 @@ export default function ProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle>{t('profile.title')}</CardTitle>
-          <CardDescription>Firebase has been removed. This form is not functional.</CardDescription>
+          <CardDescription>{t('profile.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <UserProfileForm />
@@ -24,7 +24,7 @@ export default function ProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle>{t('profile.change_password_title')}</CardTitle>
-          <CardDescription>Firebase has been removed. This form is not functional.</CardDescription>
+          <CardDescription>{t('profile.change_password_description')}</CardDescription>
         </CardHeader>
         <CardContent>
             <PasswordChangeForm />

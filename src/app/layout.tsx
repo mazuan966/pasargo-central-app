@@ -2,6 +2,8 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from '@/context/AuthProvider';
+import { OrderProvider } from '@/context/OrderProvider';
 import { CartProvider } from '@/context/CartProvider';
 import { LanguageProvider } from '@/context/LanguageProvider';
 
@@ -24,9 +26,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <LanguageProvider>
-            <CartProvider>
-              {children}
-            </CartProvider>
+          <AuthProvider>
+            <OrderProvider>
+              <CartProvider>
+                {children}
+              </CartProvider>
+            </OrderProvider>
+          </AuthProvider>
         </LanguageProvider>
         <Toaster />
       </body>

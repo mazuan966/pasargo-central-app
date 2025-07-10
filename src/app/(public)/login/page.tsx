@@ -12,7 +12,7 @@ export default function UserLoginPage() {
           <Logo className="h-10 w-10 text-primary" />
         </div>
         <CardTitle className="text-2xl font-headline">Login</CardTitle>
-        <CardDescription>Firebase has been removed. This form is not functional.</CardDescription>
+        <CardDescription>Welcome back! Please enter your details.</CardDescription>
       </CardHeader>
       <CardContent>
         <UserLoginForm />

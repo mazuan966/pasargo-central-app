@@ -17,11 +17,37 @@ import { Loader2, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 export default function AdminCustomersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [dbError, setDbError] = useState<string | null>("Firebase has been removed. Customer data is unavailable.");
+  const [isLoading, setIsLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!db) {
+      setDbError("Firebase is not configured. Cannot fetch customers.");
+      setIsLoading(false);
+      return;
+    }
+
+    const usersCollection = collection(db, 'users');
+    const q = query(usersCollection, orderBy('restaurantName'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as User[];
+      setUsers(usersData);
+      setIsLoading(false);
+      setDbError(null);
+    }, (error) => {
+      console.error("Error fetching customers:", error);
+      setDbError("Could not fetch customers from the database.");
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';

@@ -13,6 +13,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2, MapPin } from 'lucide-react';
 import type { User } from '@/lib/types';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   restaurantName: z.string().min(1, { message: 'Restaurant name is required.' }),
@@ -59,7 +62,6 @@ export function UserSignupForm() {
   });
 
   const handleGetLocation = () => {
-    // This functionality remains as it does not depend on Firebase
     if (navigator.geolocation) {
       setIsGeolocating(true);
       navigator.geolocation.getCurrentPosition(
@@ -94,8 +96,54 @@ export function UserSignupForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Cannot sign up.'});
-    setIsLoading(false);
+
+    if (!auth || !db) {
+        toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Cannot sign up.'});
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      const fullAddress = [
+        values.address,
+        values.buildingName,
+        `${values.postcode} ${values.city}`,
+        values.state
+      ].filter(Boolean).join(', ');
+
+      const userData: Omit<User, 'id'> = {
+        email: values.email,
+        restaurantName: values.restaurantName,
+        personInCharge: values.personInCharge,
+        phoneNumber: `+60${values.phoneNumber}`,
+        address: fullAddress,
+        latitude: values.latitude ? parseFloat(values.latitude) : undefined,
+        longitude: values.longitude ? parseFloat(values.longitude) : undefined,
+        tin: '',
+      };
+      
+      await setDoc(doc(db, 'users', user.uid), userData);
+      
+      toast({
+        title: 'Account Created',
+        description: "Welcome! You're now being redirected.",
+      });
+      
+      router.push('/dashboard');
+
+    } catch (error: any) {
+      console.error("Signup error: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Sign Up Failed',
+        description: error.message,
+      });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (

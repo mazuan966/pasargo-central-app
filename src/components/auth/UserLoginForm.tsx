@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -32,8 +34,29 @@ export function UserLoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Cannot log in.'});
-    setIsLoading(false);
+    if (!auth) {
+        toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Cannot log in.'});
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        toast({
+            title: 'Login Successful',
+            description: "Welcome back!",
+        });
+        router.push('/dashboard');
+    } catch (error: any) {
+        console.error("Login error:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: error.message,
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
