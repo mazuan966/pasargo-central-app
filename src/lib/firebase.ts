@@ -13,14 +13,27 @@ const firebaseConfig = {
   appId: "1:909679104927:web:632c43341dc54c1ac6a3aa"
 };
 
-// This function ensures we initialize the app only once.
-function getFirebaseApp(): FirebaseApp {
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
+try {
+    console.log('[DIAGNOSTIC] firebase.ts: Attempting to initialize Firebase...');
     if (!getApps().length) {
-        return initializeApp(firebaseConfig);
+        app = initializeApp(firebaseConfig);
+        console.log('[DIAGNOSTIC] firebase.ts: Firebase initialized successfully.');
+    } else {
+        app = getApp();
+        console.log('[DIAGNOSTIC] firebase.ts: Firebase app already exists, getting app.');
     }
-    return getApp();
+
+    auth = getAuth(app);
+    db = getFirestore(app);
+    console.log('[DIAGNOSTIC] firebase.ts: Auth and DB services retrieved. DB object is:', db ? 'Defined' : 'Undefined');
+
+} catch (error) {
+    console.error('[DIAGNOSTIC] firebase.ts: Critical error during Firebase initialization.', error);
 }
 
-export const app: FirebaseApp = getFirebaseApp();
-export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
+
+export { app, auth, db };

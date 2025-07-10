@@ -50,29 +50,42 @@ export default function Home() {
   const { loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to be ready
+    console.log('[DIAGNOSTIC] page.tsx: useEffect for fetching products is running.');
+    console.log('[DIAGNOSTIC] page.tsx: Checking db object. Is it defined?', !!db);
+    
+    if (authLoading) {
+      console.log('[DIAGNOSTIC] page.tsx: Auth is loading, will not fetch products yet.');
+      return; 
+    }
     
     if (!db) {
+        console.error("[DIAGNOSTIC] page.tsx: db object is NOT defined. Cannot fetch products.");
         setDbError("Firebase is not configured. Cannot fetch products.");
         setIsLoadingProducts(false);
         return;
     }
+    
+    console.log('[DIAGNOSTIC] page.tsx: db object is defined. Setting up product listener.');
 
     const productsCollection = collection(db, 'products');
     const q = query(productsCollection, orderBy("name"));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+        console.log('[DIAGNOSTIC] page.tsx: onSnapshot received new data.');
         const productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
         setProducts(productsData);
         setIsLoadingProducts(false);
         setDbError(null);
     }, (error) => {
-        console.error("Error fetching products:", error);
+        console.error("[DIAGNOSTIC] page.tsx: onSnapshot returned an error.", error);
         setDbError("Could not fetch products from the database.");
         setIsLoadingProducts(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+        console.log('[DIAGNOSTIC] page.tsx: useEffect cleanup. Unsubscribing from product listener.');
+        unsubscribe();
+    };
   }, [authLoading]);
 
   const uniqueCategories = useMemo(() => {
