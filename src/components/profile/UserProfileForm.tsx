@@ -13,6 +13,9 @@ import { Loader2 } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
 import { Skeleton } from '../ui/skeleton';
 import { useLanguage } from '@/context/LanguageProvider';
+import { useAuth } from '@/hooks/use-auth';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const profileFormSchema = z.object({
   restaurantName: z.string().min(1, { message: 'Restaurant name is required.' }),
@@ -28,22 +31,71 @@ export function UserProfileForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useLanguage();
+  const { userData, loading: authLoading } = useAuth();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-        restaurantName: 'Demo Cafe',
-        personInCharge: 'Demo User',
-        address: '123 Jalan Demo, 50000 Kuala Lumpur',
-        phoneNumber: '123456789',
-        email: 'demo@example.com',
+        restaurantName: '',
+        personInCharge: '',
+        address: '',
+        phoneNumber: '',
+        email: '',
     }
   });
 
+  useEffect(() => {
+    if (userData) {
+      form.reset({
+        restaurantName: userData.restaurantName || '',
+        personInCharge: userData.personInCharge || '',
+        address: userData.address || '',
+        phoneNumber: userData.phoneNumber?.replace('+60', '') || '',
+        email: userData.email || '',
+      });
+    }
+  }, [userData, form]);
+
   async function onSubmit(data: ProfileFormValues) {
     setIsLoading(true);
-    toast({ title: "Profile Update (Simulation)", description: "Firebase has been removed. No data was saved." });
-    setIsLoading(false);
+
+    if (!userData || !db) {
+      toast({ variant: 'destructive', title: 'Error', description: 'User not found or database not connected.' });
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const userRef = doc(db, 'users', userData.id);
+      await updateDoc(userRef, {
+        restaurantName: data.restaurantName,
+        personInCharge: data.personInCharge,
+        address: data.address,
+        phoneNumber: `+60${data.phoneNumber}`,
+      });
+      toast({ title: "Profile Updated", description: "Your details have been saved successfully." });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (authLoading) {
+    return (
+        <div className="space-y-4 max-w-2xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+            </div>
+            <Skeleton className="h-20 w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+            </div>
+            <Skeleton className="h-10 w-28" />
+        </div>
+    );
   }
 
   return (

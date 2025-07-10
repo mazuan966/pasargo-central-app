@@ -19,13 +19,25 @@ const placeOrderPayload = z.object({
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
-async function sendOrderConfirmationNotifications(order: Order, language: Language) {
-    const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = order;
+export async function sendOrderConfirmationNotifications(orderId: string) {
+    if (!db) {
+        console.error("Cannot send notifications: Firestore is not available.");
+        return;
+    }
+    const orderDocRef = doc(db, 'orders', orderId);
+    const orderDoc = await getDoc(orderDocRef);
+    if (!orderDoc.exists()) {
+        console.error(`Cannot send notifications: Order with ID ${orderId} not found.`);
+        return;
+    }
+
+    const order = { id: orderDoc.id, ...orderDoc.data() } as Order;
+    const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, language = 'en' } = order;
     
     const adminPhoneNumber = '60163864181'; // Hardcoded admin number
     
-    let invoiceMessageSection = appUrl ? `\n\n${getTranslation(language, 'whatsapp.view_invoice_prompt')}\n${appUrl}/print/invoice/${orderDocId}` : '';
-    let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderDocId}` : '';
+    let invoiceMessageSection = appUrl ? `\n\n${getTranslation(language, 'whatsapp.view_invoice_prompt')}\n${appUrl}/print/invoice/${orderId}` : '';
+    let poMessageSection = appUrl ? `\n\nHere is the unique link to view the Purchase Order:\n${appUrl}/admin/print/po/${orderId}` : '';
     
     const itemsList = items.map(item => `- ${getTranslatedItemField(item, 'name', language)} (${item.quantity} x RM ${item.price.toFixed(2)})`).join('\n');
     const userInvoiceMessage = `${getTranslation(language, 'whatsapp.greeting', {name: user.restaurantName})}\n\n${getTranslation(language, 'whatsapp.order_confirmation')}\n\n*${getTranslation(language, 'whatsapp.invoice_title', {orderNumber})}*\n\n` +
@@ -54,8 +66,8 @@ async function sendOrderConfirmationNotifications(order: Order, language: Langua
 }
 
 
-async function sendAmendmentConfirmationNotifications(updatedOrder: Order, language: Language) {
-    const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId } = updatedOrder;
+async function sendAmendmentConfirmationNotifications(updatedOrder: Order) {
+    const { user, orderNumber, items, subtotal, sst, total, deliveryDate, deliveryTimeSlot, id: orderDocId, language = 'en' } = updatedOrder;
     const adminPhoneNumber = '60163864181';
 
     const itemsSummary = items.map(item => {
@@ -180,7 +192,7 @@ export async function placeOrderAction(payload: z.infer<typeof placeOrderPayload
             });
 
             if (finalUpdatedOrder) {
-                await sendAmendmentConfirmationNotifications(finalUpdatedOrder, language);
+                await sendAmendmentConfirmationNotifications(finalUpdatedOrder);
             }
             return { success: true, message: getTranslation(language, 'order_amendment.toast.updated_title') };
 
@@ -199,6 +211,7 @@ export async function placeOrderAction(payload: z.infer<typeof placeOrderPayload
             const newOrder: Omit<Order, 'id'> = {
                 orderNumber: newOrderNumber,
                 user: userData,
+                language: language,
                 items: cartItems.map((item: CartItem) => ({
                     productId: item.productId,
                     variantId: item.variantId,
@@ -227,7 +240,7 @@ export async function placeOrderAction(payload: z.infer<typeof placeOrderPayload
             };
             
             const newOrderRef = await addDoc(collection(db, 'orders'), newOrder);
-            await sendOrderConfirmationNotifications({ ...newOrder, id: newOrderRef.id }, language);
+            await sendOrderConfirmationNotifications(newOrderRef.id);
             return { success: true, message: getTranslation(language, 'checkout.toast.success_title') };
         }
     } catch(e: any) {

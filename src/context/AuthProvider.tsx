@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Also check if db is available which signals Firebase is configured
     if (!auth || !db) {
-        console.error("Firebase not configured in AuthProvider. Disabling auth features.");
+        console.warn("Firebase not configured in AuthProvider. Disabling auth features.");
         setLoading(false);
         return;
     }

@@ -12,6 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import type { BusinessDetails } from '@/lib/types';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Business name is required.'),
@@ -26,22 +29,62 @@ type FormValues = z.infer<typeof formSchema>;
 export function BusinessSettingsForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: 'Pasargo Central',
-      address: 'Jalan Teknologi 5, Taman Teknologi Malaysia, 57000 Kuala Lumpur, Malaysia',
-      phone: '+60 12-345 6789',
-      email: 'sales@pasargo.com',
-      tin: 'TIN-PASARGO-123',
-    },
+    defaultValues: { name: '', address: '', phone: '', email: '', tin: '' },
   });
 
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!db) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Firebase not configured.' });
+        setIsFetching(false);
+        return;
+      }
+      setIsFetching(true);
+      const docRef = doc(db, 'settings', 'business');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        form.reset(docSnap.data() as FormValues);
+      } else {
+        // You can set default values here if needed
+      }
+      setIsFetching(false);
+    };
+    fetchSettings();
+  }, [form, toast]);
+
   async function onSubmit(data: FormValues) {
+    if (!db) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Firebase not configured.' });
+      return;
+    }
     setIsLoading(true);
-    toast({ title: 'Settings Update (Simulation)', description: 'Firebase has been removed. No data was saved.' });
+    try {
+      const docRef = doc(db, 'settings', 'business');
+      await setDoc(docRef, data);
+      toast({ title: 'Settings Saved', description: 'Business details have been updated successfully.' });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
+    }
     setIsLoading(false);
+  }
+  
+  if (isFetching) {
+    return (
+       <div className="space-y-4 max-w-2xl">
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+          </div>
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+    )
   }
 
   return (

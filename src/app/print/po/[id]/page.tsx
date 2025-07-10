@@ -5,27 +5,25 @@ import { useParams, notFound } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { Order, BusinessDetails } from '@/lib/types';
 import { PrintHandler } from '@/components/layout/PrintHandler';
-import { useLanguage } from '@/context/LanguageProvider';
 import { Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { PrintableInvoice } from '@/components/orders/PrintableInvoice';
+import { PrintablePO } from '@/components/admin/PrintablePO';
 
-export default function PrintInvoicePage() {
+export default function PrintPOPage() {
     const params = useParams<{ id: string }>();
     const [order, setOrder] = useState<Order | null>(null);
     const [businessDetails, setBusinessDetails] = useState<BusinessDetails | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { getTranslated, t } = useLanguage();
-
+    
     useEffect(() => {
         if (!params.id) {
             setError("No order ID provided.");
             setIsLoading(false);
             return;
         }
-
+        
         if (!db) {
             setError("Firebase connection is not available.");
             setIsLoading(false);
@@ -54,16 +52,14 @@ export default function PrintInvoicePage() {
                 }
 
             } catch (err: any) {
-                console.error("Error fetching invoice data:", err);
-                setError(err.message || "Failed to fetch invoice data.");
+                console.error("Error fetching PO data:", err);
+                setError(err.message || "Failed to fetch purchase order data.");
             } finally {
                 setIsLoading(false);
             }
         };
-
         fetchData();
     }, [params.id]);
-
 
     if (isLoading) {
         return (
@@ -90,7 +86,7 @@ export default function PrintInvoicePage() {
     
     return (
         <>
-            <PrintableInvoice order={order} businessDetails={businessDetails} t={t} getTranslated={getTranslated} />
+            <PrintablePO order={order} businessDetails={businessDetails} />
             <PrintHandler />
         </>
     );
