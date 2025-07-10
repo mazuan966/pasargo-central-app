@@ -17,7 +17,8 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
-// This pattern ensures that Firebase is initialized only once.
+// This is the modern equivalent of the "if (!firebase.apps.length)" pattern.
+// It ensures that Firebase is initialized only once, preventing errors.
 if (!getApps().length) {
     app = initializeApp(firebaseConfig);
 } else {
