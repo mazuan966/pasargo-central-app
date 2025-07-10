@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageProvider';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { useAuth } from '@/hooks/use-auth';
 
 
 function ProductGridSkeleton() {
@@ -46,8 +47,11 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { getTranslated, t } = useLanguage();
+  const { loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to be ready
+    
     if (!db) {
         setDbError("Firebase is not configured. Cannot fetch products.");
         setIsLoadingProducts(false);
@@ -69,7 +73,7 @@ export default function Home() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   const uniqueCategories = useMemo(() => {
     if (products.length === 0) return [];
@@ -134,7 +138,7 @@ export default function Home() {
           </Alert>
         )}
 
-        {isLoadingProducts ? (
+        {isLoadingProducts || authLoading ? (
           <ProductGridSkeleton />
         ) : filteredProducts.length > 0 ? (
           <ProductList products={filteredProducts} />

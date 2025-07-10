@@ -15,6 +15,7 @@ import { useLanguage } from '@/context/LanguageProvider';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useOrders } from '@/hooks/use-orders';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -24,8 +25,11 @@ export default function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { getTranslated, t } = useLanguage();
   const { orders } = useOrders();
+  const { loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to be ready
+
     if (!db) {
       setDbError("Firebase is not configured. Cannot fetch products.");
       setIsLoadingProducts(false);
@@ -47,7 +51,7 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
   
   const uniqueCategories = useMemo(() => {
     if (products.length === 0) return [];
@@ -65,6 +69,8 @@ export default function DashboardPage() {
   const actionRequiredOrders = useMemo(() => {
       return orders.filter(o => ['Processing', 'Awaiting Payment'].includes(o.status));
   }, [orders]);
+
+  const isLoading = isLoadingProducts || authLoading;
 
   return (
     <div className="space-y-8">
@@ -128,7 +134,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {uniqueCategories.length > 1 && !isLoadingProducts && (
+            {uniqueCategories.length > 1 && !isLoading && (
                 <div className="flex flex-wrap gap-2 mb-6">
                     {uniqueCategories.map(category => {
                         const sampleProduct = products.find(p => p.category === category);
@@ -146,7 +152,7 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {isLoadingProducts ? (
+            {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {[...Array(4)].map((_, i) => (
                   <Card key={i}>
