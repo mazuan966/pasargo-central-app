@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
@@ -24,7 +25,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Check if Firebase services are available. If not, stop loading and do nothing.
     if (!auth || !db) {
+        console.error("Firebase not initialized, AuthProvider cannot function.");
         setLoading(false);
         return;
     }
