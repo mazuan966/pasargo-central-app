@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, AlertTriangle } from 'lucide-react';
 import Papa from 'papaparse';
 import { db } from '@/lib/firebase';
-import { collection, writeBatch, doc, getDocs, updateDoc, addDoc, query, where } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, updateDoc, query, where } from 'firebase/firestore';
 import type { Product, ProductVariant } from '@/lib/types';
 import { translateProduct } from '@/ai/flows/translate-product-flow';
 
@@ -58,7 +58,7 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
           const productsSnapshot = await getDocs(productsCollection);
           const existingProductsById = new Map(productsSnapshot.docs.map(doc => [doc.id, { ...doc.data(), id: doc.id } as Product]));
           
-          const productsToTranslate: { docId: string; name: string; description: string }[] = [];
+          const productsToTranslate: { docId: string; name: string; description: string, category: string }[] = [];
           
           const rowsByProductId = new Map<string, any[]>();
           results.data.forEach((row: any) => {
@@ -124,7 +124,7 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
             }
             
             if (docId) {
-                productsToTranslate.push({ docId, name: productData.name, description: productData.description });
+                productsToTranslate.push({ docId, name: productData.name, description: productData.description, category: productData.category });
             }
           }
 
@@ -153,7 +153,7 @@ export function ProductImporter({ isOpen, setIsOpen, onImportSuccess }: ProductI
 
             const translationPromises = productsToTranslate.map(async (product) => {
               try {
-                const translations = await translateProduct({ name: product.name, description: product.description });
+                const translations = await translateProduct({ name: product.name, description: product.description, category: product.category });
                 const productRefToUpdate = doc(db, 'products', product.docId);
                 await updateDoc(productRefToUpdate, translations);
               } catch (e) {

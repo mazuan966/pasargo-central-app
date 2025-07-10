@@ -8,6 +8,8 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where
 import { useAuth } from '@/hooks/use-auth';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { getTranslation, getTranslatedItemField } from '@/lib/translations';
+import { format } from 'date-fns';
+
 
 interface OrderContextType {
   orders: Order[];
@@ -25,7 +27,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const isUserAdmin = useMemo(() => {
     // Basic admin check based on a known UID or a custom claim in a real app.
-    // For now, we assume anyone can be an admin if not specifically a regular user.
     // This logic should be hardened in a real application.
     return !currentUser || currentUser.email === 'pasargo.admin@gmail.com'; // Example admin email
   }, [currentUser]);
@@ -44,7 +45,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const ordersCollection = collection(db, 'orders');
 
     if (isUserAdmin) {
-      // Admin sees all orders, sorted by date. This index is built-in.
+      // Admin sees all orders
       q = query(ordersCollection, orderBy('orderDate', 'desc'));
     } else if (currentUser) {
       // Regular user sees only their orders.
