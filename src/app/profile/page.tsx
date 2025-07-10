@@ -4,7 +4,6 @@
 import { UserProfileForm } from '@/components/profile/UserProfileForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PasswordChangeForm } from '@/components/profile/PasswordChangeForm';
-import { Separator } from '@/components/ui/separator';
 import { useLanguage } from '@/context/LanguageProvider';
 
 export default function ProfilePage() {
@@ -15,7 +14,7 @@ export default function ProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle>{t('profile.title')}</CardTitle>
-          <CardDescription>{t('profile.description')}</CardDescription>
+          <CardDescription>Firebase has been removed. This form is not functional.</CardDescription>
         </CardHeader>
         <CardContent>
           <UserProfileForm />
@@ -25,7 +24,7 @@ export default function ProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle>{t('profile.change_password_title')}</CardTitle>
-          <CardDescription>{t('profile.change_password_description')}</CardDescription>
+          <CardDescription>Firebase has been removed. This form is not functional.</CardDescription>
         </CardHeader>
         <CardContent>
             <PasswordChangeForm />

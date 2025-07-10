@@ -10,9 +10,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
-import { useAuth } from '@/hooks/use-auth';
-import { auth } from '@/lib/firebase';
 import { useLanguage } from '@/context/LanguageProvider';
 
 const passwordFormSchema = z.object({
@@ -29,7 +26,6 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 export function PasswordChangeForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const { currentUser } = useAuth();
   const { t } = useLanguage();
 
   const form = useForm<PasswordFormValues>({
@@ -43,37 +39,8 @@ export function PasswordChangeForm() {
 
   async function onSubmit(data: PasswordFormValues) {
     setIsLoading(true);
-    if (!currentUser || !auth || !currentUser.email) {
-        toast({ title: 'Error', description: 'You must be logged in to change your password.', variant: 'destructive' });
-        setIsLoading(false);
-        return;
-    }
-
-    try {
-        const credential = EmailAuthProvider.credential(currentUser.email, data.currentPassword);
-        await reauthenticateWithCredential(currentUser, credential);
-        await updatePassword(currentUser, data.newPassword);
-        
-        toast({
-            title: 'Password Updated',
-            description: 'Your password has been changed successfully.',
-        });
-        form.reset();
-
-    } catch (error: any) {
-        let errorMessage = "An unknown error occurred. Please try again later.";
-        // The 'auth/invalid-credential' error code covers wrong password.
-        if (error.code === 'auth/invalid-credential') {
-            errorMessage = "The current password you entered is incorrect. Please try again.";
-        }
-        toast({
-            title: 'Password Update Failed',
-            description: errorMessage,
-            variant: 'destructive'
-        });
-    } finally {
-        setIsLoading(false);
-    }
+    toast({ title: "Password Update (Simulation)", description: "Firebase has been removed. No data was saved.", variant: "destructive" });
+    setIsLoading(false);
   }
 
   return (

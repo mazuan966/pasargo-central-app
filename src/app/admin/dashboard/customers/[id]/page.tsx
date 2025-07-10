@@ -1,10 +1,9 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import type { User, Order } from '@/lib/types';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, MapPin, Phone, User as UserIcon, ArrowLeft, Hash } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -21,46 +20,21 @@ export default function CustomerDetailsPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!params.id) return;
-
-        const fetchCustomerData = async () => {
-            setIsLoading(true);
-            if (!db) {
-                console.error("Firebase not initialized");
-                setIsLoading(false);
-                return;
-            }
-            try {
-                // Fetch user details
-                const userDocRef = doc(db, 'users', params.id as string);
-                const userDoc = await getDoc(userDocRef);
-
-                if (!userDoc.exists()) {
-                    notFound();
-                    return;
-                }
-                const userData = { id: userDoc.id, ...userDoc.data() } as User;
-                setUser(userData);
-
-                // Fetch user's orders - removed orderBy to avoid needing a composite index
-                const ordersQuery = query(
-                    collection(db, 'orders'),
-                    where('user.id', '==', params.id)
-                );
-                const ordersSnapshot = await getDocs(ordersQuery);
-                const ordersList = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Order[];
-                // Sort on the client side instead
-                ordersList.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
-                setOrders(ordersList);
-
-            } catch (error) {
-                console.error("Error fetching customer data:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchCustomerData();
+        // Simulate fetching data
+        setIsLoading(true);
+        setTimeout(() => {
+            const demoUser: User = {
+                id: params.id,
+                restaurantName: 'Demo Cafe',
+                personInCharge: 'Demo User',
+                email: 'demo@example.com',
+                phoneNumber: '+60123456789',
+                address: '123 Jalan Demo, 50000 Kuala Lumpur',
+                tin: 'TIN-DEMO-456'
+            };
+            setUser(demoUser);
+            setIsLoading(false);
+        }, 500);
     }, [params.id]);
 
     const getInitials = (name?: string) => {
@@ -158,25 +132,9 @@ export default function CustomerDetailsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {orders.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center">No orders found.</TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        orders.map(order => (
-                                            <TableRow key={order.id}>
-                                                <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                                                <TableCell>{format(new Date(order.orderDate), 'dd/MM/yyyy')}</TableCell>
-                                                <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
-                                                <TableCell className="text-right">RM {order.total.toFixed(2)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button asChild variant="ghost" size="sm">
-                                                        <Link href={`/admin/dashboard/orders/${order.id}`}>View</Link>
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center">No orders found (Firebase removed).</TableCell>
+                                    </TableRow>
                                 </TableBody>
                             </Table>
                         </CardContent>

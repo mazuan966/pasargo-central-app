@@ -3,63 +3,55 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import ProductList from '@/components/shop/ProductList';
-import { useOrders } from '@/hooks/use-orders';
-import { useAuth } from '@/hooks/use-auth';
-import { OrderListItem } from '@/components/orders/OrderListItem';
 import type { Order, Product } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight, AlertTriangle, Search } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/context/LanguageProvider';
 
+// Placeholder data since Firebase is removed
+const placeholderProducts: Product[] = [
+    {
+        id: '1',
+        name: 'Fresh Oranges',
+        description: 'Juicy and sweet oranges, perfect for juice.',
+        category: 'Fruits',
+        imageUrl: 'https://placehold.co/600x400.png',
+        "data-ai-hint": "orange fruit",
+        hasSst: false,
+        variants: [{ id: 'v1', name: '1kg Bag', price: 5.99, stock: 50, unit: 'kg' }],
+    },
+    {
+        id: '2',
+        name: 'Whole Wheat Bread',
+        description: 'Healthy and delicious whole wheat bread.',
+        category: 'Bakery',
+        imageUrl: 'https://placehold.co/600x400.png',
+        "data-ai-hint": "bread loaf",
+        hasSst: true,
+        variants: [{ id: 'v2', name: 'Loaf', price: 4.50, stock: 30, unit: 'item' }],
+    }
+];
+
 export default function DashboardPage() {
-  const { orders } = useOrders();
-  const { currentUser } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [dbError, setDbError] = useState<string | null>(null);
+  const [dbError, setDbError] = useState<string | null>("Firebase has been removed. Displaying placeholder data.");
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { getTranslated, t } = useLanguage();
 
   useEffect(() => {
-    if (!db) {
-      setDbError("Firebase is not configured. Please check your credentials.");
+    // Simulate fetching data
+    setTimeout(() => {
+      setProducts(placeholderProducts);
       setIsLoadingProducts(false);
-      setProducts([]);
-      return;
-    }
-    
-    setDbError(null);
-    const productsCollection = collection(db, 'products');
-    const unsubscribe = onSnapshot(productsCollection, (snapshot) => {
-      const productsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
-      setProducts(productsList);
-      setIsLoadingProducts(false);
-    }, (error: FirestoreError) => {
-        if (error instanceof FirestoreError && error.code === 'permission-denied') {
-          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console to allow reads on the 'products' collection.");
-        } else {
-          setDbError("An error occurred while fetching products.");
-          console.error("Error fetching products: ", error);
-        }
-        setIsLoadingProducts(false);
-    });
-
-    return () => unsubscribe();
+    }, 500);
   }, []);
-
-  const userOrders = orders
-    .filter(o => o.user.id === currentUser?.uid)
-    .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
-  
-  const recentOrders = userOrders.filter(order => order.status === 'Processing' || order.status === 'Order Created' || order.paymentStatus === 'Pending Payment' || order.status === 'Awaiting Payment');
   
   const uniqueCategories = useMemo(() => {
     if (products.length === 0) return [];
@@ -83,7 +75,7 @@ export default function DashboardPage() {
         {dbError && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Database Error</AlertTitle>
+            <AlertTitle>Database Disconnected</AlertTitle>
             <AlertDescription>
               {dbError}
             </AlertDescription>
@@ -104,15 +96,7 @@ export default function DashboardPage() {
                 </Button>
             </CardHeader>
             <CardContent>
-                {recentOrders.length > 0 ? (
-                    <div className="divide-y">
-                        {recentOrders.map((order: Order) => (
-                            <OrderListItem key={order.id} order={order} />
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-muted-foreground text-center py-8">{!dbError ? t('dashboard.no_actions') : "Order data is unavailable."}</p>
-                )}
+                <p className="text-muted-foreground text-center py-8">{t('dashboard.no_actions')}</p>
             </CardContent>
         </Card>
 

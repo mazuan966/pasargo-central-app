@@ -6,8 +6,6 @@ import ProductList from '@/components/shop/ProductList';
 import type { Product } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { AlertTriangle, ShoppingBag, Search } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { StorefrontHeader } from '@/components/layout/StorefrontHeader';
@@ -15,6 +13,51 @@ import { StorefrontFooter } from '@/components/layout/StorefrontFooter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageProvider';
+
+
+// Placeholder data since Firebase is removed
+const placeholderProducts: Product[] = [
+    {
+        id: '1',
+        name: 'Fresh Oranges',
+        description: 'Juicy and sweet oranges, perfect for juice.',
+        category: 'Fruits',
+        imageUrl: 'https://placehold.co/600x400.png',
+        "data-ai-hint": "orange fruit",
+        hasSst: false,
+        variants: [{ id: 'v1', name: '1kg Bag', price: 5.99, stock: 50, unit: 'kg' }],
+    },
+    {
+        id: '2',
+        name: 'Whole Wheat Bread',
+        description: 'Healthy and delicious whole wheat bread.',
+        category: 'Bakery',
+        imageUrl: 'https://placehold.co/600x400.png',
+        "data-ai-hint": "bread loaf",
+        hasSst: true,
+        variants: [{ id: 'v2', name: 'Loaf', price: 4.50, stock: 30, unit: 'item' }],
+    },
+     {
+        id: '3',
+        name: 'Milk',
+        description: 'Fresh full-cream milk.',
+        category: 'Dairy',
+        imageUrl: 'https://placehold.co/600x400.png',
+        "data-ai-hint": "milk carton",
+        hasSst: false,
+        variants: [{ id: 'v3', name: '1L Carton', price: 7.00, stock: 100, unit: 'item' }],
+    },
+    {
+        id: '4',
+        name: 'Eggs',
+        description: 'Farm-fresh organic eggs.',
+        category: 'Dairy',
+        imageUrl: 'https://placehold.co/600x400.png',
+        "data-ai-hint": "egg carton",
+        hasSst: false,
+        variants: [{ id: 'v4', name: 'Dozen', price: 12.00, stock: 80, unit: 'item' }],
+    }
+];
 
 function ProductGridSkeleton() {
   return (
@@ -41,36 +84,17 @@ function ProductGridSkeleton() {
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [dbError, setDbError] = useState<string | null>(null);
+  const [dbError, setDbError] = useState<string | null>("Firebase has been removed. Displaying placeholder data.");
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { getTranslated, t } = useLanguage();
 
   useEffect(() => {
-    if (!db) {
-      setDbError("Firebase is not configured. Please check your credentials.");
-      setIsLoadingProducts(false);
-      setProducts([]);
-      return;
-    }
-    
-    setDbError(null);
-    const productsCollection = collection(db, 'products');
-    const unsubscribe = onSnapshot(productsCollection, (snapshot) => {
-      const productsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
-      setProducts(productsList);
-      setIsLoadingProducts(false);
-    }, (error: FirestoreError) => {
-        if (error.code === 'permission-denied') {
-          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console to allow reads on the 'products' collection.");
-        } else {
-          setDbError("An error occurred while fetching products.");
-          console.error("Error fetching products: ", error);
-        }
+    // Simulate fetching products since Firebase is removed
+    setTimeout(() => {
+        setProducts(placeholderProducts);
         setIsLoadingProducts(false);
-    });
-
-    return () => unsubscribe();
+    }, 500);
   }, []);
 
   const uniqueCategories = useMemo(() => {
@@ -129,7 +153,7 @@ export default function Home() {
         {dbError && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Database Error</AlertTitle>
+            <AlertTitle>Database Disconnected</AlertTitle>
             <AlertDescription>
               {dbError}
             </AlertDescription>

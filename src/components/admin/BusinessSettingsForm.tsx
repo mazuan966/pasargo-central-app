@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,9 +11,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import type { BusinessDetails } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
 
 const formSchema = z.object({
@@ -25,27 +23,9 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const SETTINGS_ID = 'business';
-
-function SettingsSkeleton() {
-    return (
-        <div className="space-y-4 max-w-2xl">
-            <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-full" /></div>
-            <div className="space-y-2"><Skeleton className="h-4 w-20" /><Skeleton className="h-20 w-full" /></div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-full" /></div>
-                <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-full" /></div>
-            </div>
-             <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-10 w-1/2" /></div>
-            <Skeleton className="h-10 w-32" />
-        </div>
-    )
-}
-
 export function BusinessSettingsForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -58,50 +38,10 @@ export function BusinessSettingsForm() {
     },
   });
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      if (!db) {
-        toast({ title: 'Error', description: 'Database not connected.', variant: 'destructive'});
-        setIsFetching(false);
-        return;
-      }
-      setIsFetching(true);
-      try {
-        const docRef = doc(db, 'settings', SETTINGS_ID);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          form.reset(docSnap.data() as FormValues);
-        }
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-        toast({ title: 'Error', description: 'Could not fetch business settings.', variant: 'destructive'});
-      } finally {
-        setIsFetching(false);
-      }
-    };
-    fetchSettings();
-  }, [form, toast]);
-
   async function onSubmit(data: FormValues) {
-    if (!db) {
-        toast({ title: 'Error', description: 'Database not connected.', variant: 'destructive'});
-        return;
-    }
     setIsLoading(true);
-    try {
-      const docRef = doc(db, 'settings', SETTINGS_ID);
-      await setDoc(docRef, data, { merge: true });
-      toast({ title: 'Success', description: 'Business settings updated successfully.' });
-    } catch (error) {
-      console.error("Error saving settings:", error);
-      toast({ title: 'Error', description: 'Failed to save settings.', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (isFetching) {
-      return <SettingsSkeleton />;
+    toast({ title: 'Settings Update (Simulation)', description: 'Firebase has been removed. No data was saved.' });
+    setIsLoading(false);
   }
 
   return (

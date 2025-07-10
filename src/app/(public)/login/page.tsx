@@ -1,3 +1,4 @@
+
 import { UserLoginForm } from '@/components/auth/UserLoginForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Logo } from '@/components/icons/logo';
@@ -10,8 +11,8 @@ export default function UserLoginPage() {
         <div className="flex justify-center items-center mb-4">
           <Logo className="h-10 w-10 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-headline">User Login</CardTitle>
-        <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
+        <CardTitle className="text-2xl font-headline">Login</CardTitle>
+        <CardDescription>Firebase has been removed. This form is not functional.</CardDescription>
       </CardHeader>
       <CardContent>
         <UserLoginForm />

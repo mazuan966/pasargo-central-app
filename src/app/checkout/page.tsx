@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
-import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { placeOrderAction } from '@/lib/actions';
 import type { PaymentMethod } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageProvider';
 
@@ -46,14 +44,12 @@ const timeSlots = [
 export default function CheckoutPage() {
   const { cartItems, cartSubtotal, cartSst, cartTotal, clearCart } = useCart();
   const { getTranslated, t, language } = useLanguage();
-  const { userData, loading: isAuthLoading } = useAuth();
   
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
   const [minDate, setMinDate] = useState<Date>(new Date());
   const [deliveryTime, setDeliveryTime] = useState<string>('');
   const [amendmentInfo, setAmendmentInfo] = useState<AmendmentInfo | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const paymentMethod: PaymentMethod = 'Cash on Delivery';
   
   const { toast } = useToast();
   const router = useRouter();
@@ -81,10 +77,10 @@ export default function CheckoutPage() {
   }, [amendmentInfo]);
 
   useEffect(() => {
-    if (!isPlacingOrder && cartItems.length === 0 && !amendmentInfo) {
+    if (cartItems.length === 0 && !amendmentInfo) {
       router.replace('/dashboard');
     }
-  }, [cartItems, isPlacingOrder, router, amendmentInfo]);
+  }, [cartItems, router, amendmentInfo]);
 
 
   useEffect(() => {
@@ -98,35 +94,24 @@ export default function CheckoutPage() {
       toast({ variant: 'destructive', title: t('checkout.toast.missing_info_title'), description: t('checkout.toast.missing_info_description') });
       return;
     }
-    if (!userData) {
-      toast({ variant: 'destructive', title: t('checkout.toast.error_title'), description: t('checkout.toast.error_description') });
-      return;
-    }
 
     setIsPlacingOrder(true);
     
-    const result = await placeOrderAction({
-      items: cartItems,
-      subtotal: cartSubtotal,
-      sst: cartSst,
-      total: cartTotal,
-      deliveryDate: deliveryDate.toISOString(),
-      deliveryTimeSlot: deliveryTime,
-      userData: userData,
-      paymentMethod: paymentMethod,
-      language: language,
+    // Placeholder logic since Firebase is removed
+    console.log("Placing order with:", {
+        items: cartItems,
+        total: cartTotal,
+        deliveryDate,
+        deliveryTime
     });
 
-    if (result.success) {
-      clearCart();
-      localStorage.removeItem('amendmentInfo');
-      
-      toast({ title: t('checkout.toast.success_title'), description: result.message });
-      router.push(result.orderId ? `/orders/${result.orderId}` : '/orders');
-    } else {
-      toast({ variant: 'destructive', title: t('checkout.toast.failed_title'), description: result.message });
-      setIsPlacingOrder(false);
-    }
+    setTimeout(() => {
+        clearCart();
+        localStorage.removeItem('amendmentInfo');
+        toast({ title: t('checkout.toast.success_title'), description: "Order placed for processing (simulation)." });
+        router.push('/orders');
+        setIsPlacingOrder(false);
+    }, 1000);
   };
 
 
@@ -180,7 +165,7 @@ export default function CheckoutPage() {
               <CardHeader>
                 <CardTitle>{t('checkout.delivery_schedule_title')}</CardTitle>
                 <CardDescription>{amendmentInfo ? 'Your delivery is scheduled for:' : t('checkout.delivery_schedule_desc')}</CardDescription>
-              </CardHeader>
+              </Header>
               <CardContent className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="delivery-date">{t('checkout.delivery_date')}</Label>
@@ -226,7 +211,7 @@ export default function CheckoutPage() {
                     </div>
                 </CardContent>
             </Card>
-             <Button onClick={handlePlaceOrder} disabled={isPlacingOrder || !deliveryDate || !deliveryTime || isAuthLoading} className="w-full mt-6">
+             <Button onClick={handlePlaceOrder} disabled={isPlacingOrder || !deliveryDate || !deliveryTime} className="w-full mt-6">
                 {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isPlacingOrder ? t('checkout.processing') : (amendmentInfo ? t('checkout.confirm_amendment') : t('checkout.place_order'))}
             </Button>

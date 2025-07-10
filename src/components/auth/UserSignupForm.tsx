@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,9 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2, MapPin } from 'lucide-react';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 
 const formSchema = z.object({
@@ -61,6 +59,7 @@ export function UserSignupForm() {
   });
 
   const handleGetLocation = () => {
+    // This functionality remains as it does not depend on Firebase
     if (navigator.geolocation) {
       setIsGeolocating(true);
       navigator.geolocation.getCurrentPosition(
@@ -95,60 +94,8 @@ export function UserSignupForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    
-    if (!auth || !db) {
-        toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Please check the setup.'});
-        setIsLoading(false);
-        return;
-    }
-
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-        const user = userCredential.user;
-
-        const addressParts = [
-            values.address,
-            values.buildingName,
-            `${values.postcode} ${values.city}`,
-            values.state
-        ];
-        const fullAddress = addressParts.filter(Boolean).join(', ');
-        
-        const newUser: User = {
-            id: user.uid,
-            email: values.email,
-            restaurantName: values.restaurantName,
-            personInCharge: values.personInCharge,
-            address: fullAddress,
-            phoneNumber: `+60${values.phoneNumber}`,
-            latitude: values.latitude ? Number(values.latitude) : undefined,
-            longitude: values.longitude ? Number(values.longitude) : undefined,
-        };
-        
-        await setDoc(doc(db, "users", user.uid), newUser);
-
-        toast({
-            title: 'Account Created!',
-            description: "You've successfully signed up. Please log in.",
-        });
-        router.push('/login');
-
-    } catch (error: any) {
-        console.error("Signup error:", error);
-        let errorMessage = "An unknown error occurred.";
-        if (error.code === 'auth/email-already-in-use') {
-            errorMessage = "This email address is already in use by another account.";
-        } else if (error.message) {
-            errorMessage = error.message;
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Sign Up Failed',
-            description: errorMessage,
-        });
-    } finally {
-        setIsLoading(false);
-    }
+    toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Cannot sign up.'});
+    setIsLoading(false);
   }
 
   return (

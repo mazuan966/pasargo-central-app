@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,8 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -33,35 +32,8 @@ export function UserLoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-
-    if (!auth) {
-        toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Please check the setup.'});
-        setIsLoading(false);
-        return;
-    }
-
-    try {
-        await signInWithEmailAndPassword(auth, values.email, values.password);
-        toast({
-            title: 'Login Successful',
-            description: 'Welcome back!',
-        });
-        router.push('/dashboard');
-    } catch (error: any) {
-        console.error("Login error:", error);
-        let errorMessage = "An unknown error occurred. Please try again later.";
-        // The 'auth/invalid-credential' error code covers wrong password, user not found, etc.
-        if (error.code === 'auth/invalid-credential') {
-            errorMessage = "The email or password you entered is incorrect. Please try again.";
-        }
-        toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: errorMessage,
-        });
-    } finally {
-        setIsLoading(false);
-    }
+    toast({ variant: 'destructive', title: 'Firebase Not Configured', description: 'Cannot log in.'});
+    setIsLoading(false);
   }
 
   return (

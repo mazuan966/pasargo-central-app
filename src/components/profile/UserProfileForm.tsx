@@ -11,9 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
-import { useAuth } from '@/hooks/use-auth';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { Skeleton } from '../ui/skeleton';
 import { useLanguage } from '@/context/LanguageProvider';
 
@@ -27,98 +24,26 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-function ProfileSkeleton() {
-    return (
-        <div className="space-y-4 max-w-2xl">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-            </div>
-            <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-20 w-full" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                 <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-            </div>
-            <Skeleton className="h-10 w-32" />
-        </div>
-    )
-}
-
-
 export function UserProfileForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const { userData, currentUser, loading } = useAuth();
   const { t } = useLanguage();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-        restaurantName: '',
-        personInCharge: '',
-        address: '',
-        phoneNumber: '',
-        email: '',
+        restaurantName: 'Demo Cafe',
+        personInCharge: 'Demo User',
+        address: '123 Jalan Demo, 50000 Kuala Lumpur',
+        phoneNumber: '123456789',
+        email: 'demo@example.com',
     }
   });
 
-  useEffect(() => {
-    if (userData) {
-        form.reset({
-            ...userData,
-            phoneNumber: userData.phoneNumber?.replace('+60', '') || ''
-        });
-    }
-  }, [userData, form]);
-
   async function onSubmit(data: ProfileFormValues) {
     setIsLoading(true);
-    if (!currentUser || !db) {
-        toast({ title: "Error", description: "You must be logged in to update your profile.", variant: "destructive" });
-        setIsLoading(false);
-        return;
-    }
-    
-    try {
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userDocRef, {
-            restaurantName: data.restaurantName,
-            personInCharge: data.personInCharge,
-            address: data.address,
-            phoneNumber: `+60${data.phoneNumber}`,
-        });
-        toast({
-          title: 'Profile Updated',
-          description: 'Your details have been saved successfully.',
-        });
-    } catch(error: any) {
-        toast({ title: "Update Failed", description: error.message, variant: "destructive" });
-    } finally {
-        setIsLoading(false);
-    }
-  }
-
-  if (loading) {
-      return <ProfileSkeleton />;
-  }
-  
-  if (!userData && !loading) {
-      return <div>Could not load user profile. Please try again.</div>;
+    toast({ title: "Profile Update (Simulation)", description: "Firebase has been removed. No data was saved." });
+    setIsLoading(false);
   }
 
   return (

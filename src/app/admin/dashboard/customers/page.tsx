@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,49 +14,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Loader2, AlertTriangle, ArrowRight } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, FirestoreError } from 'firebase/firestore';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function AdminCustomersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dbError, setDbError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dbError, setDbError] = useState<string | null>("Firebase has been removed. Customer data is unavailable.");
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setIsLoading(true);
-      setDbError(null);
-      if (!db) {
-        setDbError("Firebase is not configured. Please add your credentials to the .env file.");
-        setUsers([]);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const usersCollection = collection(db, 'users');
-        const userSnapshot = await getDocs(usersCollection);
-        const usersList = userSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as User[];
-        setUsers(usersList);
-      } catch (error) {
-        if (error instanceof FirestoreError && error.code === 'permission-denied') {
-          setDbError("Permission Denied: Your Firestore security rules are preventing access. Please update them in the Firebase console to allow reads on the 'users' collection.");
-        } else {
-          setDbError("An error occurred while fetching users.");
-          console.error(error);
-        }
-        setUsers([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
-  
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();

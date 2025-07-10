@@ -25,9 +25,6 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/hooks/use-cart';
-import { useAuth } from '@/hooks/use-auth';
-import { auth } from '@/lib/firebase';
-import { signOut } from 'firebase/auth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
@@ -66,7 +63,6 @@ function CartNavLink() {
 }
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
-  const { userData } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { cartCount } = useCart();
@@ -77,14 +73,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   }, []);
 
   const handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-      router.push('/login');
-    }
+    router.push('/login');
   };
   
   const getInitials = (name?: string) => {
-    if (!name) return 'U';
+    if (!name) return 'D';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
@@ -175,13 +168,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 <Button variant="secondary" size="icon" className="rounded-full">
                   <Avatar>
                     <AvatarImage src="https://placehold.co/40x40.png" alt="User avatar" />
-                    <AvatarFallback>{getInitials(userData?.restaurantName)}</AvatarFallback>
+                    <AvatarFallback>{getInitials('Demo User')}</AvatarFallback>
                   </Avatar>
                   <span className="sr-only">Toggle user menu</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{userData?.restaurantName || 'My Account'}</DropdownMenuLabel>
+                <DropdownMenuLabel>Demo User</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="flex items-center w-full cursor-pointer">
