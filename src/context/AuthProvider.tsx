@@ -26,7 +26,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Only run this on the client
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !auth || !db) { // Check for auth and db
+        setLoading(false); // Stop loading if firebase is not configured
+        return;
+    };
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -53,7 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, []); // Removed dependencies
+
+  // Move useMemo before the conditional return to ensure hooks are called in the same order.
+  const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
   if (loading) {
     return (
@@ -62,8 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
-
-  const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
   return (
     <AuthContext.Provider value={value}>
