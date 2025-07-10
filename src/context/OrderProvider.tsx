@@ -2,14 +2,10 @@
 'use client';
 
 import React, { createContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
-import type { Order, OrderStatus, CartItem, PaymentMethod, User } from '@/lib/types';
+import type { Order, OrderStatus } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, FirestoreError, getCountFromServer, writeBatch, runTransaction } from 'firebase/firestore';
+import { collection, updateDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, FirestoreError, writeBatch } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
-import { sendWhatsAppMessage } from '@/lib/whatsapp';
-import { getTranslation, getTranslatedItemField } from '@/lib/translations';
-import { format } from 'date-fns';
-
 
 interface OrderContextType {
   orders: Order[];
@@ -23,12 +19,11 @@ export const OrderContext = createContext<OrderContextType | undefined>(undefine
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const { currentUser, userData, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
 
   const isUserAdmin = useMemo(() => {
-    // Basic admin check based on a known UID or a custom claim in a real app.
-    // This logic should be hardened in a real application.
-    return !currentUser || currentUser.email === 'pasargo.admin@gmail.com'; // Example admin email
+    // This logic should be hardened in a real application with custom claims.
+    return !currentUser || currentUser.email === 'pasargo.admin@gmail.com'; 
   }, [currentUser]);
 
   useEffect(() => {
@@ -38,6 +33,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     if (!db) {
       console.warn("OrderProvider: Firestore is not available, skipping order fetch.");
+      setOrders([]); // Ensure orders are cleared if db is not ready
       return;
     }
 
@@ -45,7 +41,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const ordersCollection = collection(db, 'orders');
 
     if (isUserAdmin) {
-      // Admin sees all orders
+      // Admin sees all orders, sorted by date
       q = query(ordersCollection, orderBy('orderDate', 'desc'));
     } else if (currentUser) {
       // Regular user sees only their orders.

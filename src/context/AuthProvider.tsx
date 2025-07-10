@@ -21,6 +21,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userData, setUserData] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
+
   useEffect(() => {
     // Only run this on the client
     if (typeof window === "undefined") {
@@ -60,8 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe();
   }, []);
-
-  const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
   if (loading) {
     return (
