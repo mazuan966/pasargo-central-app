@@ -7,7 +7,6 @@ import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import type { User as AppUser } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -21,13 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userData, setUserData] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     // Only run this on the client
-    if (typeof window === "undefined" || !auth || !db) { // Check for auth and db
-        setLoading(false); // Stop loading if firebase is not configured
+    if (typeof window === "undefined" || !auth || !db) {
+        setLoading(false);
         return;
     };
 
@@ -40,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userDoc.exists()) {
             setUserData({ id: userDoc.id, ...userDoc.data() } as AppUser);
           } else {
-             // Handle case where user exists in Auth but not Firestore
              console.warn("User document not found in Firestore for UID:", user.uid);
              setUserData(null);
           }
@@ -56,9 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []); // Removed dependencies
+  }, []);
 
-  // Move useMemo before the conditional return to ensure hooks are called in the same order.
   const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
   if (loading) {
