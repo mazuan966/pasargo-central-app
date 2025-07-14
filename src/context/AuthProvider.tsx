@@ -4,7 +4,7 @@
 import { createContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import type { User as AppUser } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
@@ -24,48 +24,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ currentUser, userData, loading }), [currentUser, userData, loading]);
 
   useEffect(() => {
-    // Only run this on the client
-    if (typeof window === "undefined" || !auth || !db) {
+    // This check ensures Firebase services are available before proceeding.
+    if (!auth || !db) {
+      console.warn("Firebase not configured. Disabling auth features.");
       setLoading(false);
       return;
-    };
+    }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
       if (user) {
-        setCurrentUser(user);
-        // Use onSnapshot to listen for real-time updates to user data
         const userDocRef = doc(db, 'users', user.uid);
-        const unsubUserDoc = onSnapshot(userDocRef, (doc) => {
-            if (doc.exists()) {
-                setUserData({ id: doc.id, ...doc.data() } as AppUser);
-            } else {
-                console.warn("User document not found in Firestore for UID:", user.uid);
-                setUserData(null);
-            }
+        const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
+          if (doc.exists()) {
+            setUserData({ id: doc.id, ...doc.data() } as AppUser);
+          } else {
+            setUserData(null);
+          }
+          setLoading(false);
         }, (error) => {
-           console.error("Error listening to user data from Firestore:", error);
-           setUserData(null);
+          console.error("Error fetching user document:", error);
+          setUserData(null);
+          setLoading(false);
         });
-
-        // Detach the listener when the auth state changes
-        return () => unsubUserDoc();
+        return () => unsubscribeUser();
       } else {
-        setCurrentUser(null);
         setUserData(null);
         setLoading(false);
       }
     });
 
-    // Set loading to false once the initial auth state check is complete
-    const initialAuthCheck = () => {
-        setLoading(false);
-    };
-    const unsubInitial = onAuthStateChanged(auth, user => {
-        initialAuthCheck();
-        unsubInitial(); // Unsubscribe after the first callback
-    });
-
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   if (loading) {
