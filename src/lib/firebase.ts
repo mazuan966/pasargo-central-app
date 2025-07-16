@@ -5,20 +5,24 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration, hardcoded for reliability.
 export const firebaseConfig = {
-  apiKey: "AIzaSyB0SocaLGHuF_ge4js081vcPzeEkhfqKmk",
-  authDomain: "pasargo-trial.firebaseapp.com",
-  projectId: "pasargo-trial",
-  storageBucket: "pasargo-trial.firebasestorage.app",
-  messagingSenderId: "1004446852115",
-  appId: "1:1004446852115:web:effa3486170fcde6d70be6",
-  measurementId: "G-FGBRG8S7VL"
+  apiKey: "AIzaSyC9mZlFclntOb_vF4msMjZcduSOETlRY6I",
+  authDomain: "pasargo-central.firebaseapp.com",
+  projectId: "pasargo-central",
+  storageBucket: "pasargo-central.firebasestorage.app",
+  messagingSenderId: "909679104927",
+  appId: "1:909679104927:web:632c43341dc54c1ac6a3aa"
 };
+
+console.log(firebaseConfig);
 
 let app: FirebaseApp;
 // This is the modern equivalent of the "if (!firebase.apps.length)" pattern.
 // It ensures that Firebase is initialized only once, preventing errors.
+console.log('Firebase initialization logic reached');
+
 if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
+    console.log('Initializing Firebase with config:', firebaseConfig);
+app = initializeApp(firebaseConfig);
 } else {
     app = getApp();
 }
